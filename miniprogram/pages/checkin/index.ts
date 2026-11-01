@@ -187,10 +187,14 @@ Page({
   /* ── 打卡 ── */
   onTake() {
     if (this.data.viewState !== 'pending') return; // 只有待打卡视图能打卡（终态锁死防连点）
+    // 与 build() 同源：能不能记这一条的判据是"本人就是服药人"(isSelf)，不是"开着大字版"(elder)
     const list = (this._pendingAll || []).filter(
-      (r: any) => r.status === 'pending' || (this.data.elder && r.status === 'missed' && !r.is_corrected),
+      (r: any) => r.status === 'pending' || (isSelf() && r.status === 'missed' && !r.is_corrected),
     );
-    if (!list.length) return;
+    if (!list.length) {
+      wx.showToast({ title: '这条已经记过了，不用重复点', icon: 'none' });
+      return;
+    }
     wx.vibrateShort({ type: 'heavy', fail: () => {} } as any);
     // 子女端保留 3 秒撤销：窗口内暂缓上行，撤销即"没发生过"（契约无 taken→pending）
     take(list, this.data.elder ? 0 : 3000);
