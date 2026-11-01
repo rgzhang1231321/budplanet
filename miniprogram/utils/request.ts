@@ -11,6 +11,8 @@ import { logClient } from './logger';
 export interface CallOptions {
   method?: 'GET' | 'POST';
   silent?: boolean;
+  /** 1001 续期后只重放一次的标记，由本模块内部设置，调用方不要传 */
+  replayed?: boolean;
 }
 
 export class ApiError extends Error {
@@ -20,8 +22,6 @@ export class ApiError extends Error {
     this.code = code;
   }
 }
-
-let retriedOnce = false;
 
 function qs(data: Record<string, any>): string {
   const parts = Object.keys(data || {})
@@ -75,15 +75,27 @@ export async function call<T = any>(domain: string, action: string, data: Record
   const env = await raw(domain, action, data, method);
   if (env.code === 0) return env.data as T;
 
-  if (env.code === 1001 && !retriedOnce) {
-    retriedOnce = true;
-    try {
-      await refreshSession();
-      retriedOnce = false;
-      return await call<T>(domain, action, data, opts);
-    } catch (e) {
-      retriedOnce = false;
+  // 1001 只续期重放一次：用入参标记传染「已重放过」，不用模块变量复位——
+  // 模块变量在递归里会被复位成 false，重放再失败就无限重登，把登录接口打爆。
+  if (env.code === 1001) {
+    if (!opts.replayed) {
+      let renewed = false;
+      try {
+        await refreshSession();
+        renewed = true;
+      } catch (e) {
+        renewed = false; // 续期失败不再重试，落到下面抛错
+      }
+      if (renewed) return call<T>(domain, action, data, { ...opts, replayed: true });
     }
+    if (!opts.silent) wx.showToast({ title: '登录已过期，请重新进入', icon: 'none' });
+    logClient('warn', `${domain}.${action} → code=1001 续期后仍未登录`, {
+      scene: 'api_error',
+      domain,
+      action,
+      code: 1001,
+    });
+    throw new ApiError(1001, env.msg || '登录已过期，请重新进入');
   }
   handleError(env.code, env.msg, !!opts.silent);
   // 业务失败也落库：code=1005「点了没反应」、1004「名额不够」都从这条线出来。
