@@ -27,6 +27,9 @@ public sealed class LoginHandler(IAppDbContext db, IWxApiClient wx, IJwtIssuer j
             db.Add(user);
         }
         user.LastLoginAt = now;
+        // 人回来了就说明这条通道可达：注销时置的 unreachable 必须在登录时清掉，
+        // 否则注销后重新注册的账号永远收不到订阅消息，而界面上一切正常 —— 最难查的一类问题。
+        user.Unreachable = false;
         if (!string.IsNullOrEmpty(session.Unionid)) user.Unionid = session.Unionid;
         await db.SaveChangesAsync(ct);
 

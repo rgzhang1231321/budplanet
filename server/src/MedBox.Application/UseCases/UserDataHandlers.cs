@@ -165,6 +165,19 @@ public sealed class EraseHandler(IAppDbContext db, IClock clock)
                 .ToListAsync(ct);
             if (rest.Count > 0 && rest.All(m => m.Role != "admin"))
                 rest[0].Role = "admin";
+            else if (rest.Count == 0)
+            {
+                // 家里再没有别人：这个家成了没有成员的孤儿家庭，药品/记录还在库里，
+                // 但没有任何账号能再进来。必须把邀请令牌作废 —— 否则一个无人管理的
+                // 家庭仍占着唯一邀请码，且原链接还能把陌生人引到一个谁也进不去的家。
+                var orphan = families.FirstOrDefault(x => x.FamilyId == fid);
+                if (orphan is not null)
+                {
+                    orphan.InviteToken = null;
+                    orphan.InviteExpireAt = null;
+                    orphan.MemberCount = 0;
+                }
+            }
         }
 
         var bound = await db.Patients.Where(p => p.SelfOpenid == openid).ToListAsync(ct);
