@@ -12,7 +12,7 @@ import { report } from '../../utils/report';
 Page({
   data: {
     elder: false,
-    viewState: 'pending' as 'pending' | 'taken' | 'empty',
+    viewState: 'pending' as 'pending' | 'taken' | 'missed' | 'empty',
     list: [] as any[],
     folded: false,
     extra: 0,
@@ -33,6 +33,9 @@ Page({
     showCountdown: false,
     countdownText: '',
     whoText: '',
+    canMakeup: false,
+    missTitle: '',
+    missWhy: '',
   },
 
   onLoad(q: Record<string, string>) {
@@ -81,30 +84,36 @@ Page({
       return;
     }
     let list: any[] = [];
-    let viewState: 'pending' | 'taken' = 'pending';
+    let viewState: 'pending' | 'taken' | 'missed' = 'pending';
 
     if (this._doseId) {
       const hit = rows.find((r) => r.dose_id === this._doseId);
       if (hit) {
         if (hit.status === 'pending') list = rows.filter((r) => r.status === 'pending' && r.slot === hit.slot);
         else {
+          // 只有 taken 才是「已服」；missed / skipped 必须按事实渲染，否则就是假成功
           list = [hit];
-          viewState = 'taken';
+          viewState = hit.status === 'taken' ? 'taken' : 'missed';
         }
       }
     }
     if (!list.length) {
       // 漏服项仍可打卡：系统判 missed 但人确实吃了，是最高频的假阳性（契约允许 missed→taken）
       const pend = rows
-        // 漏服项仍可打卡：系统判 missed 但人确实吃了，是最高频的假阳性（契约允许 missed→taken）。
         // 判据是"本人就是服药人"，不是"开着大字版"。
         .filter((r) => r.status === 'pending' || (isSelf() && r.status === 'missed' && !r.is_corrected))
         .sort((a, b) => a.slot - b.slot);
       if (pend.length) list = pend.filter((r) => r.slot === pend[0].slot);
       else {
         const taken = rows.filter((r) => r.status === 'taken');
-        list = taken.length ? [taken[taken.length - 1]] : [rows[rows.length - 1]];
-        viewState = 'taken';
+        if (taken.length) {
+          list = [taken[taken.length - 1]];
+          viewState = 'taken';
+        } else {
+          // 一条已服都没有：末条只可能是 missed / skipped，按事实给漏服视图，不冒充成功
+          list = [rows[rows.length - 1]];
+          viewState = 'missed';
+        }
       }
     }
 
@@ -144,6 +153,22 @@ Page({
 
     if (viewState === 'taken') {
       this.setData({ showShare: true, canUndo: false, syncShow: false });
+    } else if (viewState === 'missed') {
+      // 契约 §7：missed（系统判定、未人工改判）→ taken 允许；skipped 与已改判的 missed 是终态。
+      const r: any = list[0];
+      const canMakeup = r.status === 'missed' && !r.is_corrected;
+      this.setData({
+        canMakeup,
+        missTitle: r.status === 'missed' ? '这条已经漏服了' : '这条标了「不吃」',
+        missWhy: canMakeup
+          ? '过了时间还没打卡，系统记成了漏服。如果确实吃了，点下面补记。'
+          : r.status === 'missed'
+            ? '这条已经人工改判过，按规则不能再改。'
+            : '当天标了跳过，按规则不能改成已服。',
+        showShare: false,
+        canUndo: false,
+        syncShow: false,
+      });
     }
   },
 
@@ -161,7 +186,7 @@ Page({
 
   /* ── 打卡 ── */
   onTake() {
-    if (this.data.viewState === 'taken') return; // 终态锁死防连点
+    if (this.data.viewState !== 'pending') return; // 只有待打卡视图能打卡（终态锁死防连点）
     const list = (this._pendingAll || []).filter(
       (r: any) => r.status === 'pending' || (this.data.elder && r.status === 'missed' && !r.is_corrected),
     );
@@ -174,6 +199,25 @@ Page({
     if (!this.data.elder) {
       this._undoTimer = setTimeout(() => this.setData({ canUndo: false }), 3000);
     }
+  },
+
+  /** 漏服补记：走 checkin.submit(status=taken)，契约 §7 允许 missed(系统判定、未改判)→taken。
+   *  skipped 与已人工改判的 missed 是终态，页面不提供本入口。 */
+  onMakeup() {
+    const r = (this._pendingAll || [])[0];
+    if (!r || r.status !== 'missed' || r.is_corrected) {
+      wx.showToast({ title: '这条已经不能补记了', icon: 'none' });
+      return;
+    }
+    take([r], 0);
+    this.setData({
+      viewState: 'taken',
+      syncShow: true,
+      syncState: 'sending',
+      canUndo: false,
+      showShare: true,
+      subText: this.takenSub([r]),
+    });
   },
 
   onUndo() {

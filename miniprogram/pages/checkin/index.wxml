@@ -77,6 +77,29 @@
     </view>
   </view>
 
+  <!-- ── 漏服 / 跳过：只说事实 + 契约允许的出路（不许渲染成打卡成功） ── -->
+  <view wx:elif="{{viewState === 'missed'}}" class="ck">
+    <view class="ck__head">
+      <text class="ck__when">{{headText}}</text>
+    </view>
+
+    <view class="ck__card">
+      <text class="ck__name">{{list[0].medicine_name}}</text>
+      <text class="ck__dose">{{list[0].dose_text}}</text>
+      <view class="ck__badge"><status-badge status="{{list[0].status}}" big="{{true}}"></status-badge></view>
+    </view>
+
+    <view class="ck__actions">
+      <text class="ck__empty-t">{{missTitle}}</text>
+      <text class="ck__empty-d mt-2">{{missWhy}}</text>
+      <view class="mt-5">
+        <primary-button wx:if="{{canMakeup}}" label="确实吃了，补记" bind:tap="onMakeup"></primary-button>
+        <primary-button wx:else label="返回今日" bind:tap="goHome"></primary-button>
+      </view>
+      <text class="ck__who">{{whoText}}</text>
+    </view>
+  </view>
+
   <!-- ── 今日已全部完成 / 无数据 ── -->
   <view wx:else class="ck">
     <view class="ck__empty">
