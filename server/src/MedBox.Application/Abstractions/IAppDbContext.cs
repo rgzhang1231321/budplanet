@@ -14,6 +14,8 @@ public interface IAppDbContext
     IQueryable<Patient> Patients { get; }
     IQueryable<Medicine> Medicines { get; }
     IQueryable<MedicineCommon> MedicinesCommon { get; }
+    /// <summary>全平台药名引用次数（V008）。只读 + 走 Bump 累加，业务代码不要直接改计数。</summary>
+    IQueryable<MedicineUsageStat> MedicineUsageStats { get; }
     IQueryable<Plan> Plans { get; }
     IQueryable<DoseLog> DoseLogs { get; }
     IQueryable<AppConfigEntry> AppConfigs { get; }
@@ -65,4 +67,14 @@ public interface IAppDbContext
     /// 不用"先 Any 再 Add"——两个 tick / 两个实例同时入队会撞主键抛 1009，而任务其实已经排上了。
     /// </summary>
     Task<int> InsertPushTaskIgnoreConflictAsync(PushTask row, CancellationToken ct = default);
+
+    /// <summary>
+    /// 药名引用次数增减（V008）。`delta = +1` 走 `INSERT … ON CONFLICT DO UPDATE SET use_count = use_count + 1`，
+    /// `delta = -1` 走 `UPDATE … SET use_count = GREATEST(use_count - 1, 0)`（减到不存在的药名不凭空造行）。
+    ///
+    /// 必须是单条原子语句 —— "先查再改"在两个家庭同时加同一个药时会丢计数，
+    /// 而计数丢一次就永久偏低（榜单看不出错，只是某个药永远差几名）。
+    /// 返回受影响行数（1 = 写入成功，0 = 减的时候没有这一行）。
+    /// </summary>
+    Task<int> AddMedicineUsageAsync(string nameKey, string name, string? spec, string? defaultDose, int delta, long nowMs, CancellationToken ct = default);
 }

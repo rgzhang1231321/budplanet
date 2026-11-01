@@ -21,6 +21,7 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<Medicine> Medicines => Set<Medicine>();
     public DbSet<MedicineCommon> MedicinesCommon => Set<MedicineCommon>();
+    public DbSet<MedicineUsageStat> MedicineUsageStats => Set<MedicineUsageStat>();
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<DoseLog> DoseLogs => Set<DoseLog>();
     public DbSet<AppConfigEntry> AppConfigs => Set<AppConfigEntry>();
@@ -40,6 +41,7 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
     IQueryable<Patient> IAppDbContext.Patients => Patients;
     IQueryable<Medicine> IAppDbContext.Medicines => Medicines;
     IQueryable<MedicineCommon> IAppDbContext.MedicinesCommon => MedicinesCommon;
+    IQueryable<MedicineUsageStat> IAppDbContext.MedicineUsageStats => MedicineUsageStats;
     IQueryable<Plan> IAppDbContext.Plans => Plans;
     IQueryable<DoseLog> IAppDbContext.DoseLogs => DoseLogs;
     IQueryable<AppConfigEntry> IAppDbContext.AppConfigs => AppConfigs;
@@ -183,6 +185,30 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
                 row.Payload, row.RetryCount, row.NextRetryAt, row.CreatedAt,
             }, ct);
 
+    async Task<int> IAppDbContext.AddMedicineUsageAsync(
+        string nameKey, string name, string? spec, string? defaultDose, int delta, long nowMs, CancellationToken ct)
+    {
+        if (delta > 0)
+            // 加：单条 upsert。展示值跟着最近一次添加走（用户改了规格，榜上也该是新规格）
+            return await Database.ExecuteSqlRawAsync(
+                "INSERT INTO medicine_usage_stats (name_key, name, spec, default_dose, use_count, last_used_at) " +
+                "VALUES ({0}, {1}, {2}, {3}, {4}, {5}) " +
+                "ON CONFLICT (name_key) DO UPDATE SET " +
+                "use_count = medicine_usage_stats.use_count + EXCLUDED.use_count, " +
+                "last_used_at = EXCLUDED.last_used_at, " +
+                "name = EXCLUDED.name, " +
+                "spec = COALESCE(EXCLUDED.spec, medicine_usage_stats.spec), " +
+                "default_dose = COALESCE(EXCLUDED.default_dose, medicine_usage_stats.default_dose)",
+                new object[] { nameKey, name, spec ?? (object)DBNull.Value, defaultDose ?? (object)DBNull.Value, delta, nowMs },
+                ct);
+
+        // 减：只 UPDATE，不 INSERT —— 减到一个不存在的药名不该凭空造一行 0 出来。
+        // GREATEST 兜底 0：计数偏低比出现负数安全（负数会让榜单排序彻底乱掉）。
+        return await Database.ExecuteSqlRawAsync(
+            "UPDATE medicine_usage_stats SET use_count = GREATEST(use_count - 1, 0) WHERE name_key = {0}",
+            new object[] { nameKey }, ct);
+    }
+
     private static void Add(DbCommand cmd, string name, object? value)
     {
         var p = cmd.CreateParameter();
@@ -290,6 +316,18 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
             e.Property(x => x.DoseUnit).HasColumnName("dose_unit").HasMaxLength(16);
             e.Property(x => x.Tags).HasColumnName("tags").HasColumnType("text[]");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
+        });
+
+        b.Entity<MedicineUsageStat>(e =>
+        {
+            e.ToTable("medicine_usage_stats");
+            e.HasKey(x => x.NameKey);
+            e.Property(x => x.NameKey).HasColumnName("name_key").HasMaxLength(128);
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(128);
+            e.Property(x => x.Spec).HasColumnName("spec").HasMaxLength(128);
+            e.Property(x => x.DefaultDose).HasColumnName("default_dose").HasMaxLength(32);
+            e.Property(x => x.UseCount).HasColumnName("use_count");
+            e.Property(x => x.LastUsedAt).HasColumnName("last_used_at");
         });
 
         b.Entity<Plan>(e =>

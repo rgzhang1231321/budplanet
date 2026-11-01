@@ -11,6 +11,7 @@ namespace MedBox.Api.Controllers;
 public sealed class MedicineController(
     MedicineListHandler list,
     CommonMedsHandler common,
+    MedicineSuggestHandler suggest,
     MedicineCreateHandler create,
     MedicineUpdateHandler update,
     MedicineArchiveHandler archive) : ControllerBase
@@ -25,6 +26,15 @@ public sealed class MedicineController(
     [AllowAnonymous]
     public async Task<ApiResponse> Common(CancellationToken ct)
         => ApiResponse.Ok(await common.HandleAsync(ct));
+
+    /// <summary>
+    /// 药名联想 / 常用药 Top5：本家庭历史用药（含已归档）按引用次数排序，不足用平台预设补位。
+    /// q 为空 = 取 chips；q 非空 = 取联想。**要鉴权**，因为它读的是这个家庭自己的用药史。
+    /// </summary>
+    [HttpGet("suggest")]
+    [Authorize]
+    public async Task<ApiResponse> Suggest([FromQuery] string fid, [FromQuery] string? q, CancellationToken ct)
+        => ApiResponse.Ok(await suggest.HandleAsync(fid, User.OpenId(), q, ct));
 
     [HttpPost("create")]
     [Authorize]

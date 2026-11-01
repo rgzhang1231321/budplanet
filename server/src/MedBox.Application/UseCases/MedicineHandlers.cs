@@ -66,6 +66,97 @@ public sealed class CommonMedsHandler(IAppDbContext db, IClock clock)
     }
 }
 
+/// <summary>
+/// medicine.suggest：P22 药名输入联想 + 「常用药」chips 的唯一数据源。
+///
+/// - `q` 为空 → **全平台引用次数 Top5**（`medicine_usage_stats`，净次数 ≥ 门槛才上榜），
+///   不足 5 条用平台预设补位 —— 新库第一眼看到的仍是"苯磺酸氨氯地平片"这类入口，不是空白。
+/// - `q` 非空 → 本家庭历史（含已归档，按最近添加）→ 全平台榜 → 平台预设，去重后最多 8 条。
+///   自家药排最前：全平台榜会被更热门的药占满，把"我妈在吃的那一个"挤到看不见。
+///
+/// 与 `medicine.common` 的分工：那个是"平台预设、免登、给所有人"，这个是"全平台榜 + 你自己的历史、要鉴权"。
+/// 不复用同一个端点是因为 common 是公开只读的（匿名可取），一旦挂上 fid 就得连带改鉴权模型。
+/// </summary>
+public sealed class MedicineSuggestHandler(IAppDbContext db, IMemberGuard guard, IClock clock)
+{
+    public async Task<MedicineSuggestResult> HandleAsync(string fid, string openid, string? q, CancellationToken ct = default)
+    {
+        await guard.AssertMemberAsync(fid, openid, ct);
+
+        var kw = MedicineUsage.Normalize(q);
+        var withKeyword = kw.Length > 0;
+        var limit = withKeyword ? MedicineUsage.SuggestLimit : MedicineUsage.CommonTop;
+
+        var presets = (await db.MedicinesCommon.OrderBy(x => x.Id).Take(20).ToListAsync(ct))
+            .Where(x => MedicineUsage.Matches(x.Name, kw))
+            .ToList();
+        // 预设名本来就是公开数据（/api/medicine/common 匿名可取），它们上榜不需要过门槛
+        var presetKeys = presets.Select(x => MedicineUsage.Normalize(x.Name)).ToHashSet(StringComparer.Ordinal);
+
+        // 全平台榜：自定义药名要过门槛（见 MedicineUsage.MinCountToRank），联想只要 ≥1 就行
+        var statRows = await db.MedicineUsageStats
+            .Where(x => x.UseCount >= 1)
+            .OrderByDescending(x => x.UseCount)
+            .ThenByDescending(x => x.LastUsedAt)
+            .ThenBy(x => x.Name)
+            .Take(50)
+            .Select(x => new { x.Name, x.Spec, x.DefaultDose, x.UseCount })
+            .ToListAsync(ct);
+
+        var ranked = statRows
+            .Where(x => withKeyword || x.UseCount >= MedicineUsage.MinCountToRank
+                        || presetKeys.Contains(MedicineUsage.Normalize(x.Name)))
+            .Where(x => MedicineUsage.Matches(x.Name, kw))
+            .ToList();
+
+        var countOf = ranked
+            .GroupBy(x => MedicineUsage.Normalize(x.Name), StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().UseCount, StringComparer.Ordinal);
+
+        var global = ranked
+            .Select(x => new MedicineSuggestDto { Name = x.Name, Spec = x.Spec, DefaultDose = x.DefaultDose, Count = x.UseCount });
+
+        var groups = new List<IEnumerable<MedicineSuggestDto>>();
+        if (withKeyword) groups.Add(await FamilyHistoryAsync(fid, kw, countOf, ct));
+        groups.Add(global);
+        groups.Add(presets.Select(x => new MedicineSuggestDto { Name = x.Name, Spec = x.Spec, DefaultDose = x.DefaultDose, Count = 0 }));
+
+        return new MedicineSuggestResult
+        {
+            Items = MedicineUsage.Merge(groups, x => x.Name, limit),
+            ServerTs = clock.NowMs,
+        };
+    }
+
+    /// <summary>
+    /// 本家庭的历史用药，含已归档：删掉的药往往正是过一阵要再添加的那一个。
+    /// 顺序取"最近添加"，不按次数 —— 一个家庭就几个药，最近用过的最可能再用。
+    /// </summary>
+    private async Task<List<MedicineSuggestDto>> FamilyHistoryAsync(
+        string fid, string kw, Dictionary<string, int> countOf, CancellationToken ct)
+    {
+        // Take(200) 只是防脏数据把响应撑爆的硬顶，家庭药品有免费名额限制，正常远小于这个数
+        var rows = await db.Medicines
+            .Where(x => x.FamilyId == fid)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(200)
+            .Select(x => new { x.Name, x.Spec, x.DefaultDose })
+            .ToListAsync(ct);
+
+        return rows
+            .Where(x => MedicineUsage.Matches(x.Name, kw))
+            .Select(x => new MedicineSuggestDto
+            {
+                Name = x.Name,
+                Spec = x.Spec,
+                DefaultDose = x.DefaultDose,
+                // 自家药也带全平台次数，前端"用过 N 次"才不会忽有忽无
+                Count = countOf.TryGetValue(MedicineUsage.Normalize(x.Name), out var c) ? c : 0,
+            })
+            .ToList();
+    }
+}
+
 /// <summary>免费 3 个，第 4 个起要激励视频名额（credits 来自 entitlements，MVP 暂记 0）。</summary>
 public sealed class MedicineCreateHandler(IAppDbContext db, IMemberGuard guard, ConfigReader config, EntitlementService entitlements, ContentSecurityChecker security, IClock clock)
 {
@@ -86,6 +177,12 @@ public sealed class MedicineCreateHandler(IAppDbContext db, IMemberGuard guard, 
         if (owned >= cfg.FreeMedLimit + bonus) throw new QuotaExceededException("免费药品名额已用完");
 
         var mid = "M" + Guid.NewGuid().ToString("N")[..10];
+        var dose = string.IsNullOrWhiteSpace(defaultDose) ? "1片" : defaultDose;
+
+        // 全平台引用次数 +1。放在建药之前：计数写失败就当这次没建。
+        // 反过来（先建药再计数）会让用户看到"保存失败"却已经多了一个药，重试就重复占名额。
+        await db.AddMedicineUsageAsync(MedicineUsage.Normalize(name), name.Trim(), spec, dose, 1, clock.NowMs, ct);
+
         db.Add(new Medicine
         {
             MedicineId = mid,
@@ -93,7 +190,7 @@ public sealed class MedicineCreateHandler(IAppDbContext db, IMemberGuard guard, 
             PatientId = patient.PatientId,
             Name = name.Trim(),
             Spec = spec,
-            DefaultDose = string.IsNullOrWhiteSpace(defaultDose) ? "1片" : defaultDose,
+            DefaultDose = dose,
             Remark = note,
             Status = "active",
             CreatedBy = openid,
@@ -168,6 +265,10 @@ public sealed class MedicineArchiveHandler(IAppDbContext db, IMemberGuard guard,
         foreach (var row in stale) db.Remove(row);
 
         await db.SaveChangesAsync(ct);
+
+        // 全平台引用次数 −1。放在归档成功之后：归档已经生效，计数失败最多让榜单偏高一次；
+        // 反过来（先减后归档）一旦归档失败，就会出现"药还在、榜上却没它"。
+        await db.AddMedicineUsageAsync(MedicineUsage.Normalize(med.Name), med.Name, med.Spec, med.DefaultDose, -1, now, ct);
         return new { ok = true };
     }
 }

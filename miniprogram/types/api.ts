@@ -122,6 +122,17 @@ export interface MedicineItem {
   cycle_type: string;
 }
 
+/**
+ * medicine.suggest 的一项（药名联想 / 常用药 chips）。
+ * `count` = 这个药名在本家庭被添加过几次：0 = 平台预设补位，≥1 = 自己用过的。
+ */
+export interface MedicineSuggestItem {
+  name: string;
+  spec?: string;
+  default_dose?: string;
+  count: number;
+}
+
 export interface CheckinItem {
   pid: string;
   date: string;

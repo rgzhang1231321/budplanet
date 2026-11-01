@@ -498,16 +498,20 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
       return ok({ items: PRESET_MEDS.map((x) => ({ ...x })), server_ts: Date.now() });
 
     /**
-     * 药名联想 / 常用药 Top5：本家庭用药史（含已归档）按引用次数排序，不足用预设补位。
-     * mock 没有 created_at，用数组下标当"最近添加"的代理 —— 顺序语义与后端一致即可。
+     * 药名联想 / 常用药 Top5。真实后端读 `medicine_usage_stats`（全平台净次数：加一次 +1、删一次 −1），
+     * mock 只有一个家庭，就用"在用（active）的同名药行数"当计数 —— 归档即 −1，语义等价。
+     * 上榜规则也照抄后端：预设名 ≥1 次即可上榜，自定义药名要 ≥3 次。
      */
     case 'medicine.suggest': {
       const kw = String(p.q || '').trim().toLowerCase();
       const limit = kw ? 8 : 5;
+      const presetKeys = PRESET_MEDS.map((x) => x.name.toLowerCase());
       const map = new Map<string, { name: string; spec: string; default_dose: string; count: number; at: number }>();
       d.medicines.forEach((m, i) => {
         const key = (m.name || '').trim().toLowerCase();
         if (!key) return;
+        // 归档（active=false）不计：删除减一
+        if (!m.active) return;
         if (kw && key.indexOf(kw) < 0) return;
         const cur = map.get(key);
         if (!cur) {
@@ -523,6 +527,7 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
         }
       });
       const items = Array.from(map.values())
+        .filter((x) => kw || x.count >= 3 || presetKeys.indexOf(x.name.toLowerCase()) >= 0)
         .sort((a, b) => b.count - a.count || b.at - a.at || (a.name < b.name ? -1 : 1))
         .slice(0, limit)
         .map((x) => ({ name: x.name, spec: x.spec, default_dose: x.default_dose, count: x.count }));

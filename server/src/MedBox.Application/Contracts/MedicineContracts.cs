@@ -42,6 +42,24 @@ public sealed class CommonMedResult
     [JsonPropertyName("server_ts")] public long ServerTs { get; set; }
 }
 
+/// <summary>
+/// medicine.suggest 的一项。出参形状刻意与 <see cref="CommonMedDto"/> 兼容（name/spec/default_dose 同名同义），
+/// 多出的 <c>count</c> 是"这个药名在这个家庭被添加过几次"：0 = 平台预设补位，≥1 = 自己用过的。
+/// </summary>
+public sealed class MedicineSuggestDto
+{
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
+    [JsonPropertyName("spec")] public string? Spec { get; set; }
+    [JsonPropertyName("default_dose")] public string? DefaultDose { get; set; }
+    [JsonPropertyName("count")] public int Count { get; set; }
+}
+
+public sealed class MedicineSuggestResult
+{
+    [JsonPropertyName("items")] public List<MedicineSuggestDto> Items { get; set; } = [];
+    [JsonPropertyName("server_ts")] public long ServerTs { get; set; }
+}
+
 public sealed class PlanUpsertRequest
 {
     [JsonPropertyName("mid")] public string Mid { get; set; } = "";
