@@ -16,10 +16,17 @@ public sealed class EntitlementService(IAppDbContext db, ConfigReader config, IC
     public const string MedSlot = "MED_SLOT";
     public const string WeekReport = "WEEK_REPORT";
 
+    /// <summary>
+    /// 历史脏数据兼容：早期前端把 product_id 传成小写（med_slot），存量 entitlements 行是小写。
+    /// 统计必须两种都认 —— 否则「看完视频 granted=true，但名额永远是 0」，第 4 个药照样 1004，
+    /// 前端还会把解锁弹框再弹一次。新写入一律用大写常量。
+    /// </summary>
+    private static readonly string[] MedSlotKeys = [MedSlot, "med_slot"];
+
     /// <summary>家庭可用药品名额 = 免费额度 + 已解锁名额。</summary>
     public async Task<int> MedSlotCreditsAsync(string familyId, CancellationToken ct = default)
         => await db.Entitlements
-            .Where(e => e.FamilyId == familyId && e.ProductId == MedSlot)
+            .Where(e => e.FamilyId == familyId && MedSlotKeys.Contains(e.ProductId))
             .SumAsync(e => (int?)e.Credits, ct) ?? 0;
 
     /// <summary>登录下发的 credits：该用户名下所有家庭的 MED_SLOT 名额合计。</summary>
@@ -28,13 +35,18 @@ public sealed class EntitlementService(IAppDbContext db, ConfigReader config, IC
         var fids = await db.FamilyMembers.Where(m => m.Openid == openid).Select(m => m.FamilyId).ToListAsync(ct);
         if (fids.Count == 0) return 0;
         return await db.Entitlements
-            .Where(e => fids.Contains(e.FamilyId) && e.ProductId == MedSlot)
+            .Where(e => fids.Contains(e.FamilyId) && MedSlotKeys.Contains(e.ProductId))
             .SumAsync(e => (int?)e.Credits, ct) ?? 0;
     }
 
     public async Task<AdUnlockResult> GrantByAdAsync(string productId, string adTrace, string openid, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(adTrace)) throw new ValidationException("缺少 ad_trace");
+
+        // product_id 归一化 + 白名单：前端历史版本传小写，不归一就会出现「写进去的行永远统计不到」；
+        // 不校验白名单则任意字符串都能换 1 个 entitlement，等于白送权益。
+        productId = (productId ?? string.Empty).Trim().ToUpperInvariant();
+        if (productId != MedSlot && productId != WeekReport) throw new ValidationException("未知的 product_id");
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Openid == openid, ct)
                    ?? throw new ValidationException("请先登录");

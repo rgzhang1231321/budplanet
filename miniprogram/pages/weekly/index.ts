@@ -7,7 +7,7 @@ import { bootstrap } from '../../store/user';
 import { get, isElder, isSelf } from '../../store/index';
 import { get as apiGet } from '../../utils/request';
 import { addDays, dateCN, partOfDay, shortDate, weekdayOf, weekStartOf } from '../../utils/time';
-import { unlockByAd } from '../../utils/ad';
+import { unlockByAd, PRODUCT } from '../../utils/ad';
 import { AD_UNITS } from '../../config/index';
 import { report } from '../../utils/report';
 import { requestOne } from '../../utils/subscribe';
@@ -106,7 +106,7 @@ Page({
       wx.showToast({ title: '详细报告是给家人看的', icon: 'none' });
       return;
     }
-    unlockByAd('week_report', (d: any) => {
+    unlockByAd(PRODUCT.WEEK_REPORT, (d: any) => {
       this.setData({ unlocked: true });
       wx.navigateTo({ url: `/packageReport/pages/report-detail/index?week=${this.data.week}` });
       void d;

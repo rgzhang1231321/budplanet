@@ -11,6 +11,17 @@ import { dateCN, minuteOfDay, timeToMinute } from './time';
  *  别在页面里再写一份 —— 三处各写一个时间，改一处就会出现「设置页说 22:00，实际 20:00 就屏蔽」。 */
 export const DEFAULT_QUIET_HOURS = { start: '22:00', end: '07:00' };
 
+/**
+ * 激励视频 product_id —— **必须与后端 EntitlementService 的常量逐字一致（大写）**。
+ * 曾经页面里直接写 'med_slot'，后端按 'MED_SLOT' 统计 credits：看完视频 granted=true，
+ * 名额却永远是 0，第 4 个药依旧 1004、解锁弹框再弹一次。统一走这里，别再手写字符串。
+ * 本地 unlockLog 的 kind 仍是小写（unlocks 页按小写分组），在 grant 里转换。
+ */
+export const PRODUCT = {
+  MED_SLOT: 'MED_SLOT',
+  WEEK_REPORT: 'WEEK_REPORT',
+} as const;
+
 const CFG = {
   coolSec: 30,
   cDayMax: 3,
@@ -176,10 +187,11 @@ function grant(p: { productId: string; onGranted: (d: any) => void } | null) {
         return;
       }
       report('reward_grant', { product: p.productId });
-      rememberUnlock(p.productId);
+      // 后端 product_id 是大写，unlockLog 的 kind 用小写（unlocks 页按小写分组展示）
+      rememberUnlock(p.productId.toLowerCase());
       p.onGranted(d);
     })
-    .catch(() => wx.showToast({ title: '网络不好，稍后再试', icon: 'none' }));
+    .catch((e: any) => wx.showToast({ title: (e && e.msg) || '网络不好，稍后再试', icon: 'none' }));
 }
 
 /** 解锁记录本地留痕（P44 展示用；权益本身存后端，前端只渲染 granted） */

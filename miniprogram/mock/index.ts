@@ -42,6 +42,16 @@ import { addDays, dateCN, slotTs, timeToMinute, tsToTime, weekStartOf } from '..
 const KB = `mock_db_${CACHE_VERSION}`;
 const ME = 'mock_openid_me';
 
+/** 平台预设常用药（与 db/migrations/V003 的 medicines_common 对齐）：新家庭 chips 的补位来源 */
+const PRESET_MEDS = [
+  { name: '苯磺酸氨氯地平片', spec: '5mg×28片', default_dose: '1片' },
+  { name: '盐酸二甲双胍片', spec: '0.5g×20片', default_dose: '1片' },
+  { name: '阿司匹林肠溶片', spec: '100mg×30片', default_dose: '1片' },
+  { name: '阿托伐他汀钙片', spec: '20mg×7片', default_dose: '1片' },
+  { name: '碳酸钙D3片', spec: '600mg×60片', default_dose: '2片' },
+  { name: '左甲状腺素钠片', spec: '50μg×100片', default_dose: '半片' },
+];
+
 interface MockPatient {
   uid: string;
   fid: string;
@@ -485,16 +495,49 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
 
     /* ── medicine ── */
     case 'medicine.common':
-      return ok({
-        items: [
-          { name: '降压药', default_dose: '1片' },
-          { name: '二甲双胍', default_dose: '1片' },
-          { name: '阿司匹林', default_dose: '1片' },
-          { name: '钙片', default_dose: '2片' },
-          { name: '他汀', default_dose: '1片' },
-          { name: '降糖药', default_dose: '1片' },
-        ],
+      return ok({ items: PRESET_MEDS.map((x) => ({ ...x })), server_ts: Date.now() });
+
+    /**
+     * 药名联想 / 常用药 Top5：本家庭用药史（含已归档）按引用次数排序，不足用预设补位。
+     * mock 没有 created_at，用数组下标当"最近添加"的代理 —— 顺序语义与后端一致即可。
+     */
+    case 'medicine.suggest': {
+      const kw = String(p.q || '').trim().toLowerCase();
+      const limit = kw ? 8 : 5;
+      const map = new Map<string, { name: string; spec: string; default_dose: string; count: number; at: number }>();
+      d.medicines.forEach((m, i) => {
+        const key = (m.name || '').trim().toLowerCase();
+        if (!key) return;
+        if (kw && key.indexOf(kw) < 0) return;
+        const cur = map.get(key);
+        if (!cur) {
+          map.set(key, { name: m.name.trim(), spec: m.spec, default_dose: m.default_dose, count: 1, at: i });
+          return;
+        }
+        cur.count += 1;
+        if (i >= cur.at) {
+          cur.at = i;
+          cur.name = m.name.trim();
+          cur.spec = m.spec;
+          cur.default_dose = m.default_dose;
+        }
       });
+      const items = Array.from(map.values())
+        .sort((a, b) => b.count - a.count || b.at - a.at || (a.name < b.name ? -1 : 1))
+        .slice(0, limit)
+        .map((x) => ({ name: x.name, spec: x.spec, default_dose: x.default_dose, count: x.count }));
+      if (items.length < limit) {
+        const taken = items.map((x) => x.name.toLowerCase());
+        for (const x of PRESET_MEDS) {
+          if (items.length >= limit) break;
+          if (kw && x.name.toLowerCase().indexOf(kw) < 0) continue;
+          if (taken.indexOf(x.name.toLowerCase()) >= 0) continue;
+          taken.push(x.name.toLowerCase());
+          items.push({ ...x, count: 0 });
+        }
+      }
+      return ok({ items, server_ts: Date.now() });
+    }
     case 'medicine.list': {
       const items: MedicineItem[] = d.medicines
         .filter((m) => (!p.uid || m.uid === p.uid) && m.active)
@@ -686,7 +729,8 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
 
     /* ── ad ── */
     case 'ad.unlock': {
-      const product = p.product_id as string;
+      // 真后端 product_id 是大写（MED_SLOT / WEEK_REPORT），早期前端传过小写；mock 两种都认
+      const product = String(p.product_id || '').toLowerCase();
       if (product === 'med_slot') d.credits += 1;
       d.unlocks.unshift({
         id: `U${Date.now()}`,
