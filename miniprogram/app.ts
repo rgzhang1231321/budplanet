@@ -1,4 +1,5 @@
-import { bootstrap } from './store/user';
+import { bootstrap, resetSession } from './store/user';
+import { setSessionLostHandler } from './utils/auth';
 import { primeSubscribeState } from './utils/subscribe';
 import { flush } from './utils/queue';
 import { report } from './utils/report';
@@ -19,6 +20,8 @@ App({
 
   onLaunch(query: Record<string, any>) {
     this.globalData.launchQuery = query || {};
+    // 1002（不是家庭成员 / 账号数据被清）时由请求层回调，把登录态与内存态一起清掉
+    setSessionLostHandler(resetSession);
     // 预热订阅授权缓存：TAP 内不能 await，只能提前拿
     primeSubscribeState();
     report('app_launch', { scene: (query && query.scene) || '', cold: 1 });

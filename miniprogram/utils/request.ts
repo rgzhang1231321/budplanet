@@ -5,7 +5,7 @@
  */
 import { apiBase, useMock } from '../config/index';
 import { mockCall } from '../mock/index';
-import { getToken, refreshSession } from './auth';
+import { getToken, notifySessionLost, refreshSession } from './auth';
 import { logClient } from './logger';
 
 export interface CallOptions {
@@ -19,9 +19,17 @@ export interface CallOptions {
 
 export class ApiError extends Error {
   code: number;
+  /**
+   * 后端原样下发的 msg。**页面统一读 `e.msg`**（几十处 `(e && e.msg) || '保存失败'`），
+   * 只把它塞进 Error.message 的话，e.msg 恒为 undefined —— 1002/1003/1005
+   * 这些带人话的错误全被吞成没头没尾的"保存失败"，线上根本分不清是越权、
+   * 参数错还是后端没起。两个字段都留，别只留一个。
+   */
+  msg: string;
   constructor(code: number, msg: string) {
     super(msg);
     this.code = code;
+    this.msg = msg;
   }
 }
 
@@ -62,11 +70,55 @@ async function raw(domain: string, action: string, data: Record<string, any>, me
   });
 }
 
+/**
+ * 1002「不是这个家庭的成员」= 本地登录态/家庭态和服务端对不上（被移出家庭、家庭被删、
+ * 服务端数据被清）。原来的处理是 toast + reLaunch 首页 —— 这是**死循环**：
+ * 首页 onShow 一次并发 3 个请求，全部 1002，又 3 次 reLaunch，页面反复重建，
+ * 用户看到的就是"一直在闪、白屏"。
+ *
+ * 现在：3 秒内只处理一次（并发失败合并成一次），跳启动页重新登录；
+ * 60 秒内超过 3 次说明重登也救不回来，直接停手只提示一次，绝不再跳。
+ */
+let lastResetAt = 0;
+let resetWindowAt = 0;
+let resetCount = 0;
+
+function handleSessionLost(msg: string, silent: boolean) {
+  const now = Date.now();
+  if (now - lastResetAt < 3000) return;
+  lastResetAt = now;
+
+  if (now - resetWindowAt > 60000) {
+    resetWindowAt = now;
+    resetCount = 0;
+  }
+  resetCount += 1;
+  if (resetCount > 3) {
+    if (resetCount === 4) {
+      logClient('error', '会话重置熔断：60s 内连续 1002 超过 3 次', { scene: 'session_lost' });
+      wx.showToast({ title: '账号数据异常，请退出小程序重新打开', icon: 'none' });
+    }
+    return;
+  }
+
+  if (!silent) wx.showToast({ title: msg || '登录已失效，请重新进入', icon: 'none' });
+  notifySessionLost();
+  // 跳启动页而不是首页：首页 onShow 会立刻再发一轮请求，跳回去等于原地打转
+  setTimeout(() => wx.reLaunch({ url: '/pages/launch/index' }), 800);
+}
+
 function handleError(code: number, msg: string, silent: boolean) {
-  if (code === 1002 || code === 1003) {
-    wx.showToast({ title: msg || '请重新进入', icon: 'none' });
-    setTimeout(() => wx.reLaunch({ url: '/pages/home/index' }), 600);
-  } else if (code === 1005 && !silent) {
+  if (code === 1002) {
+    handleSessionLost(msg, silent);
+    return;
+  }
+  // 1003 = 是成员、但没有这个操作的权限。踢回首页毫无意义（身份没变，回去照样没权限），
+  // 只提示。真正该拦的入口在页面上提前拦（老人端点管理功能）。
+  if (code === 1003) {
+    if (!silent) wx.showToast({ title: msg || '没有权限', icon: 'none' });
+    return;
+  }
+  if (code === 1005 && !silent) {
     wx.showToast({ title: msg || '填写有误', icon: 'none' });
   }
   // 1004 由调用方弹 UnlockNudge；1009 由调用方决定重试或入队

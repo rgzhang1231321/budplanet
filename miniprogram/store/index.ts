@@ -252,3 +252,33 @@ export function patchRow(doseId: string, next: Partial<DoseRow>) {
   persist();
   return i;
 }
+
+/**
+ * 会话被服务端否认（1002 不是家庭成员 / 账号数据被清）时把内存态清回初值。
+ * 不清的话旧 fid/旧今日数据会继续渲染，用户看到的是"有内容但每点一下都报错"。
+ * 只清"身份相关"的字段：免责/隐私同意、字号偏好这类本地偏好留着，别让用户重看一遍协议。
+ */
+export function resetState() {
+  state.ready = false;
+  state.user.openid = '';
+  state.user.entitlement = { memberLevel: 'free', credits: 0 };
+  state.user.quota = { CHECKIN: 0, MISSED: 0, WEEKLY: 0 };
+  state.family = {
+    all: [],
+    fid: '',
+    name: '',
+    role: 'member',
+    mode: 'guardian',
+    selfUids: [],
+    patients: [],
+    members: [],
+    inviteToken: '',
+  };
+  state.today = { date: dateCN(), rows: [], recentView: null, lastSyncAt: 0, loading: false };
+  try {
+    wx.removeStorageSync(TODAY);
+  } catch (e) {
+    /* ignore */
+  }
+  emit('reset');
+}

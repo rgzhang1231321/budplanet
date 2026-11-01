@@ -1,5 +1,5 @@
 /** packageManage/pages/family —— P41 邀请家人 / 成员管理 */
-import { bootstrap, loadFamily } from '../../../store/user';
+import { bootstrap, loadFamily, resetSession } from '../../../store/user';
 import { get } from '../../../store/index';
 import { call } from '../../../utils/request';
 import { report } from '../../../utils/report';
@@ -167,6 +167,9 @@ Page({
         if (!r.confirm) return;
         try {
           await call('family', 'leave', { fid: get().family.fid });
+          // 退出后本地还留着这个家的 fid 与家庭列表：不清场的话，launch 的早退逻辑
+          // 会把人直接送回首页，首页再拿旧 fid 请求 → 1002 → 反复重进，页面一直闪。
+          resetSession();
           wx.showToast({ title: '已退出', icon: 'none' });
           // 不能留在本页：这里的数据已经不属于你了，交给启动流程重新决定去哪
           setTimeout(() => wx.reLaunch({ url: '/pages/launch/index' }), 600);

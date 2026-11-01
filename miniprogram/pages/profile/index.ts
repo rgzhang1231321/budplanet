@@ -1,8 +1,8 @@
 /** pages/profile —— P40 我的（双模切换、家庭、额度、合规入口） */
-import { bootstrap, setMode } from '../../store/user';
+import { bootstrap, resetSession, setMode } from '../../store/user';
 import { get, isElder, on } from '../../store/index';
 import { call } from '../../utils/request';
-import { unlockByAd } from '../../utils/ad';
+import { unlockByAd, PRODUCT } from '../../utils/ad';
 import { APP_VERSION } from '../../config/index';
 
 Page({
@@ -75,7 +75,7 @@ Page({
   },
 
   onNudgeUnlock() {
-    unlockByAd('med_slot', (d: any) => {
+    unlockByAd(PRODUCT.MED_SLOT, (d: any) => {
       this.setData({ showNudge: false, credits: (d && d.credits) || this.data.credits + 1 });
       wx.showToast({ title: '名额已到账', icon: 'none' });
     });
@@ -117,15 +117,27 @@ Page({
   },
 
   onErase() {
+    const s = get();
+    // 家里只剩自己时，注销会把家庭变成"没有成员的孤儿"：药品/记录还在库里，
+    // 但没有任何账号能再打开，等于永久失联。文案必须和"家人还在"分开说，
+    // 否则用户以为只是自己退出，回头发现整个家的药单再也进不去。
+    const alone = (s.family.members || []).length <= 1;
     wx.showModal({
       title: '注销并删除全部数据',
-      content: '将永久删除你的账号、药品与服药记录，家人的历史记录会去除你的身份关联。此操作不可恢复。',
+      content: alone
+        ? '你是这个家唯一的成员。注销后这个家的药品、服药记录、周报将没有任何账号能再打开，也无法恢复。确定继续？'
+        : '将永久删除你的账号，家人仍可继续查看这个家的药单与记录。此操作不可恢复。',
       confirmText: '确认注销',
       confirmColor: '#E0402F',
       success: (r) => {
         if (!r.confirm) return;
         call('user', 'erase', { confirm: true })
           .then(() => {
+            // 账号已经没了，但本地 token / family 列表 / bootstrap 缓存都还在：
+            // 直接跳启动页会被 launch 的「已有家庭 → 回首页」早退逻辑送回首页，
+            // 首页再拿旧 fid 发请求 → 全部 1002 → 反复 reLaunch，页面一直闪。
+            // 必须先清场，让 launch 真的重新登录。
+            resetSession();
             wx.showToast({ title: '已删除', icon: 'none' });
             setTimeout(() => wx.reLaunch({ url: '/pages/launch/index' }), 700);
           })

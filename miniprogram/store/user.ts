@@ -1,12 +1,12 @@
 /** store/user.ts —— 登录、家庭、模式、免责留痕 */
 import type { Mode, Role } from '../types/api';
-import { login } from '../utils/auth';
+import { clearToken, login } from '../utils/auth';
 import { call, get } from '../utils/request';
 import { applyRemoteConfig } from '../utils/ad';
 import { applyMode } from '../utils/theme';
 import { dateCN } from '../utils/time';
 import { logClient } from '../utils/logger';
-import { emit, get as state, mode, patch, set, loadCachedToday } from './index';
+import { emit, get as state, mode, patch, set, loadCachedToday, resetState } from './index';
 
 let booting: Promise<void> | null = null;
 
@@ -45,6 +45,17 @@ export function bootstrap(force = false): Promise<void> {
     if (booting === p) booting = null;
   });
   return booting;
+}
+
+/**
+ * 会话失效清场：清 token + 清内存态 + 让下一次 bootstrap 真的重新登录。
+ * `booting` 必须置空 —— 它缓存的是上一次的 promise，不清的话 bootstrap() 永远返回旧结果，
+ * 重登不会发生，页面就一直停在"每点一下都报 1002"的状态。
+ */
+export function resetSession() {
+  clearToken();
+  booting = null;
+  resetState();
 }
 
 export async function loadFamily() {

@@ -57,7 +57,14 @@ Page({
   async onShow() {
     const tb = typeof this.getTabBar === 'function' ? (this.getTabBar() as any) : null;
     if (tb && tb.sync) tb.sync(0);
-    await bootstrap().catch(() => {});
+    try {
+      await bootstrap();
+    } catch (e) {
+      // 登录/家庭拿不到就别再发今日请求了：只会再报一次同样的错，
+      // 把一次失败放大成"连续报错 + 页面反复重进"。
+      this.render();
+      return;
+    }
     await refreshToday();
     this.render();
     report('board_view', { fid: get().family.fid, patient_n: get().family.patients.length });

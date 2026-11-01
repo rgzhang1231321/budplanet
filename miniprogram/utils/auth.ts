@@ -31,6 +31,26 @@ export function clearToken() {
   }
 }
 
+/**
+ * 会话失效（1002 不是家庭成员）时的清场回调。
+ * 用注册而不是直接 import store —— store/user 已经 import 了本模块，
+ * 反过来再 import 会形成循环依赖，模块初始化顺序一变就拿到半成品。
+ */
+let sessionLostHandler: (() => void) | null = null;
+
+export function setSessionLostHandler(fn: () => void) {
+  sessionLostHandler = fn;
+}
+
+export function notifySessionLost() {
+  if (!sessionLostHandler) return;
+  try {
+    sessionLostHandler();
+  } catch (e) {
+    /* 清场失败也要继续走跳转，不能把用户卡死在报错页 */
+  }
+}
+
 function code2session(): Promise<string> {
   return new Promise((resolve) => {
     wx.login({
