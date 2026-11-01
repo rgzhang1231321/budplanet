@@ -84,6 +84,18 @@ export function useMock(): boolean {
  * 留空 = 全站不展示广告（AdSlot 静默折叠为 0 高，不会留白块），`ad_show` 埋点也不会触发。
  * 所以「config.adOn 配了但一个广告都不出来」的第一嫌疑就是这里还是空串 —— 不是开关没生效。
  * 未开通流量主时**不要**为了"看起来有广告"去填别人的 unitId：unitId 与 appid 不匹配会直接加载失败。
+ *
+ * ── 广告的两个开关：出广告必须【两个都满足】────────────────────
+ *  ① 总开关：数据库 app_config.runtime.adOn（后端下发，不发版即可改）
+ *  ② 广告位：下面这五个 unitId（要开流量主才会有）
+ *
+ * 当前状态：adOn = false（V007 关闭），unitId 全空 → 广告全线关闭。
+ * 想开启时按顺序做：
+ *   1. 微信公众平台开流量主 → 建广告位 → 把 unitId 填进下面（哪个位先用就先填哪个，
+ *      不必一次性填全；没填的位自动静默折叠，不会留白块）
+ *   2. 新建 db/migrations/V00N__ads_on.sql 把 adOn 写回 true（**追加新脚本，不要改 V007**）
+ *   3. bash db/apply.sh 生效
+ * 只想临时试一下：控制台执行 wx.setStorageSync('ad_off', true) 可本地强制全关（仅本机生效）。
  */
 export const AD_UNITS = {
   a: '',

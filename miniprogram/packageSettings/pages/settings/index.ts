@@ -11,7 +11,9 @@ import { report } from '../../../utils/report';
 
 Page({
   data: {
-    elder: false,
+    /** 初值取本地偏好（不是 false）：wxml 用 wx:if 整块换版式，
+     *  初值错了第一帧就是另一套 DOM，接不住 onLoad 里的同步 render。 */
+    elder: isElder(),
     sound: true,
     quiet: true,
     /** 安静时段文案：只认 config.quietHours（读不到用 utils/ad 里那唯一一份默认值），不在这里写死 */
@@ -23,6 +25,11 @@ Page({
   },
 
   onLoad() {
+    // 首帧必须同步出图。elder 只取决于本地 modeOverride（storage 里的偏好），
+    // 不依赖登录/网络；放到 onShow 的 await 之后才 setData，第一次渲染就会落到
+    // data 里的 elder:false —— 大字版用户先看到一帧小字版，再闪成大字版。
+    // 分包页每次 navigateTo 都是新实例，所以这个闪是必现的（tab 页只冷启一次）。
+    this.render();
     this._off = on(() => this.render());
   },
   onUnload() {

@@ -42,6 +42,17 @@ export function applyRemoteConfig(c: any) {
     adOn: c.adOn !== undefined ? c.adOn : CFG.adOn,
     quietHours: q && q.start && q.end ? { start: q.start, end: q.end } : DEFAULT_QUIET_HOURS,
   };
+  // 本地强制关：控制台执行 wx.setStorageSync('ad_off', true)，仅本机生效。
+  // 用途是联调/演示时不想看到广告，不用去改数据库 —— 线上总开关始终以 app_config.adOn 为准。
+  if (localAdOff()) cfg.adOn = false;
+}
+
+function localAdOff(): boolean {
+  try {
+    return wx.getStorageSync('ad_off') === true;
+  } catch (e) {
+    return false;
+  }
 }
 
 /** 安静时段（23:00-07:00 这类跨零点区间要按"或"判）。设置页文案与插屏屏蔽共用这一个来源。 */
