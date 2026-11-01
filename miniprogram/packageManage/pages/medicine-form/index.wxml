@@ -1,5 +1,10 @@
 <view class="p-root">
-  <page-nav title="{{mid ? '编辑药品' : '添加药品'}}" back="{{true}}"></page-nav>
+  <page-nav
+    title="{{mid ? '编辑药品' : '添加药品'}}"
+    back="{{true}}"
+    intercept-back="{{step > 1}}"
+    bind:back="onBack"
+  ></page-nav>
 
   <view class="page form">
     <view class="steps">
@@ -31,6 +36,17 @@
 
       <view class="input-wrap">
         <input class="input" value="{{name}}" placeholder="输入药名（可手写）" bindinput="onName" />
+      </view>
+
+      <!-- 药名联想：这个家庭吃过的药按引用次数排前面，点一下带出规格与剂量 -->
+      <view wx:if="{{sugg.length}}" class="sugg">
+        <view wx:for="{{sugg}}" wx:key="name" class="sugg__row" data-i="{{index}}" bindtap="onPickSuggest">
+          <view class="sugg__main">
+            <text class="sugg__name">{{item.name}}</text>
+            <text wx:if="{{item.spec}}" class="sugg__spec">{{item.spec}}</text>
+          </view>
+          <text wx:if="{{item.count > 0}}" class="sugg__cnt">用过 {{item.count}} 次</text>
+        </view>
       </view>
 
       <view class="input-wrap mt-3">
@@ -99,7 +115,14 @@
   </view>
 
   <view class="footer">
-    <primary-button label="{{step === 3 ? '保存计划' : '下一步'}}" bind:tap="onNext"></primary-button>
+    <view class="footer__row">
+      <view wx:if="{{step > 1}}" class="footer__back">
+        <primary-button label="上一步" type="sub" bind:tap="onBack"></primary-button>
+      </view>
+      <view class="footer__main">
+        <primary-button label="{{step === 3 ? '保存计划' : '下一步'}}" bind:tap="onNext"></primary-button>
+      </view>
+    </view>
   </view>
 
   <!-- 保存成功后的订阅引导（底部卡片，非系统弹窗先行） -->

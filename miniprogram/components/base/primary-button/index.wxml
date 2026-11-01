@@ -3,7 +3,7 @@
   bindtouchstart="onTouchStart"
   bindtouchend="onTouchEnd"
   bindtouchcancel="onTouchCancel"
-  bindtap="onTap"
+  catchtap="onTap"
   aria-role="button"
   aria-label="{{label}}"
   aria-disabled="{{disabled}}"

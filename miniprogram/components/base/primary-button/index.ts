@@ -37,7 +37,12 @@ Component({
       this._s = null;
       this.setData({ pressed: false });
     },
-    /** 真正的触发点用原生 tap（touch 系列在部分机型/工具里不派发，只有 touch 会点不动） */
+    /**
+     * 真正的触发点用原生 tap（touch 系列在部分机型/工具里不派发，只有 touch 会点不动）。
+     * 必须用 catchtap：原生 tap 会跨组件边界冒泡到页面上 <primary-button bind:tap>，
+     * 加上这里的 triggerEvent('tap')，同一个点击会让页面处理函数跑两次
+     * （medicine-form 的 onNext 会因此连跳两步并直接落进保存）。
+     */
     onTap() {
       if (this.data.disabled || this._veto) return;
       wx.vibrateShort({ type: 'heavy', fail: () => {} } as any);

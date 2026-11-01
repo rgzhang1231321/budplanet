@@ -87,6 +87,49 @@
   font-size: var(--fs-caption);
   color: var(--text-3);
 }
+/* 药名联想：紧贴输入框的一张白卡，行高与输入框同级（88rpx），手指点得中 */
+.sugg {
+  margin-top: 12rpx;
+  background: #ffffff;
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-m);
+  overflow: hidden;
+}
+.sugg__row {
+  display: flex;
+  align-items: center;
+  min-height: 88rpx;
+  padding: 0 var(--sp-3);
+  border-bottom: 1rpx solid var(--line);
+}
+.sugg__row:last-child {
+  border-bottom: none;
+}
+.sugg__row:active {
+  background: #f6f8fb;
+}
+.sugg__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sugg__name {
+  font-size: var(--fs-body-s);
+  color: var(--text-1);
+}
+.sugg__spec {
+  margin-top: 4rpx;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+.sugg__cnt {
+  flex: none;
+  margin-left: var(--sp-2);
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -212,6 +255,20 @@
   background: rgba(255, 255, 255, 0.96);
   border-top: 1rpx solid var(--line);
   z-index: 50;
+}
+.footer__row {
+  display: flex;
+  align-items: center;
+}
+/* 上一步占固定窄列，主按钮吃掉剩余宽度；两列高度不同（sub 比 primary 矮 8rpx），居中即可 */
+.footer__back {
+  flex: none;
+  width: 200rpx;
+  margin-right: var(--sp-3);
+}
+.footer__main {
+  flex: 1;
+  min-width: 0;
 }
 .ok-line {
   display: flex;

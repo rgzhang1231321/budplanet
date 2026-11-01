@@ -7,7 +7,7 @@ import { bootstrap, refreshToday } from '../../../store/user';
 import { get } from '../../../store/index';
 import { call, ApiError, get as apiGet } from '../../../utils/request';
 import { requestOne } from '../../../utils/subscribe';
-import { unlockByAd } from '../../../utils/ad';
+import { unlockByAd, PRODUCT } from '../../../utils/ad';
 import { report } from '../../../utils/report';
 import { timeToMinute } from '../../../utils/time';
 
@@ -32,6 +32,7 @@ Page({
     templates: TEMPLATES,
     cycle: 'long_term',
     common: [] as any[],
+    sugg: [] as any[],
     saved: false,
     saving: false,
     showNudge: false,
@@ -42,7 +43,13 @@ Page({
   async onLoad(q: Record<string, string>) {
     await bootstrap().catch(() => {});
     const s = get();
-    const common: any = await apiGet('medicine', 'common', {}, { silent: true }).catch(() => ({ items: [] }));
+    const fid = s.family.fid;
+    // 「常用药」= 本家庭引用次数 Top5（不足 5 条由服务端用平台预设补位）。
+    // 失败时退回旧的公开预设端点：小程序可能跑在还没部署新接口的后端上，
+    // 那时候 chips 不能整块消失 —— 它是 P22 唯一免打字的入口。
+    const common: any = await apiGet('medicine', 'suggest', { fid }, { silent: true })
+      .catch(() => apiGet('medicine', 'common', {}, { silent: true }))
+      .catch(() => ({ items: [] }));
     this.setData({
       patients: s.family.patients,
       uid: q.uid || (s.family.patients[0] ? s.family.patients[0].uid : ''),
@@ -50,6 +57,10 @@ Page({
     });
     if (q.mid) await this.loadMedicine(q.mid);
     report('setup_start', { fid: s.family.fid });
+  },
+
+  onUnload() {
+    if (this._sgTimer) clearTimeout(this._sgTimer);
   },
 
   async loadMedicine(mid: string) {
@@ -71,19 +82,31 @@ Page({
   },
 
   onBack() {
-    if (this.data.step > 1) this.setData({ step: this.data.step - 1 });
-    else wx.navigateBack();
+    if (this.data.step > 1) {
+      this.setData({ step: this.data.step - 1 });
+      wx.pageScrollTo({ scrollTop: 0, duration: 0 });
+    } else wx.navigateBack();
   },
 
   onNext() {
-    if (this.data.step === 1) this.next1();
-    else if (this.data.step === 2) this.next2();
+    // 一次点击只能推进一步。onNext 每次都重读 this.data.step，而 setData 之后
+    // this.data 立刻就是新值 —— 只要处理函数被派发两次（原生 tap 冒泡 + 组件自定义
+    // tap），点一下"下一步"就会连跳两步，甚至第 2 步刚渲染就被第二次调用当成第 3 步
+    // 执行 onSave，表现为"还没选时间就自动保存了"。
+    const now = Date.now();
+    if (now - (this._navAt || 0) < 350) return;
+    this._navAt = now;
+    const step = this.data.step;
+    if (step === 1) this.next1();
+    else if (step === 2) this.next2();
     else this.onSave();
   },
 
   /* ── Step1 ── */
   onName(e: any) {
-    this.setData({ name: e.detail.value });
+    const name = e.detail.value;
+    this.setData({ name });
+    this.queueSuggest(name);
   },
   onSpec(e: any) {
     this.setData({ spec: e.detail.value });
@@ -93,7 +116,39 @@ Page({
   },
   onPickCommon(e: any) {
     const item = this.data.common[e.currentTarget.dataset.i];
-    this.setData({ name: item.name, dose: item.default_dose || this.data.dose, step: 2 });
+    this.setData({ name: item.name, spec: item.spec || '', dose: item.default_dose || this.data.dose, sugg: [], step: 2 });
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 });
+    report('setup_step', { step: 1, ms: 0 });
+  },
+
+  /* ── 药名联想（本家庭用药史，按引用次数排序） ── */
+  queueSuggest(kw: string) {
+    if (this._sgTimer) clearTimeout(this._sgTimer);
+    const q = (kw || '').trim();
+    if (!q) {
+      // 清空输入立刻收起，不等 debounce —— 否则列表悬在空白输入框下面像个 bug
+      if (this.data.sugg.length) this.setData({ sugg: [] });
+      return;
+    }
+    // 220ms：一个汉字打完到下一个字通常 >200ms，太短会把每个字都打一次请求
+    this._sgTimer = setTimeout(() => this.loadSuggest(q), 220);
+  },
+  async loadSuggest(q: string) {
+    const fid = get().family.fid;
+    if (!fid) return;
+    const r: any = await apiGet('medicine', 'suggest', { fid, q }, { silent: true }).catch(() => ({ items: [] }));
+    // 回包是异步的：用户可能已经改字或翻到第 2 步，只认"当前输入仍等于这次请求的 q"的结果，
+    // 否则慢网下会看到上一次的列表盖在现在的输入上。
+    if (this.data.step !== 1) return;
+    if ((this.data.name || '').trim() !== q) return;
+    const items = ((r && r.items) || []).filter((x: any) => x.name !== q);
+    this.setData({ sugg: items });
+  },
+  onPickSuggest(e: any) {
+    const item = this.data.sugg[e.currentTarget.dataset.i];
+    if (!item) return;
+    this.setData({ name: item.name, spec: item.spec || '', dose: item.default_dose || this.data.dose, sugg: [], step: 2 });
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 });
     report('setup_step', { step: 1, ms: 0 });
   },
   next1() {
@@ -106,6 +161,7 @@ Page({
       return;
     }
     this.setData({ step: 2 });
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 });
     report('setup_step', { step: 1, ms: 0 });
   },
 
@@ -120,6 +176,7 @@ Page({
   },
   next2() {
     this.setData({ step: 3 });
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 });
     report('setup_step', { step: 2, ms: 0 });
   },
 
@@ -163,7 +220,14 @@ Page({
   },
 
   async onSave() {
-    if (this.data.saving) return;
+    // 只有停在第 3 步、且没保存成功过才允许落库：防止任何重复派发在别的步骤
+    // 用默认时间（08:00）把计划直接存下来。
+    if (this.data.step !== 3 || this.data.saved || this.data.saving) return;
+    // 建/改药与建计划都要 admin|member，老人端 role=elder 必然 1003
+    if (get().family.role === 'elder') {
+      wx.showToast({ title: '让子女在手机上修改', icon: 'none' });
+      return;
+    }
     this.setData({ saving: true });
     const s = get();
     const slots = this.data.times.map((x) => ({
@@ -235,8 +299,11 @@ Page({
 
   /* ── 名额拦截 ── */
   onNudgeUnlock() {
-    unlockByAd('med_slot', () => {
+    unlockByAd(PRODUCT.MED_SLOT, async () => {
       this.setData({ showNudge: false });
+      // 权益已落库，但 store 里的 entitlement.credits 还是旧值：先重拉一次，
+      // 否则保存成功后回到药品页，名额文案仍写着"用完了"。
+      await bootstrap().catch(() => {});
       this.onSave();
     });
   },
