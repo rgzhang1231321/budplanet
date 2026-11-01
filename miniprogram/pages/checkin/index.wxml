@@ -90,8 +90,10 @@
     </view>
 
     <view class="ck__actions">
-      <text class="ck__empty-t">{{missTitle}}</text>
-      <text class="ck__empty-d mt-2">{{missWhy}}</text>
+      <view class="col t-center">
+        <text class="ck__empty-t">{{missTitle}}</text>
+        <text class="ck__empty-d mt-2">{{missWhy}}</text>
+      </view>
       <view class="mt-5">
         <primary-button wx:if="{{canMakeup}}" label="确实吃了，补记" bind:tap="onMakeup"></primary-button>
         <primary-button wx:else label="返回今日" bind:tap="goHome"></primary-button>
