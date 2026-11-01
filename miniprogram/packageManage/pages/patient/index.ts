@@ -39,12 +39,22 @@ Page({
   },
 
   onAdd() {
+    // 服药人增删改只给 admin|member（后端 assertMember "admin","member"）；
+    // 老人端 role=elder 填完必然 1003，提前说人话，别让他白填一遍。
+    if (get().family.role === 'elder') {
+      wx.showToast({ title: '让子女在手机上添加', icon: 'none' });
+      return;
+    }
     this.setData({ showForm: true, name: '', alias: '', editingUid: '' });
   },
 
   onOpen(e: any) {
     const p = this.data.list.find((x: any) => x.uid === e.currentTarget.dataset.uid);
     if (!p) return;
+    if (get().family.role === 'elder') {
+      wx.showToast({ title: '让子女在手机上修改', icon: 'none' });
+      return;
+    }
     this.setData({ showForm: true, name: p.name, alias: p.alias, editingUid: p.uid });
   },
 
@@ -62,6 +72,10 @@ Page({
     const name = (this.data.name || '').trim();
     if (!name) {
       wx.showToast({ title: '填一下称呼', icon: 'none' });
+      return;
+    }
+    if (get().family.role === 'elder') {
+      wx.showToast({ title: '让子女在手机上添加', icon: 'none' });
       return;
     }
     if (this.data.saving) return;
@@ -101,6 +115,10 @@ Page({
   },
 
   onArchive(e: any) {
+    if (get().family.role === 'elder') {
+      wx.showToast({ title: '让子女在手机上删除', icon: 'none' });
+      return;
+    }
     const uid = e.currentTarget.dataset.uid;
     const p = this.data.list.find((x: any) => x.uid === uid);
     wx.showModal({

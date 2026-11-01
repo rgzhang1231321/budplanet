@@ -41,14 +41,27 @@ Page({
   },
 
   onEdit() {
+    // 改药/改计划要 admin|member，老人端只读
+    if (get().family.role === 'elder') {
+      wx.showToast({ title: '让子女在手机上修改', icon: 'none' });
+      return;
+    }
     wx.navigateTo({ url: `/packageManage/pages/medicine-form/index?mid=${this.data.mid}` });
   },
 
   onPlan() {
+    if (get().family.role === 'elder') {
+      wx.showToast({ title: '让子女在手机上修改', icon: 'none' });
+      return;
+    }
     wx.navigateTo({ url: `/packageManage/pages/plan-form/index?mid=${this.data.mid}` });
   },
 
   onArchive() {
+    if (get().family.role === 'elder') {
+      wx.showToast({ title: '让子女在手机上删除', icon: 'none' });
+      return;
+    }
     const s = get();
     wx.showModal({
       title: '删除这个药',

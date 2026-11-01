@@ -84,6 +84,12 @@ Page({
 
   onAdd() {
     const s = get();
+    // 加药/加服药人都要 admin|member（后端 assertMember "admin","member"），
+    // 老人端 role=elder 点了必然 1003。别让老人白填一遍表单再被踢回首页。
+    if (s.family.role === 'elder') {
+      wx.showToast({ title: '让子女在手机上帮你添加', icon: 'none' });
+      return;
+    }
     if (!s.family.patients.length) {
       wx.navigateTo({ url: '/packageManage/pages/patient/index' });
       return;
