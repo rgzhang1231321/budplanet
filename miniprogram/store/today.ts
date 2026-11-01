@@ -92,15 +92,19 @@ export function flushHeld() {
   commit(l);
 }
 
-/** 撤销：仅撤销窗口内有效（未上行） */
-export function undoTake(r: DoseRow): boolean {
+/** 撤销：仅撤销窗口内有效（未上行）。批量打卡时窗口内暂缓的是整批，
+ *  必须整批回滚——只回滚一条会让其余行本地显示已服却永不上行（少记服药且无报错）。 */
+export function undoTake(list?: DoseRow[]): boolean {
   if (!holdTimer) return false;
   clearTimeout(holdTimer);
   holdTimer = null;
-  heldRows = [];
-  patchRow(r.dose_id, { status: 'pending', taken_at: 0, syncing: false });
+  // heldRows 就是"还没发出去"的确切集合，以它为准；入参只作兜底
+  const rows = heldRows.length ? heldRows.slice() : (list || []).slice();
+  heldRows = []; // 先清空：即便下面 patch 抛错，也不会有残留任务被 commit 误发
+  if (!rows.length) return false;
+  rows.forEach((r) => patchRow(r.dose_id, { status: 'pending', taken_at: 0, syncing: false }));
   emit('today.rows');
-  report('checkin_undo', { ms: 0 });
+  report('checkin_undo', { n: rows.length });
   return true;
 }
 

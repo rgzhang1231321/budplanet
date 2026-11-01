@@ -226,7 +226,7 @@ Page({
 
   onUndo() {
     const list = this._pendingAll || [];
-    const ok = undoTake(list[0]);
+    const ok = undoTake(list); // 传整批：批量打卡时窗口内暂缓的是整批，不能只回滚第一条
     if (!ok) {
       this.setData({ canUndo: false });
       return;
