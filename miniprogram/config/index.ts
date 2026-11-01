@@ -3,27 +3,21 @@
 /**
  * 自建 .NET 10 API 地址（本地开发端口 5080）
  *
- * 为什么不能只写 127.0.0.1：开发者工具里它就等于这台电脑，
- * 但「预览」跑在手机上时，127.0.0.1 指的是手机自己 —— 请求必然连不上，
- * 而页面只会弹一句「保存失败」，看起来像后端坏了。
- * 所以真机走本机局域网地址（手机与电脑必须同一 Wi-Fi）。
+ * 开发者工具默认连本机 127.0.0.1:5080；真机（预览 / 真机调试）默认走腾讯云
+ * HTTPS 服务（PROD_API_BASE），这样手机才能实地测试功能，且不必和电脑同 Wi-Fi。
  *
- * 换电脑 / 换 Wi-Fi / IP 变了：改 DEV_LAN_HOST；
- * 或在调试器控制台临时覆盖（每次请求都读，改完下一次请求就生效）：
+ * 想临时连本地后端联调（改了后端还没部署），在调试器控制台覆盖即可
+ * （每次请求都读，改完下一次请求就生效）：
  *   wx.setStorageSync('api_base', 'http://192.168.x.x:5080')
  * 清掉覆盖：wx.removeStorageSync('api_base')
  */
-const DEV_LAN_HOST = '192.168.3.9'; // 本机 ipconfig 里的 IPv4
 const DEV_PORT = 5080;
 
 /**
- * 正式环境地址（腾讯云 CVM + 腾讯云 TrustAsia 证书）
- * 只有「正式版」（envVersion=release）才用，开发版/体验版仍连本地，
- * 免得改个小样式也要折腾线上。真机想连线上联调，控制台覆盖即可：
- *   wx.setStorageSync('api_base', 'https://api.apiyun.net')
- *
- * 注意：这个域名必须在小程序后台「开发管理 → 服务器域名 → request 合法域名」里登记，
- * 否则正式版所有请求都会失败（报 url not in domain list）。
+ * 正式环境地址（腾讯云 CVM + 腾讯云 TrustAsia 证书）。
+ * 现在「真机 / 正式版」都默认走这里（手机实地测试就靠它）；开发者工具仍连本地。
+ * request 合法域名已登记 https://api.apiyun.net，真机请求不会被拦。
+ * 想让真机临时连本地后端，控制台覆盖：wx.setStorageSync('api_base', 'http://192.168.x.x:5080')
  */
 const PROD_API_BASE = 'https://api.apiyun.net';
 
@@ -47,7 +41,7 @@ try {
 
 /**
  * 当前请求该用哪个地址。每次请求都调用 —— 这样控制台改 `api_base` 不用重编译。
- * 开发者工具默认 127.0.0.1；真机（预览/真机调试）默认走局域网 IP。
+ * 开发者工具默认 127.0.0.1:5080（本地后端）；真机（预览/真机调试）默认走云端 HTTPS。
  */
 export function apiBase(): string {
   try {
@@ -59,7 +53,7 @@ export function apiBase(): string {
   if (envVersion() === 'release') return PROD_API_BASE;
   return platform === 'devtools'
     ? `http://127.0.0.1:${DEV_PORT}`
-    : `http://${DEV_LAN_HOST}:${DEV_PORT}`;
+    : PROD_API_BASE;
 }
 
 // 后端已可用（server/，端口 5080）。默认连真后端；
