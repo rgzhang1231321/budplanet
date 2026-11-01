@@ -1,0 +1,56 @@
+[
+  {
+    "title": "M1 · 设计与契约定稿",
+    "state": "closed",
+    "due_on": "2026-10-30T00:00:00Z",
+    "description": "目标：写代码前把「做什么、字段叫什么、错误码怎么回」定死，避免前后端各持一版。\n\n交付物：docs/ 9 份方案（总方案 / PRD / UI 规范 / 前端方案 / 后端方案 / 契约冻结表 / 合规文案 / 增长方案 / 云开发方案归档）+ AGENTS.md 开发规范。\n\n验收：11 个业务域的字段、action 名、错误码、四态枚举、server_ts 逐字一致；文档冲突有明确裁决（AGENTS.md §2.1 五处口径）。\n\n备注：契约表 v1.4 定义 slot = 当日分钟数 0–1439，dose_id = ${pid}_${date}_${slot}，此后不可变。"
+  },
+  {
+    "title": "M2 · 数据基线与迁移纪律",
+    "state": "closed",
+    "due_on": "2026-10-30T00:00:00Z",
+    "description": "目标：schema 可从零重建，且已执行脚本永不被篡改。\n\n交付物：db/migrations/V001–V005 + db/apply.sh + README。V001 建 19 张业务表（0 外键）、V002 建 26 条索引、V003 种子、V004 订阅模板 ID、V005 app_logs。\n\n验收：空库顺序跑通、重复执行幂等、SHA-256 记入 schema_migrations（改历史脚本即中止）。\n\n备注：禁用 EF Core Migrations；下一个版本号 = 目录最大号 + 1（当前 V006）。"
+  },
+  {
+    "title": "M3 · 后端 API 与领域模型",
+    "state": "closed",
+    "due_on": "2026-10-31T00:00:00Z",
+    "description": "目标：11 个域全部可用，业务规则可被单测覆盖。\n\n交付物：server/ 四层（Domain / Application / Infrastructure / Api）+ 测试工程 + smoke.py / smoke_v2.py / seed_demo.py。\n\n验收：dotnet test 111 passed；冒烟脚本全链路通过；异常统一 {code,data,msg}。\n\n备注：东八区派生自然日、时刻存 UTC 毫秒；status 用 VARCHAR + CHECK 四值；assertMember 放用例第一行。"
+  },
+  {
+    "title": "M4 · 小程序双端与核心闭环",
+    "state": "closed",
+    "due_on": "2026-10-31T00:00:00Z",
+    "description": "目标：子女设药、老人打卡、家人看见，端到端跑通。\n\n交付物：miniprogram/ 17 页 + 14 组件 + store/utils（request/auth/queue/logger/subscribe）+ mock 后端。\n\n验收：bash miniprogram/scripts/check.sh 全绿（CI-1..5 + tsc）；模拟器走通「双模选择 → 看板 → 打卡 → 周报 → 家庭」。\n\n备注：老人端判定只用 mode；打卡 3 秒撤销用「暂缓上行」；离线队列按 {pid,date,slot} 去重。"
+  },
+  {
+    "title": "M5 · 通知推送与后台服务",
+    "state": "closed",
+    "due_on": "2026-11-01T00:00:00Z",
+    "description": "目标：到点能推、漏服能告警、周报能发，一次性订阅额度被正确扣减。\n\n交付物：6 个 BackgroundService（Materializer / ReminderTick / Push / WeekReport / Archive / Stats）+ 三套真实订阅模板 ID + app_logs 落库 + logs.sh。\n\n验收：Worker 日志可见漏服判定/提醒入队/告警入队/周报归档/日指标写入；push_tasks 按 errcode 判决重试或丢弃。\n\n备注：MISSED 模板不带药名（旁人不该看到），CHECKIN 模板保留药名；额度不足不入队。"
+  },
+  {
+    "title": "M6 · 真机验收与环境加固",
+    "state": "open",
+    "due_on": "2026-11-08T00:00:00Z",
+    "description": "目标：把「模拟器能跑」变成「手机上真能用」。\n\n范围：① 真机预览全链路（登录 → 设药 → 打卡 → 家人可见）；② 接口地址按平台派生（devtools 127.0.0.1 / 真机局域网 IP）+ 防火墙放行 5080；③ 订阅消息真机实测（当前无 Wx:AppSecret，errcode=-3）；④ 老人端大字号、防误触、弱网断网表现。\n\n验收：同一 Wi-Fi 下无 request_fail；三条模板各收到一次真实消息；断网打卡进队列、恢复后自动同步。\n\n已完成加固：apiBase() 按平台派生 + storage api_base 覆盖；网络失败抛「连不上服务器（URL）」；防火墙规则 MedBox API 5080 (dev)。"
+  },
+  {
+    "title": "M7 · 上线发布",
+    "state": "open",
+    "due_on": "2026-11-22T00:00:00Z",
+    "description": "目标：合法域名 + HTTPS + 提审通过 + 第一批真实家庭可用。\n\n范围：ICP 备案（2–3 周关键路径）、域名与证书、API_BASE_URL 切正式域名、类目选「工具-效率」、隐私与免责在真机勾选留痕、体验版 → 审核 → 发布。\n\n验收：https://<域名>/api/config/get 返回 200；正式版冷启可登录；后台看到真实 dose_logs。\n\n备注：备案是硬阻塞，须 W1 就提交；上线后 WX__SECRET 只走服务器环境变量。"
+  },
+  {
+    "title": "M8 · 增长与变现",
+    "state": "open",
+    "due_on": "2026-12-20T00:00:00Z",
+    "description": "目标：邀请链路跑通，UV 过 1000 后开通流量主并爬坡广告位。\n\n范围：family.join 落地页转化、分享卡、广告位顺序 A → D → B → E → C、ad.unlock 频控、埋点回收（report.batch → stats_daily）。\n\n验收：邀请率 ≥ 30%（<30% 即止损信号）；广告上线后留存不崩、eCPM 有数；每个设计参数都有可证伪埋点。\n\n备注：ad.unlock 已有 30s 窗 + 每场景日上限 5 + ad_trace 幂等，频控走 app_config 不写死。"
+  },
+  {
+    "title": "M9 · 运营与止损评估",
+    "state": "open",
+    "due_on": "2027-01-31T00:00:00Z",
+    "description": "目标：用数据决定继续投入 / 收缩 / 停止。\n\n范围：DAU、次日与 7 日留存、家庭数、人均服药人数、广告收入、missed 率。\n\n验收：对照 docs/00-总方案.md 第七节止损线给出结论，并把结论追加到 docs/MILESTONES.md（不改历史）。\n\n备注：本里程碑唯一允许不产出代码，产物是一份数据结论。"
+  }
+]
