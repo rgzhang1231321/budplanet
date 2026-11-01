@@ -301,9 +301,11 @@ function modeOf(openid: string): 'elder' | 'guardian' {
   return d.patients.some((p) => p.self_openid === openid) ? 'elder' : 'guardian';
 }
 
-function familyInfo(): FamilyInfo {
+function familyInfo(fid?: string): FamilyInfo {
   const d = db as MockDB;
-  const f = d.families[0];
+  // 必须按调用方给的家取：写死 families[0] 的话，`family.create` 刚建的家永远读不回来
+  // （info 会把 fid 又改回种子家庭），建家流程在 mock 里看着"没生效"。
+  const f = d.families.find((x) => x.fid === fid) || d.families[0];
   const mine = d.patients.filter((p) => p.self_openid === d.openid).map((p) => p.uid);
   const myRole = (d.members.find((m) => m.openid === d.openid) || { role: 'admin' }).role;
   return {
@@ -408,9 +410,14 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
     case 'family.list':
       return ok({ families: d.families });
     case 'family.info':
-      return ok({ ...familyInfo(), server_ts: Date.now() });
+      return ok({ ...familyInfo(p.fid), server_ts: Date.now() });
     case 'family.join': {
-      const f = d.families.find((x) => x.invite_token === p.ivt) || d.families[0];
+      // 与真后端同序：先按邀请码找家（手输码的人只有码），再按 fid 找（成员自绑没码），
+      // 都没有才落到种子家庭 —— 不要反过来，那会让"加入别人家"永远落到自己家。
+      const f =
+        d.families.find((x) => p.ivt && x.invite_token === p.ivt) ||
+        d.families.find((x) => x.fid === p.fid) ||
+        d.families[0];
       if (!d.members.some((m) => m.openid === d.openid)) {
         d.members.push({
           fid: f.fid,
@@ -424,7 +431,7 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
         target.self_openid = d.openid;
       }
       save();
-      const info = familyInfo();
+      const info = familyInfo(f.fid);
       return ok({ fid: f.fid, role: info.role, mode: info.mode, selfUid: info.selfUid, selfUids: info.selfUids, noop: false });
     }
     case 'family.create': {
@@ -454,7 +461,8 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
     case 'patient.create': {
       if (d.patients.length >= CONFIG.freePatientLimit + 3) return err(1004, '超出限额');
       const uid = `P${Date.now() % 100000}`;
-      d.patients.push({ uid, fid: 'F1001', name: p.name, alias: p.alias || p.name, self_openid: null });
+      // 跟真实后端一致：服药人落在调用方指定的家里（不写死种子 fid，否则刚建的家永远空的）
+      d.patients.push({ uid, fid: p.fid || 'F1001', name: p.name, alias: p.alias || p.name, self_openid: null });
       save();
       return ok({ uid });
     }
@@ -577,7 +585,7 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
       const date = p.date || today;
       ensureDay(date);
       save();
-      const info = familyInfo();
+      const info = familyInfo(p.fid);
       let rows = d.logs.filter((l) => l.date === date);
       // 服务端按 selfUids 过滤（老人端收不到别人的药，不是下发后前端隐藏）
       if (info.mode === 'elder' && info.selfUids.length) {
