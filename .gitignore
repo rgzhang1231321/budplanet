@@ -1,0 +1,32 @@
+# ── .NET 构建产物 ──
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# ── 小程序 ──
+miniprogram/node_modules/
+miniprogram/miniprogram_npm/
+miniprogram/project.private.config.json
+
+# ── 密钥与本地配置（禁止提交）──
+appsettings.Local.json
+*.env
+.env
+.env.*
+*.pfx
+
+# ── 导出/临时 ──
+*.log
+/server/scripts/__pycache__/
+
+# ── 代理 / 编辑器个人状态（不进仓库）──
+.workbuddy/
+.playwright-mcp/
+.vscode/
+.idea/
+
+# ── Python ──
+__pycache__/
+*.pyc
