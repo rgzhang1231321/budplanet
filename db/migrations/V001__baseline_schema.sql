@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     version       VARCHAR(16)  PRIMARY KEY,
     checksum      VARCHAR(64)  NOT NULL,
     applied_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    execution_ms  BIGINT       NOT NULL DEFAULT 0,
+    execution_ms  INTEGER      NOT NULL DEFAULT 0,
     script_name   VARCHAR(255) NOT NULL
 );
 

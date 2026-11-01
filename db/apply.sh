@@ -68,6 +68,11 @@ if [[ $DRY_RUN -eq 1 ]]; then
 fi
 
 # ── 确保账本表存在 ──────────────────────────────────────────
+# 说明：账本表由这里 bootstrap 建，V001 里那条同名 CREATE 因 IF NOT EXISTS 不会再生效。
+# V001 已执行、内容冻结（append-only），里面仍是 execution_ms INTEGER；这里用 BIGINT
+# 防越界（迁移耗时算错时 INTEGER 会 out of range 直接中断 apply）。
+# 两处定义不同是历史原因，**不要为了"对齐"去改 V001** —— 改冻结脚本会让 checksum
+# 全部失配，下次 apply 直接中止。
 psql_q -v ON_ERROR_STOP=1 -c "
 CREATE TABLE IF NOT EXISTS schema_migrations (
   version VARCHAR(16) PRIMARY KEY,
