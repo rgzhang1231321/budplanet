@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>MedBox.Api</RootNamespace>
+    <UserSecretsId>medbox-api-dev</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MedBox.Infrastructure\MedBox.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,8 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain：零外部依赖。不得引用 ASP.NET Core / EF Core / Npgsql / 任何 SDK。 -->
+  <PropertyGroup>
+    <RootNamespace>MedBox.Domain</RootNamespace>
+  </PropertyGroup>
+
+</Project>

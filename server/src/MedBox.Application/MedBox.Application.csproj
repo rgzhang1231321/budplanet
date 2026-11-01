@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>MedBox.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MedBox.Domain\MedBox.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- Application 只用 EF 的查询扩展（ToListAsync 等）；Domain 仍然零依赖。 -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+</Project>
