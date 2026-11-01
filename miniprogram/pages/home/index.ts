@@ -5,7 +5,7 @@
  */
 import { bootstrap, refreshToday } from '../../store/user';
 import { get, groups, isElder, isSelf, on, overview, visibleRows } from '../../store/index';
-import { correct } from '../../store/today';
+import { correct, skip, take } from '../../store/today';
 import { humanDate, humanGap, diffMinutes, tsToTime } from '../../utils/time';
 import { statusBarHeight } from '../../utils/theme';
 import { report } from '../../utils/report';
@@ -25,6 +25,8 @@ Page({
     recentText: '',
     hasPatients: true,
     hasRows: true,
+    /** role === 'admin' 才有改记录的权限（role 管权限，mode 只管渲染，两者不要混用） */
+    isAdmin: false,
     adOn: false,
     refreshAt: '',
   },
@@ -90,6 +92,7 @@ Page({
       recentText: isSelf() && rv ? `${rv.alias}昨天看过` : '',
       hasPatients: s.family.patients.length > 0,
       hasRows: rows.length > 0,
+      isAdmin: s.family.role === 'admin',
       adOn: !!s.user.config.adOn,
       refreshAt: s.today.lastSyncAt ? tsToTime(s.today.lastSyncAt) : '',
     });
@@ -114,14 +117,21 @@ Page({
   /** 改状态必须两步：ActionSheet → Modal 二次确认（一点就改会污染用药史） */
   openActionSheet(row: any) {
     const s = get();
-    if (s.family.role === 'elder') {
-      wx.showToast({ title: '记录由家人修改', icon: 'none' });
+    // 权限判 role，不判 mode：mode 只决定渲染哪套版式。
+    // member 也能进这个菜单的话，改一次就被服务端 1003 顶回首页（utils/request.ts handleError 会 reLaunch），
+    // 用户只会看到"点一下、页面跳走了"，不知道为什么。
+    if (s.family.role !== 'admin') {
+      wx.showToast({ title: '记录由家庭管理员修改', icon: 'none' });
       return;
     }
+    // 通道要按契约 §7 分开走，混用必报错：
+    //   taken → missed/skipped  = checkin.correct
+    //   pending → skipped       = checkin.submit（correct 的 to_status 不收 skipped 以外还会被状态机拒）
+    //   missed(系统判定) → taken = checkin.submit（走 correct 会被标成"人工改判"，周报里单列、不计完成率）
     let items: string[] = [];
     if (row.status === 'taken') items = ['改为漏服', '改为跳过'];
-    else if (row.status === 'missed' && !row.is_corrected) items = ['改为已服', '改为跳过'];
-    else if (row.status === 'pending') items = ['改为已服', '改为跳过'];
+    else if (row.status === 'missed' && !row.is_corrected) items = ['改为已服'];
+    else if (row.status === 'pending') items = ['改为跳过'];
     else items = ['这一条已不能改'];
     items = items.concat(['取消']);
 
@@ -129,11 +139,9 @@ Page({
       itemList: items,
       success: (r) => {
         const pick = items[r.tapIndex];
-        let to: 'taken' | 'missed' | 'skipped' | null = null;
-        if (pick === '改为已服') to = 'taken';
-        if (pick === '改为漏服') to = 'missed';
-        if (pick === '改为跳过') to = 'skipped';
-        if (!to) return;
+        if (pick === '这一条已不能改' || pick === '取消') return;
+        const to: 'taken' | 'missed' | 'skipped' =
+          pick === '改为已服' ? 'taken' : pick === '改为漏服' ? 'missed' : 'skipped';
         wx.showModal({
           title: '确认修改',
           content: `把 ${row.due_time} 的 ${row.medicine_name} 改成「${to === 'taken' ? '已服' : to === 'missed' ? '漏服' : '跳过'}」？这会记入用药史。`,
@@ -141,7 +149,25 @@ Page({
           success: async (m) => {
             if (!m.confirm) return;
             try {
-              await correct(row, to as any);
+              if (to === 'taken') {
+                const res = await take([row], 0);
+                if (res.offline) {
+                  wx.showToast({ title: '已记在本机，会自动重试', icon: 'none' });
+                } else if (!res.ok) {
+                  wx.showToast({ title: '这条没记上，往上拉一下再试', icon: 'none' });
+                  return;
+                }
+              } else if (to === 'skipped' && row.status === 'pending') {
+                const res = await skip(row, '家人代记');
+                if (res.offline) {
+                  wx.showToast({ title: '已记在本机，会自动重试', icon: 'none' });
+                } else if (!res.ok) {
+                  wx.showToast({ title: '这条没记上，往上拉一下再试', icon: 'none' });
+                  return;
+                }
+              } else {
+                await correct(row, to);
+              }
               wx.showToast({ title: '已修改', icon: 'none' });
             } catch (e: any) {
               wx.showToast({ title: (e && e.msg) || '改不动，稍后再试', icon: 'none' });

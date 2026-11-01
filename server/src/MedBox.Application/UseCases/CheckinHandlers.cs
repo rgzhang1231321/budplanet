@@ -48,6 +48,7 @@ public sealed class SubmitHandler(IAppDbContext db, IMemberGuard guard, IClock c
             }
             if (m.IsElder && !m.SelfUids.Contains(item.Pid))
             {
+                await guard.AuditForbiddenAsync(fids[0], openid, "checkin.submit", ct);
                 rejected.Add(Reject(item, 1003, "只能记自己的药"));
                 continue;
             }
@@ -117,7 +118,11 @@ public sealed class SnoozeHandler(IAppDbContext db, IMemberGuard guard, ConfigRe
                   ?? throw new ValidationException("这一条不存在");
 
         var m = await guard.AssertMemberAsync(log.FamilyId, openid, ct);
-        if (m.IsElder && !m.SelfUids.Contains(log.PatientId)) throw new ForbiddenException();
+        if (m.IsElder && !m.SelfUids.Contains(log.PatientId))
+        {
+            await guard.AuditForbiddenAsync(log.FamilyId, openid, "checkin.snooze", ct);
+            throw new ForbiddenException();
+        }
 
         if (log.SnoozeCount >= 2) throw new ValidationException("已经延后 2 次了");
         if (log.Status != DoseStatusWire.Pending) throw new ValidationException("这条已经记过了");
@@ -151,44 +156,72 @@ public sealed class SnoozeHandler(IAppDbContext db, IMemberGuard guard, ConfigRe
 }
 
 /// <summary>
-/// checkin.correct：仅 admin/member（elder 一律 1003），不可逆，留 correct_logs。
-/// 系统判的漏服可以救，人判的漏服不能翻。
+/// checkin.correct：仅 admin/member（elder 一律 1003），目标状态只收 missed/skipped，不可逆，留 correct_logs。
+/// 写入走 CAS（WHERE status=@from AND is_corrected=false）：读实体→改→SaveChanges 会和漏服判定抢同一行，
+/// 后写覆盖先写，改判就可能在漏服判定的瞬间被吞掉。
 /// </summary>
 public sealed class CorrectHandler(IAppDbContext db, IMemberGuard guard, IClock clock)
 {
     public async Task<CorrectResultDto> HandleAsync(string doseId, string toStatusWire, string? reason, string openid, CancellationToken ct = default)
     {
-        var log = await db.DoseLogs.FirstOrDefaultAsync(d => d.DoseId == doseId, ct)
-                  ?? throw new ValidationException("这一条不存在");
+        // 契约 §7:140：to_status 取值域就是 missed / skipped，不含 taken；
+        // 回 taken 是"我吃了"，走 checkin.submit（§7:149）。先挡这一层，连库都不用查。
+        if (!DoseStatusWire.TryParse(toStatusWire, out var to) || !DoseTransitions.IsCorrectTarget(to))
+            throw new ValidationException("只能改成漏服或跳过");
 
-        await guard.AssertMemberAsync(log.FamilyId, openid, ct, "admin", "member");
+        var familyId = await db.DoseLogs
+            .Where(d => d.DoseId == doseId)
+            .Select(d => d.FamilyId)
+            .FirstOrDefaultAsync(ct)
+            ?? throw new ValidationException("这一条不存在");
 
-        if (!DoseStatusWire.TryParse(log.Status, out var from)) from = DoseStatus.Pending;
-        if (!DoseStatusWire.TryParse(toStatusWire, out var to)) throw new ValidationException("状态不合法");
-
-        if (!DoseTransitions.CanCorrect(from, to, log.IsCorrected))
-            throw new ValidationException(log.IsCorrected ? "这条已经改过，不能再改" : "状态不允许");
+        await guard.AssertMemberAsync(familyId, openid, ct, "admin", "member");
 
         var now = clock.NowMs;
-        log.Status = to.ToWire();
-        log.IsCorrected = true;
-        log.CheckedBy = openid;
-        log.CheckedAt = now;
-        log.TakenAt = to == DoseStatus.Taken ? now : null;
 
-        db.Add(new CorrectLog
+        for (var attempt = 0; attempt < DoseCasPolicy.MaxAttempts; attempt++)
         {
-            LogId = Guid.NewGuid().ToString("N"),
-            DoseId = log.DoseId,
-            FamilyId = log.FamilyId,
-            OperatorOpenid = openid,
-            FromStatus = from.ToWire(),
-            ToStatus = to.ToWire(),
-            Reason = reason,
-            CreatedAt = now,
-        });
+            var snap = await db.GetDoseSnapshotAsync(doseId, familyId, ct)
+                       ?? throw new ValidationException("这一条不存在");
+            if (!DoseStatusWire.TryParse(snap.Status, out var from)) from = DoseStatus.Pending;
 
-        await db.SaveChangesAsync(ct);
-        return new CorrectResultDto { Ok = true, IsCorrected = true };
+            if (DoseCasPolicy.DecideCorrect(from, to, snap.IsCorrected, attempt) != CasStep.Apply)
+                throw new ValidationException(RejectReason(from, snap.IsCorrected));
+
+            // 0 行 = 期间被并发改了（漏服判定 / 另一次改判），下一轮按真实状态再判；
+            // 绝不能因为 0 行就返回 ok —— 那就是"改了但没改"的假成功
+            var rows = await db.CompareAndSetDoseCorrectAsync(
+                new DoseCorrectUpdate(doseId, familyId, from, to, openid, now), ct);
+            if (rows == 0) continue;
+
+            db.Add(new CorrectLog
+            {
+                LogId = Guid.NewGuid().ToString("N"),
+                DoseId = doseId,
+                FamilyId = familyId,
+                OperatorOpenid = openid,
+                FromStatus = from.ToWire(),
+                ToStatus = to.ToWire(),
+                Reason = reason,
+                CreatedAt = now,
+            });
+            await db.SaveChangesAsync(ct);
+
+            return new CorrectResultDto { Ok = true, IsCorrected = true };
+        }
+
+        throw new ValidationException("状态刚刚变了，刷新一下再试");
+    }
+
+    private static string RejectReason(DoseStatus from, bool isCorrected)
+    {
+        if (isCorrected) return "这条已经改过，不能再改";
+        return from switch
+        {
+            DoseStatus.Pending => "这条还没记过，不能改判",
+            DoseStatus.Missed => "系统判的漏服要救回已服，请用打卡补记",
+            DoseStatus.Skipped => "这条已经标过跳过，不能再改",
+            _ => "状态不允许",
+        };
     }
 }

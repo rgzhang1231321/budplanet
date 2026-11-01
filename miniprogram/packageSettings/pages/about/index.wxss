@@ -48,3 +48,19 @@
 .bar {
   margin: var(--sp-5) calc(-1 * var(--pad-page)) 0;
 }
+/* 透明按钮盖满整行：拿到 open-type="contact" 的能力，又不破坏 .list__row 的排版 */
+.list__row--hit {
+  position: relative;
+}
+.contact-hit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  opacity: 0;
+}

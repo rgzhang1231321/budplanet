@@ -29,7 +29,6 @@ public sealed class MemberGuard(IAppDbContext db, IClock clock) : IMemberGuard
             await AuditAsync(openid, familyId, "assert_role:" + string.Join('|', allowedRoles), 1003, ct);
             throw new ForbiddenException();
         }
-
         // selfUids 必须是数组：同一 openid 在一个家庭内可能绑多位 patient（本人 + 代管）
         var selfUids = await db.Patients
             .Where(p => p.FamilyId == familyId && p.SelfOpenid == openid && p.Status == "active")
@@ -43,6 +42,9 @@ public sealed class MemberGuard(IAppDbContext db, IClock clock) : IMemberGuard
 
         return new Membership(familyId, member.Role, selfUids.ToArray(), patientIds.ToArray());
     }
+
+    public Task AuditForbiddenAsync(string familyId, string openid, string action, CancellationToken ct = default)
+        => AuditAsync(openid, familyId, action, 1003, ct);
 
     private async Task AuditAsync(string openid, string familyId, string action, int code, CancellationToken ct)
     {

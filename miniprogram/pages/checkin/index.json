@@ -8,5 +8,6 @@
     "ad-slot": "../../components/base/ad-slot/index",
     "toast-bar": "../../components/base/toast-bar/index"
   },
-  "navigationStyle": "custom"
+  "navigationStyle": "custom",
+  "enablePullDownRefresh": true
 }

@@ -16,6 +16,7 @@ namespace MedBox.Infrastructure.Workers;
 public sealed class ArchiveWorker(
     IServiceScopeFactory scopes,
     Logging.MedBoxConnection connection,
+    TimeProvider time,
     ILogger<ArchiveWorker> logger) : BackgroundService
 {
     private const int RetainDays = 90;
@@ -42,7 +43,9 @@ public sealed class ArchiveWorker(
         {
             try
             {
-                var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                // 触发时刻也走注入时钟：业务时间与调度时间用同一个时间源，
+                // FakeTimeProvider 才能把"凌晨 03:30"整段搬到测试里
+                var nowMs = time.GetUtcNow().ToUnixTimeMilliseconds();
                 var delay = DailySchedule.NextRunUtcMs(nowMs, 3, 30) - nowMs;
                 await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1000, delay)), ct);
                 await RunOnceAsync(ct);

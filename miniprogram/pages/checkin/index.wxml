@@ -102,6 +102,18 @@
     </view>
   </view>
 
+  <!-- ── ?dose= 指向的那条已不在今天的清单里（改了计划会生成新 dose_id） ── -->
+  <view wx:elif="{{viewState === 'stale'}}" class="ck">
+    <view class="ck__empty">
+      <text class="ck__empty-t">这条已经更新了</text>
+      <text class="ck__empty-d">药单刚改过，这条记录不在今天的清单里了。回今日看最新的那条。</text>
+    </view>
+    <view class="ck__actions">
+      <primary-button label="返回今日" bind:tap="goHome"></primary-button>
+      <text class="ck__who">也可以下拉刷新</text>
+    </view>
+  </view>
+
   <!-- ── 今日已全部完成 / 无数据 ── -->
   <view wx:else class="ck">
     <view class="ck__empty">

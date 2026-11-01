@@ -147,6 +147,20 @@
   font-size: var(--fs-caption);
   color: var(--text-3);
 }
+/* 隐私政策 / 用户协议：一眼能找到，但不抢主按钮 */
+.foot__legal {
+  margin-top: var(--sp-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.foot__legal-link {
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  text-decoration: underline;
+  text-underline-offset: 6rpx;
+}
 
 /* 「我有邀请码」：次级入口，不能和「开始使用」抢注意力，但要让手指好点 */
 .manual {

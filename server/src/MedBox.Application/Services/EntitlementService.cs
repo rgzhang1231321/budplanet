@@ -11,7 +11,7 @@ namespace MedBox.Application.Services;
 ///   WEEK_REPORT    —— 某周详细报告，按周归档
 /// 前端只渲染 granted，权益一律以后端为准。
 /// </summary>
-public sealed class EntitlementService(IAppDbContext db, IClock clock)
+public sealed class EntitlementService(IAppDbContext db, ConfigReader config, IClock clock)
 {
     public const string MedSlot = "MED_SLOT";
     public const string WeekReport = "WEEK_REPORT";
@@ -43,26 +43,33 @@ public sealed class EntitlementService(IAppDbContext db, IClock clock)
             : (user.FamilyIds.Length > 0 ? user.FamilyIds[0] : throw new ValidationException("还没有家庭"));
 
         // 1) 幂等：同一个 ad_trace 重放直接返回（微信激励视频可能重复回调）
-        var dup = await db.AdEvents.FirstOrDefaultAsync(e => e.AdTrace == adTrace, ct);
+        var dup = await db.AdEvents.AsNoTracking().FirstOrDefaultAsync(e => e.AdTrace == adTrace, ct);
         if (dup is not null)
             return new AdUnlockResult(true, await MedSlotCreditsAsync(fid, ct), 0, Replay: true);
 
+        var cfg = await config.GetAsync(ct);
         var now = clock.NowMs;
-        var today = clock.TodayCn;
+        var dayStart = TimeCn.DayStartUtcMs(clock.TodayCn);
 
-        // 2) 30s 窗：同一用户同一场景 30 秒内只能核销一次
-        var recent = await db.AdEvents
-            .Where(e => e.Openid == openid && e.ProductId == productId && e.CreatedAt > now - 30_000)
-            .AnyAsync(ct);
-        if (recent) throw new QuotaExceededException("刚领过，30 秒后再试");
+        // 2) 冷却窗：同一用户同一场景 N 秒内只能核销一次（N = config.interstitialCool）
+        var lastGrantAt = await db.AdEvents
+            .AsNoTracking()
+            .Where(e => e.Openid == openid && e.ProductId == productId)
+            .OrderByDescending(e => e.CreatedAt)
+            .Select(e => (long?)e.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+        if (AdUnlockPolicy.InCooldown(now, lastGrantAt, cfg.InterstitialCool))
+            throw new QuotaExceededException($"刚领过，{cfg.InterstitialCool} 秒后再试");
 
-        // 3) 每场景日上限 5 次
-        var dayStart = TimeCn.DayStartUtcMs(today);
+        // 3) 每场景日上限（= config.interstitialDayMax）
         var todayCount = await db.AdEvents
             .CountAsync(e => e.Openid == openid && e.ProductId == productId && e.CreatedAt >= dayStart, ct);
-        if (todayCount >= 5) throw new QuotaExceededException("今天这个解锁次数用完了");
+        if (AdUnlockPolicy.ExceedsDayMax(todayCount, cfg.InterstitialDayMax))
+            throw new QuotaExceededException("今天这个解锁次数用完了");
 
-        db.Add(new AdEvent
+        // 4) 幂等写入：并发重复回调撞 ad_trace 主键时 DO NOTHING；
+        //    0 行 = 另一个请求已经核销过，按幂等结果返回，绝不抛异常变成 1009
+        var inserted = await db.InsertAdEventIgnoreConflictAsync(new AdEvent
         {
             AdTrace = adTrace,
             Openid = openid,
@@ -70,7 +77,9 @@ public sealed class EntitlementService(IAppDbContext db, IClock clock)
             ProductId = productId,
             Granted = true,
             CreatedAt = now,
-        });
+        }, ct);
+        if (inserted == 0)
+            return new AdUnlockResult(true, await MedSlotCreditsAsync(fid, ct), 0, Replay: true);
 
         db.Add(new Entitlement
         {

@@ -89,6 +89,14 @@ export const AD_UNITS = {
 // 订阅消息模板：已按微信后台「功能 → 订阅消息 → 我的模板」实际选用的三套填写，
 // 与 db/migrations/V004__set_subscribe_template_ids.sql、后端 PushTaskBuilder.TemplateData 一一对应。
 // 换模板时三处一起改：本文件 + V00N 新脚本 + TemplateData（字段序号也变）。
+//
+// ⚠️⚠️ 上线前必须换成语义匹配的模板（服药提醒 / 漏服提醒 / 用药周报）⚠️⚠️
+// 现在这三个 ID 是从后台模板库里挑的"字段结构最接近"的现成模板，其中 MISSED 挂的是
+// 「工作任务待办通知」—— 给子女发的漏服告警长成一条待办任务，语义对不上。
+// 微信《小程序运营规范》2.5.21 第 3 条：下发"与用户订阅时所理解的服务或内容严重不符"的
+// 消息属违规，处理方式是删除模板或封禁订阅消息接口（等于提醒功能整体停摆）。
+// 这不是前端代码能修的问题：模板 ID 必须在微信后台重新申请，审核通过后回来改这里。
+// 前端只此一处持有模板 ID（utils/subscribe.ts 只读 TMPL_IDS），改这里即可，勿在页面里写死。
 export const TMPL_IDS: Record<'CHECKIN' | 'MISSED' | 'WEEKLY', string> = {
   CHECKIN: 'goqfpenKaS9IILIzItZUpt1SaNjZ5XcHgHqIEbitS_w', // 药剂更换提醒 10596（服药剂量 short_thing7 / 服药时间 time6）
   MISSED: 'Dv3W1DnoL-bxD5GRf8NJ3aC35z0DoqkOCrUw2QQDEaQ', // 工作任务待办通知 49925（处理人 thing18 / 时间 time3 / 办理事项 thing14）
@@ -97,6 +105,16 @@ export const TMPL_IDS: Record<'CHECKIN' | 'MISSED' | 'WEEKLY', string> = {
 
 export const APP_VERSION = '1.0.0';
 export const CACHE_VERSION = 'v1';
+
+/**
+ * ⚠️ 上线前必须替换：客服邮箱（客户尚未提供真实邮箱，此处留空）。
+ *
+ * 为什么留空不写 support@example.com：example.com 是假地址，用户点了复制、发出去的邮件
+ * 永远没有回音，比"没有邮箱"更糟（隐私政策 §八 要求联系邮箱是法定必备要素）。
+ * 留空时「关于」页只显示微信客服会话入口（button open-type="contact"，不需要邮箱）。
+ * 客户给出真实邮箱后填进来，页面会自动多出一行「客服邮箱 + 复制」。
+ */
+export const SUPPORT_EMAIL = '';
 
 // 打卡单批上限（契约：超限 1005）
 export const SUBMIT_BATCH_MAX = 8;

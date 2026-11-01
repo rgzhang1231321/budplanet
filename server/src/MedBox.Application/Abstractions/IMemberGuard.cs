@@ -17,4 +17,10 @@ public interface IMemberGuard
 {
     /// <summary>任何涉及 fid 的用例第一行调用它。非成员抛 1002，权限不足抛 1003 并落审计。</summary>
     Task<Membership> AssertMemberAsync(string familyId, string openid, CancellationToken ct = default, params string[] allowedRoles);
+
+    /// <summary>
+    /// 用例自己判出的越权（1003）补落审计 —— 例如 elder 只能记自己的药、只能延后自己的药。
+    /// 只在 AssertMember 已经放行之后调用；AssertMember 内部判的 1002/1003 已经写过，别重复写。
+    /// </summary>
+    Task AuditForbiddenAsync(string familyId, string openid, string action, CancellationToken ct = default);
 }

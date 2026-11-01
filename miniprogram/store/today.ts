@@ -145,7 +145,7 @@ export function take(list: DoseRow[], deferMs = 0): Promise<SubmitOutcome> {
 }
 
 /** 离开页面 / 窗口结束：立刻上行 */
-export function flushHeld() {
+export function flushHeld(): Promise<SubmitOutcome> | undefined {
   if (!holdTimer) return;
   clearTimeout(holdTimer);
   holdTimer = null;
@@ -153,7 +153,7 @@ export function flushHeld() {
   const o = heldOrigins;
   heldRows = [];
   heldOrigins = [];
-  commit(l, o);
+  return commit(l, o);
 }
 
 /** 撤销：仅撤销窗口内有效（未上行）。批量打卡时窗口内暂缓的是整批，

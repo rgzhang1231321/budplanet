@@ -1,5 +1,6 @@
 using MedBox.Application.Abstractions;
 using MedBox.Application.Contracts;
+using MedBox.Application.Services;
 using MedBox.Domain;
 using MedBox.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -51,11 +52,14 @@ public sealed class FamilyInfoHandler(IAppDbContext db, IMemberGuard guard, IClo
     }
 }
 
-public sealed class FamilyCreateHandler(IAppDbContext db, IClock clock)
+public sealed class FamilyCreateHandler(IAppDbContext db, ContentSecurityChecker security, IClock clock)
 {
     public async Task<object> HandleAsync(string name, string openid, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(name)) name = "我家";
+
+        // 家庭名会显示给全家人，是 UGC 文本，入库前过内容安全
+        await security.EnsureSafeAsync([name], openid, ct);
 
         var fid = "F" + Guid.NewGuid().ToString("N")[..12];
         var now = clock.NowMs;

@@ -59,6 +59,7 @@ public sealed class LoginHandler(IAppDbContext db, IWxApiClient wx, IJwtIssuer j
             Config = cfg,
             Token = jwt.Issue(openid),
             RefreshToken = jwt.IssueRefresh(openid),
+            ServerTs = clock.NowMs,
         };
         return result;
     }

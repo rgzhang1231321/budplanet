@@ -18,6 +18,12 @@ public sealed class LoginResultDto
     [JsonPropertyName("config")] public AppConfigDto Config { get; set; } = new();
     [JsonPropertyName("token")] public string Token { get; set; } = "";
     [JsonPropertyName("refreshToken")] public string RefreshToken { get; set; } = "";
+
+    /// <summary>
+    /// UTC 毫秒。前端靠它做"server_ts + offset"时钟补偿（老人机本地时间被改错时的兜底），
+    /// 也是所有读接口必带 server_ts 的基线 —— login 漏了它，冷启第一次的日期判定就没有可信时间可对。
+    /// </summary>
+    [JsonPropertyName("server_ts")] public long ServerTs { get; set; }
 }
 
 public sealed class UserDto

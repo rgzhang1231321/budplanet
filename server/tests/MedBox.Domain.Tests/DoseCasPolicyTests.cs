@@ -46,4 +46,24 @@ public class DoseCasPolicyTests
             .Should().Be(CasStep.Reject);
         DoseCasPolicy.MaxAttempts.Should().BeGreaterThan(0);
     }
+
+    [Fact]
+    public void correct_first_attempt_on_taken_is_applied()
+        => DoseCasPolicy.DecideCorrect(DoseStatus.Taken, DoseStatus.Missed, isCorrected: false, attemptsUsed: 0)
+            .Should().Be(CasStep.Apply);
+
+    [Fact]
+    public void correct_cannot_target_taken_or_touch_a_corrected_row()
+    {
+        // 契约 §7:140/149：correct 只收 missed/skipped；回 taken 走 submit
+        DoseCasPolicy.DecideCorrect(DoseStatus.Missed, DoseStatus.Taken, isCorrected: false, attemptsUsed: 0)
+            .Should().Be(CasStep.Reject);
+        DoseCasPolicy.DecideCorrect(DoseStatus.Taken, DoseStatus.Skipped, isCorrected: true, attemptsUsed: 0)
+            .Should().Be(CasStep.Reject);
+    }
+
+    [Fact]
+    public void correct_attempts_are_bounded_too()
+        => DoseCasPolicy.DecideCorrect(DoseStatus.Taken, DoseStatus.Skipped, isCorrected: false, attemptsUsed: DoseCasPolicy.MaxAttempts)
+            .Should().Be(CasStep.Reject);
 }

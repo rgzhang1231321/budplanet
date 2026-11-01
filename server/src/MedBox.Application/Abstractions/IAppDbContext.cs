@@ -43,8 +43,20 @@ public interface IAppDbContext
     Task<int> CompareAndSetDoseAsync(DoseCasUpdate update, CancellationToken ct = default);
 
     /// <summary>
+    /// 人工改判 CAS：`UPDATE dose_logs SET status=@to, is_corrected=true, checked_by=…, checked_at=…
+    /// WHERE dose_id=@id AND family_id=@fid AND status=@from AND is_corrected=false`，返回受影响行数。
+    /// </summary>
+    Task<int> CompareAndSetDoseCorrectAsync(DoseCorrectUpdate update, CancellationToken ct = default);
+
+    /// <summary>
     /// 剂量行幂等插入：`INSERT … ON CONFLICT (dose_id) DO NOTHING`，返回真正新增的行数。
     /// 不用"先查再插"——两个请求同时补齐（首页 + 打卡页）会撞主键，抛异常被映射成 1009。
     /// </summary>
     Task<int> InsertDoseLogsIgnoreConflictAsync(IReadOnlyList<DoseLog> rows, CancellationToken ct = default);
+
+    /// <summary>
+    /// 广告事件幂等插入：`INSERT … ON CONFLICT (ad_trace) DO NOTHING`，返回真正新增的行数。
+    /// 0 行 = 同一个 ad_trace 已经被核销过（激励视频重复回调），调用方按幂等返回而不是报错。
+    /// </summary>
+    Task<int> InsertAdEventIgnoreConflictAsync(AdEvent row, CancellationToken ct = default);
 }

@@ -5,8 +5,28 @@
   <view class="dlg {{elder ? 'dlg--elder' : ''}}">
     <text class="dlg__title">{{title}}</text>
     <text class="dlg__body">{{content}}</text>
+
+    <!-- 首次使用必须点过的两项同意：文案照抄 docs/合规与通知文案.md §五 -->
+    <view class="dlg__consent">
+      <view class="dlg__check" bindtap="toggleDoc">
+        <view class="dlg__box {{agreeDoc ? 'dlg__box--on' : ''}}">
+          <view wx:if="{{agreeDoc}}" class="i i-check-plain dlg__tick"></view>
+        </view>
+        <text class="dlg__agree">我已阅读并同意<text class="dlg__link" data-type="agreement" catchtap="onLegal">《用户协议》</text>和<text class="dlg__link" data-type="privacy" catchtap="onLegal">《隐私政策》</text></text>
+      </view>
+
+      <view class="dlg__check" bindtap="toggleSensitive">
+        <view class="dlg__box {{agreeSensitive ? 'dlg__box--on' : ''}}">
+          <view wx:if="{{agreeSensitive}}" class="i i-check-plain dlg__tick"></view>
+        </view>
+        <text class="dlg__agree">我同意本小程序记录我与家人的用药信息（属敏感个人信息），用于服药提醒和家庭内共享</text>
+      </view>
+
+      <text class="dlg__hint">不同意这一项，将无法使用提醒和记录功能。你可以随时在「我的 → 账号与数据」中删除。</text>
+    </view>
+
     <view
-      class="btn btn--primary dlg__btn {{canConfirm ? '' : 'btn--disabled'}}"
+      class="btn btn--primary dlg__btn {{canConfirm && agreeDoc && agreeSensitive ? '' : 'btn--disabled'}}"
       catchtap="onConfirm"
       aria-role="button"
       aria-label="{{confirmText}}"

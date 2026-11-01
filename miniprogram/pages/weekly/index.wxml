@@ -2,33 +2,44 @@
   <page-nav title="周报" subtitle="{{rangeText}}"></page-nav>
 
   <view class="page page--tab">
-    <view class="ring-card">
-      <progress-ring rate="{{rate}}" size="{{320}}" delta="{{delta}}" deltaDown="{{deltaDown}}"></progress-ring>
-      <text class="ring-card__family">{{familyText}}</text>
-      <text wx:if="{{manualText}}" class="ring-card__manual">{{manualText}}</text>
-    </view>
+    <!-- 这周一条记录都没有：不许显示「0%」+「一次没漏」——0 条数据不是 100 分 -->
+    <block wx:if="{{isEmpty}}">
+      <empty-state
+        icon="pill"
+        title="这周还没开始记录"
+        desc="在「今日」打过卡，这里就会有完成率和漏服情况"
+      ></empty-state>
+    </block>
 
-    <view class="card miss-card">
-      <view class="row--between">
-        <text class="t-h2">漏服 {{missCount}} 次</text>
-        <text class="t-caption" bindtap="onHistory">看历史 ›</text>
+    <block wx:else>
+      <view class="ring-card">
+        <progress-ring rate="{{rate}}" size="{{320}}" delta="{{delta}}" deltaDown="{{deltaDown}}"></progress-ring>
+        <text class="ring-card__family">{{familyText}}</text>
+        <text wx:if="{{manualText}}" class="ring-card__manual">{{manualText}}</text>
       </view>
-      <view wx:if="{{missCount}}" class="miss-list">
-        <view wx:for="{{misses}}" wx:key="index" class="miss-list__row">
-          <view class="miss-list__dot"></view>
-          <text class="miss-list__text">{{item.text}}</text>
-          <text class="miss-list__dose">{{item.dose}}</text>
+
+      <view class="card miss-card">
+        <view class="row--between">
+          <text class="t-h2">漏服 {{missCount}} 次</text>
+          <text class="t-caption" bindtap="onHistory">看历史 ›</text>
+        </view>
+        <view wx:if="{{missCount}}" class="miss-list">
+          <view wx:for="{{misses}}" wx:key="index" class="miss-list__row">
+            <view class="miss-list__dot"></view>
+            <text class="miss-list__text">{{item.text}}</text>
+            <text class="miss-list__dose">{{item.dose}}</text>
+          </view>
+        </view>
+        <text wx:else class="miss-none">这周一次没漏，很好</text>
+
+        <view class="week">
+          <view wx:for="{{days}}" wx:key="key" class="week__cell week__cell--{{item.state}}">
+            <text class="week__label">{{item.label}}</text>
+            <text class="week__mark">{{item.state === 'ok' ? '✓' : (item.state === 'miss' ? '✗' : '·')}}</text>
+          </view>
         </view>
       </view>
-      <text wx:else class="miss-none">这周一次没漏，很好</text>
-
-      <view class="week">
-        <view wx:for="{{days}}" wx:key="key" class="week__cell week__cell--{{item.state}}">
-          <text class="week__label">{{item.label}}</text>
-          <text class="week__mark">{{item.state === 'ok' ? '✓' : (item.state === 'miss' ? '✗' : '·')}}</text>
-        </view>
-      </view>
-    </view>
+    </block>
 
     <view wx:if="{{!isSelf}}" class="d-card" bindtap="onOpenDetail">
       <view class="d-card__icon"><view class="i i-video i--lg"></view></view>

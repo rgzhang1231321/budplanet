@@ -14,13 +14,24 @@ namespace MedBox.Application.Services;
 /// </summary>
 public sealed class DoseMaterializer(IAppDbContext db, IClock clock)
 {
-    public async Task<int> EnsureDayAsync(string familyId, string dateCn, CancellationToken ct = default)
+    public Task<int> EnsureDayAsync(string familyId, string dateCn, CancellationToken ct = default)
+        => EnsureDaysAsync(familyId, [dateCn], ct);
+
+    /// <summary>
+    /// 一次补齐多天（周视图）。固定 3 次往返：plans 一次、medicines 一次、批量 INSERT 一次，
+    /// 不随天数增长 —— 逐天调 <see cref="EnsureDayAsync"/> 是 7×(2 次查询 + 1 次插入)。
+    /// 未来日期仍然跳过（否则周报会把还没到的日子算进完成率分母）。
+    /// </summary>
+    public async Task<int> EnsureDaysAsync(string familyId, IReadOnlyList<string> datesCn, CancellationToken ct = default)
     {
-        // 未来日期不该有记录：否则周报会把"还没到的日子"算进完成率分母
-        if (string.CompareOrdinal(dateCn, clock.TodayCn) > 0) return 0;
+        var targets = DaysToFill(datesCn, clock.TodayCn);
+        if (targets.Count == 0) return 0;
+
+        // 取到最晚那天为止已开始的计划：更晚开始的计划在这批日期里都不该生成
+        var lastDate = targets.OrderBy(d => d, StringComparer.Ordinal).Last();
 
         var plans = await db.Plans
-            .Where(p => p.FamilyId == familyId && p.Status == "active" && string.Compare(p.StartDate, dateCn) <= 0)
+            .Where(p => p.FamilyId == familyId && p.Status == "active" && string.Compare(p.StartDate, lastDate) <= 0)
             .ToListAsync(ct);
         if (plans.Count == 0) return 0;
 
@@ -28,10 +39,41 @@ public sealed class DoseMaterializer(IAppDbContext db, IClock clock)
             .Where(m => m.FamilyId == familyId)
             .ToDictionaryAsync(m => m.MedicineId, ct);
 
-        var rows = BuildRows(familyId, dateCn, plans, meds, clock.NowMs);
+        var rows = BuildRowsForDates(familyId, targets, plans, meds, clock.NowMs);
         if (rows.Count == 0) return 0;
 
         return await db.InsertDoseLogsIgnoreConflictAsync(rows, ct);
+    }
+
+    /// <summary>
+    /// 纯函数：这批日期里真正要补的是哪几天 —— 去掉空值、未来日期与重复项。
+    /// 未来日期不该有记录，否则周报会把"还没到的日子"算进完成率分母。
+    /// </summary>
+    public static List<string> DaysToFill(IReadOnlyList<string> datesCn, string todayCn)
+        => datesCn
+            .Where(d => !string.IsNullOrEmpty(d) && string.CompareOrdinal(d, todayCn) <= 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>
+    /// 纯函数：多天 × 计划 × 时间点 → 待插入的剂量行。
+    /// 计划只在 <c>start_date &lt;= 当天</c> 时生效，所以要按日过滤，不能只看批次里的最大日期。
+    /// </summary>
+    public static List<DoseLog> BuildRowsForDates(
+        string familyId,
+        IReadOnlyList<string> datesCn,
+        IReadOnlyList<Plan> plans,
+        IReadOnlyDictionary<string, Medicine> meds,
+        long nowMs)
+    {
+        var rows = new List<DoseLog>();
+        foreach (var date in datesCn)
+        {
+            var active = plans.Where(p => string.CompareOrdinal(p.StartDate, date) <= 0).ToList();
+            if (active.Count == 0) continue;
+            rows.AddRange(BuildRows(familyId, date, active, meds, nowMs));
+        }
+        return rows;
     }
 
     /// <summary>

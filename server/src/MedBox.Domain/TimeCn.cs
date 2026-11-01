@@ -1,5 +1,7 @@
 namespace MedBox.Domain;
 
+using System.Globalization;
+
 /// <summary>
 /// 东八区时间口径：时刻一律 UTC 毫秒；自然日一律 "YYYY-MM-DD" 东八区。
 /// 严禁用 DateTime.Now / ToLocalTime 推日期（服务器时区不可控）。
@@ -11,6 +13,21 @@ public static class TimeCn
     public static DateTimeOffset ToCn(long utcMs) => DateTimeOffset.FromUnixTimeMilliseconds(utcMs).ToOffset(Offset);
 
     public static string DateCn(long utcMs) => ToCn(utcMs).ToString("yyyy-MM-dd");
+
+    /// <summary>
+    /// 校验并归一化东八区自然日。入参来自前端 query string，
+    /// 非法值必须在这里被拦住转 1005 —— 直接进 <see cref="DayStartUtcMs"/> 的 ParseExact 会抛 FormatException，
+    /// 被中间件映射成 1009"服务异常"，前端会把它写进重试队列无限重投。
+    /// </summary>
+    public static bool TryParseDate(string? dateCn, out string normalized)
+    {
+        normalized = "";
+        if (string.IsNullOrWhiteSpace(dateCn)) return false;
+        if (!DateTime.TryParseExact(dateCn, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+            return false;
+        normalized = d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return true;
+    }
 
     public static int MinuteOfDay(long utcMs)
     {

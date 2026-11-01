@@ -36,6 +36,13 @@ export function bootstrap(force = false): Promise<void> {
     applyMode(mode());
     await refreshToday();
   })();
+  // 失败必须把 booting 清空，否则整个会话都被这一个失败的 promise 钉死：
+  // 后续每次 bootstrap() 都拿到同一个 rejected 结果，网络恢复了也不会重登 → 全站空数据。
+  // 只清自己这一次（booting === p），避免把后来者刚发起的那次覆盖掉。
+  const p = booting;
+  p.catch(() => {
+    if (booting === p) booting = null;
+  });
   return booting;
 }
 

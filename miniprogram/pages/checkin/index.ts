@@ -6,13 +6,15 @@
 import { bootstrap, refreshToday } from '../../store/user';
 import { get, isElder, isSelf, mode, on, visibleRows } from '../../store/index';
 import { flushHeld, skip, snooze, take, undoTake } from '../../store/today';
+import { flush, dirtyToday } from '../../utils/queue';
+import { isAlwaysAccept, isMainSwitchOn } from '../../utils/subscribe';
 import { countdown, humanGap, diffMinutes, partOfDay } from '../../utils/time';
 import { report } from '../../utils/report';
 
 Page({
   data: {
     elder: false,
-    viewState: 'pending' as 'pending' | 'taken' | 'missed' | 'empty',
+    viewState: 'pending' as 'pending' | 'taken' | 'missed' | 'empty' | 'stale',
     list: [] as any[],
     folded: false,
     extra: 0,
@@ -75,12 +77,26 @@ Page({
     clearInterval(this._cdTimer);
   },
 
+  /** 下拉刷新：`?dose=` 失效时这是最直接的一条出路（重拉今日，卡片按最新状态重算） */
+  async onPullDownRefresh() {
+    try {
+      await bootstrap(true);
+      await refreshToday(false);
+    } catch (e) {
+      /* 刷新失败保留当前画面，不把已有数据清掉 */
+    }
+    this.build();
+    wx.stopPullDownRefresh();
+  },
+
   /** 选当前要打的卡：优先 pending（同分钟合并为批量），否则回看最近一条已服 */
   build() {
     const s = get();
     const rows = visibleRows();
     if (!rows.length) {
-      this.setData({ elder: isElder(), viewState: 'empty', whoText: this.who() });
+      // 带了 ?dose= 却今天一条都没有：说明这条确实不在了（改计划会生成新 dose_id），
+      // 仍然要说"这条已失效"，不能退化成"今天都记好了"让人以为记过了。
+      this.setData({ elder: isElder(), viewState: this._doseId ? 'stale' : 'empty', whoText: this.who() });
       return;
     }
     let list: any[] = [];
@@ -95,6 +111,13 @@ Page({
           list = [hit];
           viewState = hit.status === 'taken' ? 'taken' : 'missed';
         }
+      } else {
+        // 找不到就明说这条失效，绝不拿"最早一条 pending"顶替 ——
+        // 用户以为在看自己点的那条，实际是另一条，打卡就打错了记录。
+        this._pendingAll = [];
+        report('checkin_dose_stale', {});
+        this.setData({ elder: isElder(), viewState: 'stale' });
+        return;
       }
     }
     if (!list.length) {
@@ -129,8 +152,10 @@ Page({
     const lastOne = first.today_index === first.today_total && first.today_total > 1;
 
     const members = s.family.members.filter((m) => m.openid !== s.user.openid).slice(0, 3);
-    const known =
-      members.length && members[0].nick ? `${members[0].nick}已经知道了` : '家人已经知道了';
+    // 「家人已经知道了」不能无条件说：家人知不知道，取决于微信侧是否真的发得出一条消息。
+    const reach = this.reachFamily();
+    const nick = members.length && members[0].nick ? members[0].nick : '家人';
+    const known = reach ? `${nick}会看到这条记录` : `${nick}打开小程序就能看到`;
 
     this.setData({
       elder: isElder(),
@@ -179,9 +204,21 @@ Page({
     return `${(p && p.alias) || ''} · ${s.family.name || '我家'}`;
   },
 
+  /**
+   * 家人能不能收到消息：MISSED 是唯一发给家人的模板（漏服告警），
+   * 额度为 0 或没勾「总是保持以上选择」时，后台一条都不会发。
+   * 所以"已通知家人"这句话有没有资格说，全看这里。
+   */
+  reachFamily(): boolean {
+    const q = get().user.quota;
+    return !!q && (q.MISSED || 0) > 0 && isAlwaysAccept('MISSED') && isMainSwitchOn();
+  },
+
   takenSub(list: any[]) {
     const names = list.map((r) => `${r.due_time} ${r.medicine_name} ${r.dose_text}`).join(' · ');
-    return `${names} · 已通知家人`;
+    // 绝不写「已通知家人」：打卡这一刻微信侧不会推送任何消息，
+    // 有 MISSED 额度也只会在"判成漏服"时才发。两种说法都必须是真的。
+    return this.reachFamily() ? `${names} · 已记下，家人会看到` : `${names} · 已记下`;
   },
 
   /* ── 打卡 ── */
@@ -301,9 +338,33 @@ Page({
     });
   },
 
-  onRetrySync() {
+  /**
+   * 真的重试，不是只换个文案：
+   * 先把撤销窗口里暂缓的那批发出去，再冲一次离线队列；队列空了才算真同步上。
+   */
+  async onRetrySync() {
     this.setData({ syncState: 'sending' });
-    wx.showToast({ title: '正在重试', icon: 'none' });
+    const held = flushHeld();
+    try {
+      // 等暂缓的那批真发完，再冲队列；两步都结束才有资格判断结果
+      if (held) await held;
+      await flush();
+    } catch (e) {
+      /* 冲队列本身不抛业务错，这里只兜住极端情况 */
+    }
+    if (!dirtyToday()) {
+      this.setData({ syncShow: false });
+      wx.showToast({ title: '已经同步好了', icon: 'none' });
+      return;
+    }
+    // 还是没上去：不重复弹同一句 toast，给一条能照着做的出路
+    this.setData({ syncState: 'error' });
+    wx.showModal({
+      title: '还没能发出去',
+      content: '检查一下手机网络，或走到有信号的地方再点「重试」。记录已经存在手机里，不会丢。',
+      showCancel: false,
+      confirmText: '知道了',
+    });
   },
 
   goHome() {

@@ -22,9 +22,17 @@
         <text class="list__label">免责声明</text>
         <view class="i i-chevron"></view>
       </view>
-      <view class="list__row" bindtap="onCopy">
+      <!-- 客服：用微信客服会话（open-type="contact"）——不需要邮箱，也不会出现假地址。
+           真邮箱由 config/index.ts 的 SUPPORT_EMAIL 填，填了才会多出下面那一行。 -->
+      <view class="list__row list__row--hit">
         <text class="list__label">联系客服</text>
-        <text class="list__value">support@example.com</text>
+        <text class="list__value">{{contactText}}</text>
+        <view class="i i-chevron"></view>
+        <button class="contact-hit" open-type="contact"></button>
+      </view>
+      <view wx:if="{{supportEmail}}" class="list__row" bindtap="onCopyEmail">
+        <text class="list__label">客服邮箱</text>
+        <text class="list__value">{{supportEmail}}</text>
         <view class="i i-chevron"></view>
       </view>
     </view>

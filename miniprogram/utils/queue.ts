@@ -6,7 +6,7 @@
  */
 import { SUBMIT_BATCH_MAX } from '../config/index';
 import type { DoseStatus } from '../types/api';
-import { patchRow } from '../store/index';
+import { patchRow, emit } from '../store/index';
 import { call } from './request';
 import { logClient } from './logger';
 import { report } from './report';
@@ -68,7 +68,7 @@ export function pendingCount(): number {
   return read().length;
 }
 
-let flushing = false;
+let inflight: Promise<void> | null = null;
 
 export function enqueue(task: EnqueueInput) {
   // 防呆：pending 不是可提交状态（服务端必 1005 拒），塞进队列只会变成死任务
@@ -117,11 +117,22 @@ function drop(tasks: QueueTask[]) {
   wx.showToast({ title: '这条没记上，请重新点一次', icon: 'none' });
 }
 
-export async function flush(): Promise<void> {
-  if (flushing) return;
+/**
+ * 冲队列。已有一轮在跑时返回那一轮的 promise ——
+ * 页面「重试」必须等真的跑完才能判断结果，早退会让它在"还在发"时就宣布没上去。
+ */
+export function flush(): Promise<void> {
+  if (inflight) return inflight;
+  if (!read().length) return Promise.resolve();
+  inflight = run().finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
+async function run(): Promise<void> {
   const q = read();
   if (!q.length) return;
-  flushing = true;
 
   const batch = q.slice(0, SUBMIT_BATCH_MAX);
   const batchKeys = new Set(batch.map(keyOf));
@@ -168,6 +179,13 @@ export async function flush(): Promise<void> {
     write(keep);
     drop(gone);
 
+    // 重放成功要把行上的"同步中"摘掉并通知页面：
+    // 不 emit 的话打卡页会一直挂着「正在发送给家人…」，用户以为没同步上（重放的结果没人接住）。
+    if (doneKeys.size) {
+      doneKeys.forEach((k: any) => patchRow(String(k), { syncing: false }));
+      emit('today.synced');
+    }
+
     if (rejected.length) report('checkin_rejected', { n: rejected.length, code: rejected[0].code });
   } catch (e) {
     // 网络失败：只有本批每条 +1 次重试，超上限的移出队列（不再无限重投）
@@ -188,11 +206,14 @@ export async function flush(): Promise<void> {
     write(keep);
     drop(gone);
 
-    // 指数退避 1s / 3s / 9s / 27s
-    const r = Math.min(batch[0].retry, 4);
+    // 指数退避 1s / 3s / 9s / 27s。
+    // 取本批里重试次数最多的那条：只看 batch[0] 会让"第一条刚入队、后面几条已经失败 5 次"
+    // 的批次一直按 1 秒重投，退避形同虚设。
+    const r = Math.min(
+      batch.reduce((max, t) => Math.max(max, t.retry), 0),
+      4,
+    );
     retryDelay = Math.min(1000 * Math.pow(3, r), 27000);
-  } finally {
-    flushing = false;
   }
 
   if (read().length) setTimeout(flush, retryDelay || 1200);

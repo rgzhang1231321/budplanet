@@ -91,6 +91,21 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
             .SetProperty(d => d.SkipReason, u.SkipReason), ct);
     }
 
+    Task<int> IAppDbContext.CompareAndSetDoseCorrectAsync(DoseCorrectUpdate u, CancellationToken ct)
+    {
+        var from = u.From.ToWire();
+        var to = u.To.ToWire();
+
+        // 守卫同打卡：主键 + 家庭 + 当前状态仍是读到的那个 + 未改判过（改判不可逆）
+        return DoseLogs
+            .Where(d => d.DoseId == u.DoseId && d.FamilyId == u.FamilyId && d.Status == from && !d.IsCorrected)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(d => d.Status, to)
+                .SetProperty(d => d.IsCorrected, true)
+                .SetProperty(d => d.CheckedBy, u.OperatorOpenid)
+                .SetProperty(d => d.CheckedAt, (long?)u.NowMs), ct);
+    }
+
     async Task<int> IAppDbContext.InsertDoseLogsIgnoreConflictAsync(IReadOnlyList<DoseLog> rows, CancellationToken ct)
     {
         if (rows.Count == 0) return 0;
@@ -145,6 +160,14 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
             if (openedHere) await Database.CloseConnectionAsync();
         }
     }
+
+    Task<int> IAppDbContext.InsertAdEventIgnoreConflictAsync(AdEvent row, CancellationToken ct)
+        // 并发重复回调不再靠"先查再插"：两个回调同时到，后插的那条撞主键抛异常被映射成 1009，
+        // 前端看到"服务异常"，而用户其实已经拿到权益了。
+        => Database.ExecuteSqlRawAsync(
+            "INSERT INTO ad_events (ad_trace, openid, family_id, product_id, granted, created_at) " +
+            "VALUES ({0}, {1}, {2}, {3}, {4}, {5}) ON CONFLICT (ad_trace) DO NOTHING",
+            new object[] { row.AdTrace, row.Openid, row.FamilyId, row.ProductId, row.Granted, row.CreatedAt }, ct);
 
     private static void Add(DbCommand cmd, string name, object? value)
     {

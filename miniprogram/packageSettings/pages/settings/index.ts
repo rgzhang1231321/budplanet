@@ -107,7 +107,7 @@ Page({
   onCall() {
     wx.showModal({
       title: '联系客服',
-      content: '请在小程序「关于」页找到客服邮箱，或用微信搜索「替你记着吃药」反馈。',
+      content: '在小程序「关于」页点「联系客服」，我们会在微信里直接回你。',
       showCancel: false,
     });
   },

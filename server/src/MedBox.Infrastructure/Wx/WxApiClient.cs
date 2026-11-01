@@ -17,6 +17,12 @@ public sealed class WxOptions
     public string ApiBase { get; set; } = "https://api.weixin.qq.com";
     /// <summary>本地开发：未配 secret 时用固定 openid，避免每次 wx.login 的 code 变一次就多一个用户。</summary>
     public string DevOpenid { get; set; } = "dev_local_openid";
+
+    /// <summary>
+    /// UGC 内容安全校验总开关（默认开）。关掉的场景：微信接口限流/故障期间要保住"能存药"这条主链路。
+    /// 走配置不走常量：出事时希望改配置重启就能关，而不是发一版。
+    /// </summary>
+    public bool MsgSecCheckEnabled { get; set; } = true;
 }
 
 /// <summary>
@@ -33,6 +39,9 @@ public sealed class WxApiClient(
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly WxOptions _opt = options.Value;
+
+    /// <summary>msgSecCheck 命中违禁的 errcode（老版本返回形态）。</summary>
+    private const int SecCheckRiskyErrCode = 87014;
 
     public async Task<WxSession> Code2SessionAsync(string code, CancellationToken ct = default)
     {
@@ -100,6 +109,62 @@ public sealed class WxApiClient(
         }
     }
 
+    /// <summary>
+    /// 内容安全校验（药名/备注/家庭名/服药人称呼）。
+    /// 失败一律放行 + Warning：微信抖动或 access_token 拿不到时若拒写，用户当天就存不了药，
+    /// 代价比"一条备注待复核"大得多 —— 这条链路的第一优先级是药能进库。
+    /// </summary>
+    public async Task<WxSecVerdict> MsgSecCheckAsync(string content, string openid, CancellationToken ct = default)
+    {
+        if (!_opt.MsgSecCheckEnabled || string.IsNullOrWhiteSpace(content)) return WxSecVerdict.Pass;
+
+        var token = await GetAccessTokenAsync(ct);
+        if (string.IsNullOrEmpty(token))
+        {
+            logger.LogWarning("内容安全校验跳过：拿不到 access_token（WX__SECRET 未配置），按放行处理");
+            return WxSecVerdict.Pass;
+        }
+
+        // version=2 + scene=2（评论/资料场景）走新版 suggest 判定；openid 必传，微信按用户维度做风控
+        var body = new { content, version = 2, scene = 2, openid };
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{_opt.ApiBase}/wxa/msg_sec_check?access_token={token}")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(body, Json), Encoding.UTF8, "application/json"),
+            };
+            using var resp = await http.SendAsync(req, ct);
+            var text = await resp.Content.ReadAsStringAsync(ct);
+            var result = JsonSerializer.Deserialize<SecCheckResp>(text, Json);
+
+            if (result is null)
+            {
+                logger.LogWarning("内容安全校验返回空响应，按放行处理");
+                return WxSecVerdict.Pass;
+            }
+
+            // 老版本直接把违规当错误码返回（87014）；新版已改为 errcode=0 + result.suggest，两种都认
+            if (result.ErrCode == SecCheckRiskyErrCode) return WxSecVerdict.Risky;
+
+            if (result.ErrCode != 0)
+            {
+                logger.LogWarning("内容安全校验失败 errcode={Code} msg={Msg}，按放行处理", result.ErrCode, result.ErrMsg);
+                return WxSecVerdict.Pass;
+            }
+
+            // suggest 只有 risky 拒；review（建议人工复核）不挡用户
+            return string.Equals(result.Result?.Suggest, "risky", StringComparison.OrdinalIgnoreCase)
+                ? WxSecVerdict.Risky
+                : WxSecVerdict.Pass;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "内容安全校验异常，按放行处理");
+            return WxSecVerdict.Pass;
+        }
+    }
+
     private sealed class Code2SessionResp
     {
         [JsonPropertyName("openid")] public string? Openid { get; set; }
@@ -113,5 +178,19 @@ public sealed class WxApiClient(
     {
         [JsonPropertyName("errcode")] public int ErrCode { get; set; }
         [JsonPropertyName("errmsg")] public string? ErrMsg { get; set; }
+    }
+
+    private sealed class SecCheckResp
+    {
+        [JsonPropertyName("errcode")] public int ErrCode { get; set; }
+        [JsonPropertyName("errmsg")] public string? ErrMsg { get; set; }
+        [JsonPropertyName("result")] public SecCheckResult? Result { get; set; }
+    }
+
+    private sealed class SecCheckResult
+    {
+        /// <summary>pass / review / risky。</summary>
+        [JsonPropertyName("suggest")] public string? Suggest { get; set; }
+        [JsonPropertyName("label")] public int Label { get; set; }
     }
 }

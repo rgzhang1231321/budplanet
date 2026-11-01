@@ -16,7 +16,15 @@ public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMater
     public async Task<TodayResultDto> HandleAsync(string fid, string date, string openid, CancellationToken ct = default)
     {
         var m = await guard.AssertMemberAsync(fid, openid, ct);
-        if (string.IsNullOrWhiteSpace(date)) date = clock.TodayCn;
+        if (string.IsNullOrWhiteSpace(date))
+        {
+            date = clock.TodayCn;
+        }
+        else if (!TimeCn.TryParseDate(date, out date))
+        {
+            // 契约：参数错误是 1005；让它抛 FormatException 会变 1009，前端当成服务异常无限重投
+            throw new ValidationException("date 格式应为 YYYY-MM-DD（东八区自然日）");
+        }
 
         await materializer.EnsureDayAsync(fid, date, ct);
 
@@ -131,11 +139,21 @@ public sealed class WeekHandler(IAppDbContext db, IMemberGuard guard, DoseMateri
     public async Task<WeekResultDto> HandleAsync(string fid, string? weekStart, string openid, CancellationToken ct = default)
     {
         var m = await guard.AssertMemberAsync(fid, openid, ct);
-        var start = string.IsNullOrWhiteSpace(weekStart) ? TimeCn.WeekStart(clock.TodayCn) : weekStart!;
+
+        string start;
+        if (string.IsNullOrWhiteSpace(weekStart))
+        {
+            start = TimeCn.WeekStart(clock.TodayCn);
+        }
+        else if (!TimeCn.TryParseDate(weekStart, out start))
+        {
+            throw new ValidationException("weekStart 格式应为 YYYY-MM-DD（东八区自然日）");
+        }
+
         var dates = TimeCn.WeekDates(start).ToList();
 
-        foreach (var d in dates)
-            await materializer.EnsureDayAsync(fid, d, ct);
+        // 整周一次补齐（3 次往返），不再逐天 EnsureDayAsync
+        await materializer.EnsureDaysAsync(fid, dates, ct);
 
         var q = db.DoseLogs.Where(x => x.FamilyId == fid && dates.Contains(x.DueDate));
         if (m.IsElder) q = q.Where(x => m.SelfUids.Contains(x.PatientId));

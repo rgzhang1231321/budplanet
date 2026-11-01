@@ -29,4 +29,14 @@ public static class DoseCasPolicy
         if (attemptsUsed >= MaxAttempts) return CasStep.Reject;
         return DoseTransitions.CanSubmit(from, to, isCorrected) ? CasStep.Apply : CasStep.Reject;
     }
+
+    /// <summary>
+    /// 人工改判的 CAS 判定：规则与 <see cref="DoseTransitions.CanCorrect"/> 一致，
+    /// 多一层"重试用完就拒"——同一行被反复改动时必须有上界，不能把库打爆。
+    /// </summary>
+    public static CasStep DecideCorrect(DoseStatus from, DoseStatus to, bool isCorrected, int attemptsUsed)
+    {
+        if (attemptsUsed >= MaxAttempts) return CasStep.Reject;
+        return DoseTransitions.CanCorrect(from, to, isCorrected) ? CasStep.Apply : CasStep.Reject;
+    }
 }

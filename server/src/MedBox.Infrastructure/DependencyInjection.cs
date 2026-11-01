@@ -58,7 +58,9 @@ public static class DependencyInjection
     public static IServiceCollection AddMedBoxApplication(this IServiceCollection services)
     {
         services.AddScoped<IMemberGuard, MemberGuard>();
-        services.AddScoped<ConfigReader>();
+        // Singleton：注册成 Scoped 时每个请求都 new 一个，实例字段的 60s 缓存永远命中不了
+        services.AddSingleton<ConfigReader>();
+        services.AddScoped<ContentSecurityChecker>();
         services.AddScoped<DoseMaterializer>();
         services.AddScoped<DoseCasApplier>();
         services.AddScoped<EntitlementService>();

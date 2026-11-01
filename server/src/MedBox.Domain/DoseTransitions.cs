@@ -1,10 +1,12 @@
 namespace MedBox.Domain;
 
 /// <summary>
-/// 状态迁移规则（契约冻结表 §七 v1.2 修订后的口径）。
+/// 状态迁移规则（契约冻结表 §七 v1.5 口径）。
 /// 分两条通道，别合并：
 ///   · Submit（打卡 / 补记）：pending → taken|skipped|missed；missed(未人工改判) → taken
-///   · Correct（人工改判）：taken → missed|skipped；missed(未人工改判) → taken
+///   · Correct（人工改判）：taken → missed|skipped，目标状态只有这两项
+/// 契约 §7:149 澄清：`missed(系统判定) → taken` 走 submit，不走 correct ——
+/// correct 是"记错了要改"，submit 是"我吃了"；合并会让 correct 能凭空造出打卡时间。
 /// 人工改判不可逆：is_corrected=true 之后任何方向都锁死（防来回刷数据）。
 /// </summary>
 public static class DoseTransitions
@@ -29,7 +31,9 @@ public static class DoseTransitions
         if (isCorrected) return false; // 已改判过，任何方向都不许再动
         if (from == to) return false;
 
-        return (from == DoseStatus.Taken && to is DoseStatus.Missed or DoseStatus.Skipped)
-               || (from == DoseStatus.Missed && to == DoseStatus.Taken);
+        return from == DoseStatus.Taken && IsCorrectTarget(to);
     }
+
+    /// <summary>correct 的合法目标状态：只收 missed / skipped，不含 taken（回 taken 走 submit）。</summary>
+    public static bool IsCorrectTarget(DoseStatus to) => to is DoseStatus.Missed or DoseStatus.Skipped;
 }

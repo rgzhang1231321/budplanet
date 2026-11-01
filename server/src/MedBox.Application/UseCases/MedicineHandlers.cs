@@ -65,12 +65,15 @@ public sealed class CommonMedsHandler(IAppDbContext db)
 }
 
 /// <summary>免费 3 个，第 4 个起要激励视频名额（credits 来自 entitlements，MVP 暂记 0）。</summary>
-public sealed class MedicineCreateHandler(IAppDbContext db, IMemberGuard guard, ConfigReader config, EntitlementService entitlements, IClock clock)
+public sealed class MedicineCreateHandler(IAppDbContext db, IMemberGuard guard, ConfigReader config, EntitlementService entitlements, ContentSecurityChecker security, IClock clock)
 {
     public async Task<object> HandleAsync(string fid, string openid, string uid, string name, string? spec, string? defaultDose, string? note, CancellationToken ct = default)
     {
         await guard.AssertMemberAsync(fid, openid, ct, "admin", "member");
         if (string.IsNullOrWhiteSpace(name)) throw new ValidationException("先填药名");
+
+        // 药名与备注是 UGC 文本，入库前过内容安全（87014 命中即拒）
+        await security.EnsureSafeAsync([name, note], openid, ct);
 
         var patient = await db.Patients.FirstOrDefaultAsync(p => p.FamilyId == fid && p.PatientId == uid && p.Status == "active", ct)
                       ?? throw new ValidationException("服药人不存在");
@@ -105,12 +108,14 @@ public sealed class MedicineCreateHandler(IAppDbContext db, IMemberGuard guard, 
 /// default_dose 只改"下次建计划时继承的默认值"，**不反向改写已有计划的 slot 剂量** ——
 /// 剂量是安全信息，静默改掉一个已排好的计划，比"改了没立刻生效"危险得多。
 /// </summary>
-public sealed class MedicineUpdateHandler(IAppDbContext db, IMemberGuard guard, IClock clock)
+public sealed class MedicineUpdateHandler(IAppDbContext db, IMemberGuard guard, ContentSecurityChecker security, IClock clock)
 {
     public async Task<object> HandleAsync(string fid, string openid, string uid, string mid, string name, string? spec, string? defaultDose, string? note, CancellationToken ct = default)
     {
         await guard.AssertMemberAsync(fid, openid, ct, "admin", "member");
         if (string.IsNullOrWhiteSpace(name)) throw new ValidationException("先填药名");
+
+        await security.EnsureSafeAsync([name, note], openid, ct);
 
         var med = await db.Medicines.FirstOrDefaultAsync(m => m.FamilyId == fid && m.MedicineId == mid && m.Status == "active", ct)
                   ?? throw new ValidationException("药品不存在");

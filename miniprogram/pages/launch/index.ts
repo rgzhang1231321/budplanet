@@ -2,25 +2,25 @@
  * pages/launch —— 启动分发（P00 授权 / P01 双模选择 / P42 被邀请落地）
  * 判据只有一条：URL 里有没有 fid + ivt。
  *   有  → P42 落地页：首屏零弹窗，点身份按钮后才弹免责确认，确认才 family.join
+ *          例外：邀请指向的家就是我已经在的家 → 直接说"你已经在这个家里了"，不给"加入"按钮
  *   没有 → P00：首屏即弹免责确认（搜一搜/首页/扫码进来的新用户走这条）
+ *         例外：已同意免责 + 已有家庭的老用户 → 直接进首页，不再走"开始使用 → 选身份"
  */
 import { bootstrap, bindSelf, agree, loadFamily } from '../../store/user';
 import { get, set } from '../../store/index';
-import { call, get as apiGet } from '../../utils/request';
+import { call } from '../../utils/request';
 import { report } from '../../utils/report';
 import { statusBarHeight } from '../../utils/theme';
 
 Page({
   data: {
     statusBar: 20,
-    step: 'welcome' as 'welcome' | 'mode' | 'invite',
+    step: 'welcome' as 'welcome' | 'mode' | 'invite' | 'joined',
     showDisclaim: false,
     disclaimElder: false,
     pending: '' as '' | 'mode' | 'join-patient' | 'join-guardian',
     invite: { fid: '', ivt: '' },
-    meds: [] as { time: string; name: string; dose: string }[],
-    medMore: 0,
-    familyName: '我家',
+    familyName: '',
     joining: false,
   },
 
@@ -36,37 +36,55 @@ Page({
     const s = get();
     const hasInvite = !!ivt;
     if (hasInvite) {
-      this.setData({ step: 'invite', invite: { fid: q.fid || s.family.fid, ivt }, familyName: s.family.name || '我家' });
-      this.loadInvitePreview();
+      // 只认 URL 带来的 fid：邀请指向哪个家，就展示哪个家。
+      // 绝不拿 s.family（我自己当前所在的家）顶替 —— 那会让已在家的人看到"自己的家"被当成邀请。
+      const fid = q.fid || '';
+      const joined = this.alreadyJoined(fid, ivt);
+      this.setData({
+        step: joined ? 'joined' : 'invite',
+        invite: { fid, ivt },
+        // 家名只知道自己的：邀请指向别人家时留空，页面用中性标题兜底，绝不拿自己的家名顶上
+        familyName: joined ? s.family.name || '我家' : '',
+      });
       report('app_launch', { from: 'invite' });
-    } else {
-      report('app_launch', { from: q.from || 'search' });
-      if (!s.user.disclaimerAgreed) {
-        // 例外路径：首屏即弹（子女规格，此时 mode 未定）
-        this.setData({ showDisclaim: true, disclaimElder: false, pending: '' });
-        report('disclaimer_shown', { trigger: 'first_screen', from: q.from || 'search' });
-      }
+      return;
+    }
+
+    report('app_launch', { from: q.from || 'search' });
+    // 老用户早退：登录成功 + 已同意免责 + 已有家庭 → 直接进首页。
+    // 不加这一条，老人每次冷启都要点三次（开始使用 → 选身份 → 首页），而选身份还会再走一次 family.join。
+    if (s.ready && s.user.disclaimerAgreed && (s.family.all || []).length > 0) {
+      wx.reLaunch({ url: '/pages/home/index' });
+      return;
+    }
+    if (!s.user.disclaimerAgreed) {
+      // 例外路径：首屏即弹（子女规格，此时 mode 未定）
+      this.setData({ showDisclaim: true, disclaimElder: false, pending: '' });
+      report('disclaimer_shown', { trigger: 'first_screen', from: q.from || 'search' });
     }
   },
 
-  /** 落地页药单：最多 2 条 + 「等 N 种药」（限量防超屏） */
-  async loadInvitePreview() {
-    try {
-      const s = get();
-      const pid = s.family.patients[0] ? s.family.patients[0].uid : '';
-      const d: any = await apiGet('medicine', 'list', { fid: s.family.fid, uid: pid }, { silent: true });
-      const items = d.items || [];
-      const meds: { time: string; name: string; dose: string }[] = [];
-      items.forEach((m: any) => {
-        (m.slots || []).forEach((sl: any) => {
-          if (meds.length < 2) meds.push({ time: sl.t, name: m.name, dose: sl.d || m.default_dose });
-        });
-      });
-      const total = items.reduce((n: number, m: any) => n + (m.slots || []).length, 0);
-      this.setData({ meds, medMore: Math.max(0, total - meds.length) });
-    } catch (e) {
-      /* 预览失败不阻断加入 */
+  /**
+   * 这个邀请是不是指向"我已经在的家"。
+   * 有 fid 就比 fid；只有邀请码（来自分享卡的最后一段）就比当前家庭的邀请码 ——
+   * 已在家的人点开家庭群里的邀请卡，必须看到"你已经在里面了"，而不是让他再"加入"一次
+   * （family.join 对 patient 意图会把 admin 降成 elder，重复加入不是无害空操作）。
+   */
+  alreadyJoined(fid: string, ivt: string): boolean {
+    const s = get();
+    if (fid) {
+      if (s.family.all.some((f) => f.fid === fid)) return true;
+      return !!s.family.fid && s.family.fid === fid;
     }
+    return !!ivt && !!s.family.inviteToken && s.family.inviteToken === ivt;
+  },
+
+  onHome() {
+    wx.reLaunch({ url: '/pages/home/index' });
+  },
+
+  onLegal(e: any) {
+    wx.navigateTo({ url: `/pages/legal/index?type=${e.currentTarget.dataset.type}` });
   },
 
   onStart() {
@@ -149,7 +167,7 @@ Page({
       report('invite_accepted', { role, ms: 0 });
       wx.reLaunch({ url: '/pages/home/index' });
     } catch (e: any) {
-      wx.showToast({ title: (e && e.msg) || '加入失败，请重试', icon: 'none' });
+      wx.showToast({ title: (e && e.msg) || '没加入成功，请再试一次', icon: 'none' });
       this.setData({ joining: false });
     }
   },

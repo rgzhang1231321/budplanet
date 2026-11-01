@@ -55,6 +55,11 @@
       <view class="manual" hover-class="manual--hover" bindtap="onManualInvite">
         <text class="manual__t">我有邀请码</text>
       </view>
+      <!-- 隐私政策 / 用户协议入口：首屏必须可直达（应用市场与微信审核都查这一项） -->
+      <view class="foot__legal">
+        <text class="foot__legal-link" data-type="privacy" bindtap="onLegal">《隐私政策》</text>
+        <text class="foot__legal-link" data-type="agreement" bindtap="onLegal">《用户协议》</text>
+      </view>
       <text class="foot__note">只做提醒与记录，不提供任何医疗建议</text>
     </view>
   </block>
@@ -99,16 +104,7 @@
       <view class="p42__close" bindtap="onClose"><view class="i i-close"></view></view>
 
       <text class="p42__kicker">女儿已经替你做好了</text>
-      <text class="p42__title">{{familyName}}</text>
-
-      <view class="p42__list">
-        <view wx:for="{{meds}}" wx:key="index" class="p42__item">
-          <text class="p42__time">{{item.time}}</text>
-          <text class="p42__med">{{item.name}}</text>
-          <text class="p42__dose">{{item.dose}}</text>
-        </view>
-        <view wx:if="{{medMore > 0}}" class="p42__more">等 {{medMore}} 次吃药</view>
-      </view>
+      <text class="p42__title">{{familyName || '一起看吃药'}}</text>
 
       <text class="p42__line">到点手机会响，响了点下面一下就成。</text>
 
@@ -122,6 +118,28 @@
           <text>我帮家人看着</text>
         </view>
         <text class="p42__tip2">家里谁没吃药，你都能看见</text>
+      </view>
+
+      <view class="p42__bar">
+        <disclaimer-bar elder="{{true}}"></disclaimer-bar>
+      </view>
+    </view>
+  </block>
+
+  <!-- ── 已在这个家里：点开家庭群里的邀请卡，不能再走一遍"加入" ── -->
+  <block wx:if="{{step === 'joined'}}">
+    <view class="p42" style="padding-top:{{statusBar + 16}}px">
+      <view class="p42__close" bindtap="onHome"><view class="i i-close"></view></view>
+
+      <text class="p42__kicker">你已经在这个家里了</text>
+      <text class="p42__title">{{familyName || '我家'}}</text>
+
+      <text class="p42__line">不用再点加入，直接进去看今天的药就行。</text>
+
+      <view class="p42__actions">
+        <view class="btn btn--primary p42__main" bindtap="onHome">
+          <text>进入首页</text>
+        </view>
       </view>
 
       <view class="p42__bar">

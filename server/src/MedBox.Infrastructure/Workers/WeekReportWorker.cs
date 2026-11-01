@@ -17,6 +17,7 @@ namespace MedBox.Infrastructure.Workers;
 /// </summary>
 public sealed class WeekReportWorker(
     IServiceScopeFactory scopes,
+    TimeProvider time,
     IConfiguration config,
     ILogger<WeekReportWorker> logger) : BackgroundService
 {
@@ -29,7 +30,7 @@ public sealed class WeekReportWorker(
         // 启动先补一次"最近一个已结束的周"，避免停机错过周日 20:00
         try
         {
-            await RunOnceAsync(clockNow(), archiveCurrentWeek: false, ct);
+            await RunOnceAsync(NowMs(), archiveCurrentWeek: false, ct);
         }
         catch (Exception ex)
         {
@@ -41,7 +42,7 @@ public sealed class WeekReportWorker(
             try
             {
                 await Task.Delay(TimeSpan.FromMinutes(10), ct);
-                await RunOnceAsync(clockNow(), archiveCurrentWeek: Due(clockNow()), ct);
+                await RunOnceAsync(NowMs(), archiveCurrentWeek: Due(NowMs()), ct);
             }
             catch (OperationCanceledException)
             {
@@ -54,14 +55,11 @@ public sealed class WeekReportWorker(
         }
     }
 
-    private static long clockNow() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    /// <summary>时钟走注入的 <see cref="TimeProvider"/>：FakeTimeProvider 才能把"周日 20:00"搬到测试里。</summary>
+    private long NowMs() => time.GetUtcNow().ToUnixTimeMilliseconds();
 
     /// <summary>本周日 20:00 之后就算"本周到点"。</summary>
-    private static bool Due(long nowMs)
-    {
-        var now = TimeCn.ToCn(nowMs);
-        return now.DayOfWeek == DayOfWeek.Sunday && now.Hour >= 20;
-    }
+    private static bool Due(long nowMs) => WeeklySchedule.IsDue(nowMs, DayOfWeek.Sunday, 20);
 
     public async Task<int> RunOnceAsync(long nowMs, bool archiveCurrentWeek, CancellationToken ct)
     {
@@ -77,8 +75,25 @@ public sealed class WeekReportWorker(
         if (_archivedWeek == weekKey) return 0;
 
         var dates = TimeCn.WeekDates(weekStart).ToList();
-        var rows = await db.DoseLogs.Where(d => dates.Contains(d.DueDate)).ToListAsync(ct);
-        if (rows.Count == 0)
+
+        // 聚合下推到 SQL：GROUP BY family_id, patient_id 只回 5 个计数。
+        // 原来是把整周全库明细读进内存再 GroupBy —— 用户一多就是几百万行进进程，周报当晚先把内存打满。
+        var aggregates = await db.DoseLogs
+            .Where(d => dates.Contains(d.DueDate))
+            .GroupBy(d => new { d.FamilyId, d.PatientId })
+            .Select(g => new
+            {
+                g.Key.FamilyId,
+                g.Key.PatientId,
+                Total = g.Count(),
+                Taken = g.Count(x => x.Status == DoseStatusWire.Taken && !x.IsCorrected),
+                Missed = g.Count(x => x.Status == DoseStatusWire.Missed),
+                Skipped = g.Count(x => x.Status == DoseStatusWire.Skipped),
+                Manual = g.Count(x => x.IsCorrected),
+            })
+            .ToListAsync(ct);
+
+        if (aggregates.Count == 0)
         {
             _archivedWeek = weekKey;
             return 0;
@@ -87,33 +102,27 @@ public sealed class WeekReportWorker(
         var existing = await db.WeeklyStats.Where(w => w.WeekKey == weekKey).ToListAsync(ct);
         var count = 0;
 
-        foreach (var g in rows.GroupBy(r => new { r.FamilyId, r.PatientId }))
+        foreach (var g in aggregates)
         {
-            var total = g.Count();
-            var taken = g.Count(r => r.Status == DoseStatusWire.Taken && !r.IsCorrected);
-            var missed = g.Count(r => r.Status == DoseStatusWire.Missed);
-            var skipped = g.Count(r => r.Status == DoseStatusWire.Skipped);
-            var manual = g.Count(r => r.IsCorrected);
-
-            var stat = existing.FirstOrDefault(w => w.FamilyId == g.Key.FamilyId && w.PatientId == g.Key.PatientId);
+            var stat = existing.FirstOrDefault(w => w.FamilyId == g.FamilyId && w.PatientId == g.PatientId);
             if (stat is null)
             {
-                stat = new WeeklyStat { FamilyId = g.Key.FamilyId, PatientId = g.Key.PatientId, WeekKey = weekKey };
+                stat = new WeeklyStat { FamilyId = g.FamilyId, PatientId = g.PatientId, WeekKey = weekKey };
                 db.Add(stat);
             }
 
-            stat.Total = total;
-            stat.TakenCnt = taken;
-            stat.MissedCnt = missed;
-            stat.SkippedCnt = skipped;
-            stat.ManualCorrectCount = manual; // 单列，不进完成率
+            stat.Total = g.Total;
+            stat.TakenCnt = g.Taken;
+            stat.MissedCnt = g.Missed;
+            stat.SkippedCnt = g.Skipped;
+            stat.ManualCorrectCount = g.Manual; // 单列，不进完成率
             stat.UpdatedAt = nowMs;
             count++;
         }
 
         await db.SaveChangesAsync(ct);
         _archivedWeek = weekKey;
-        logger.LogInformation("周报归档：{Week} {Patients} 位服药人（{Rows} 条明细）", weekKey, count, rows.Count);
+        logger.LogInformation("周报归档：{Week} {Patients} 位服药人（{Rows} 条明细）", weekKey, count, aggregates.Sum(a => a.Total));
 
         // 归档完立刻把周报推送入队（WEEKLY 模板：time5 统计时间 + thing6 备注）。
         // 只在"这份周报还新鲜"时入队：周日 20:00 正常触发 delta<0；停机后补跑超过窗口就不补发旧周报——

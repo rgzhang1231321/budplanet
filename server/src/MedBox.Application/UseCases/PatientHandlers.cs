@@ -1,5 +1,6 @@
 using MedBox.Application.Abstractions;
 using MedBox.Application.Contracts;
+using MedBox.Application.Services;
 using MedBox.Domain;
 using MedBox.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -27,13 +28,15 @@ public sealed class PatientListHandler(IAppDbContext db, IClock clock)
     }
 }
 
-/// <summary>服药人不设限（多人协同是唯一增长杠杆，对它收费等于自断传播）。</summary>
-public sealed class PatientCreateHandler(IAppDbContext db, IMemberGuard guard, IClock clock)
+/// <summary>服药人不设限（多人协同是唯一增长杠杆，对它收费等于自断传播）。称呼仍需过内容安全。</summary>
+public sealed class PatientCreateHandler(IAppDbContext db, IMemberGuard guard, ContentSecurityChecker security, IClock clock)
 {
     public async Task<object> HandleAsync(string fid, string openid, string name, string? alias, CancellationToken ct = default)
     {
         await guard.AssertMemberAsync(fid, openid, ct, "admin", "member");
         if (string.IsNullOrWhiteSpace(name)) throw new ValidationException("填一下称呼");
+
+        await security.EnsureSafeAsync([name, alias], openid, ct);
 
         var uid = "P" + Guid.NewGuid().ToString("N")[..10];
         db.Add(new Patient
@@ -51,12 +54,14 @@ public sealed class PatientCreateHandler(IAppDbContext db, IMemberGuard guard, I
     }
 }
 
-public sealed class PatientUpdateHandler(IAppDbContext db, IMemberGuard guard)
+public sealed class PatientUpdateHandler(IAppDbContext db, IMemberGuard guard, ContentSecurityChecker security)
 {
     public async Task<object> HandleAsync(string fid, string openid, string uid, string name, string? alias, string? avatar, CancellationToken ct = default)
     {
         await guard.AssertMemberAsync(fid, openid, ct, "admin", "member");
         if (string.IsNullOrWhiteSpace(name)) throw new ValidationException("填一下称呼");
+
+        await security.EnsureSafeAsync([name, alias], openid, ct);
 
         var p = await db.Patients.FirstOrDefaultAsync(x => x.FamilyId == fid && x.PatientId == uid && x.Status == "active", ct)
                 ?? throw new ValidationException("服药人不存在");

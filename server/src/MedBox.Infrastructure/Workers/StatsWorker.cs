@@ -15,6 +15,7 @@ namespace MedBox.Infrastructure.Workers;
 /// </summary>
 public sealed class StatsWorker(
     IServiceScopeFactory scopes,
+    TimeProvider time,
     ILogger<StatsWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
@@ -33,7 +34,7 @@ public sealed class StatsWorker(
         {
             try
             {
-                var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var nowMs = time.GetUtcNow().ToUnixTimeMilliseconds();
                 var delay = DailySchedule.NextRunUtcMs(nowMs, 0, 30) - nowMs;
                 await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1000, delay)), ct);
                 await RunOnceAsync(ct);

@@ -38,12 +38,28 @@ public class DoseTransitionsTests
         => DoseTransitions.CanSubmit(DoseStatus.Taken, DoseStatus.Taken, isCorrected: false).Should().BeTrue();
 
     [Fact]
-    public void correct_allows_taken_to_missed_but_not_reverse()
+    public void correct_only_writes_missed_or_skipped()
     {
         DoseTransitions.CanCorrect(DoseStatus.Taken, DoseStatus.Missed, isCorrected: false).Should().BeTrue();
         DoseTransitions.CanCorrect(DoseStatus.Taken, DoseStatus.Skipped, isCorrected: false).Should().BeTrue();
-        DoseTransitions.CanCorrect(DoseStatus.Missed, DoseStatus.Taken, isCorrected: false).Should().BeTrue();
         DoseTransitions.CanCorrect(DoseStatus.Pending, DoseStatus.Taken, isCorrected: false).Should().BeFalse();
+    }
+
+    [Fact]
+    public void rescue_missed_to_taken_goes_through_submit_not_correct()
+    {
+        // 契约 §7:140/149：correct 的 to_status 只有 missed/skipped；回 taken 走 submit
+        DoseTransitions.CanCorrect(DoseStatus.Missed, DoseStatus.Taken, isCorrected: false).Should().BeFalse();
+        DoseTransitions.CanSubmit(DoseStatus.Missed, DoseStatus.Taken, isCorrected: false).Should().BeTrue();
+    }
+
+    [Fact]
+    public void correct_target_whitelist_excludes_taken_and_pending()
+    {
+        DoseTransitions.IsCorrectTarget(DoseStatus.Missed).Should().BeTrue();
+        DoseTransitions.IsCorrectTarget(DoseStatus.Skipped).Should().BeTrue();
+        DoseTransitions.IsCorrectTarget(DoseStatus.Taken).Should().BeFalse();
+        DoseTransitions.IsCorrectTarget(DoseStatus.Pending).Should().BeFalse();
     }
 
     [Fact]
