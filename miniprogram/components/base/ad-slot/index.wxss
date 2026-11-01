@@ -1,0 +1,39 @@
+.ads {
+  position: relative;
+  width: 100%;
+  margin-top: var(--sp-3);
+  background: #ffffff;
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-m);
+  overflow: hidden;
+  transition: height 200ms ease-out;
+}
+.ads__sk {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: #f2f5f8;
+  animation: adsPulse 1.2s ease-in-out infinite;
+}
+@keyframes adsPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+.ads__tag {
+  position: absolute;
+  right: 8rpx;
+  top: 6rpx;
+  font-size: 20rpx;
+  color: var(--text-3);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0 6rpx;
+  border-radius: 4rpx;
+  z-index: 2;
+}

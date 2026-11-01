@@ -1,0 +1,29 @@
+.nudge {
+  display: flex;
+  flex-direction: column;
+}
+.nudge__title {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--text-1);
+  text-align: center;
+}
+.nudge__desc {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-body);
+  color: var(--text-2);
+  text-align: center;
+  line-height: 1.6;
+}
+.nudge__btn {
+  margin-top: var(--sp-5);
+}
+.nudge__close {
+  margin-top: var(--sp-2);
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  color: #8a94a0;
+}

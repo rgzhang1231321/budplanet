@@ -1,0 +1,25 @@
+.dbar {
+  min-height: 56rpx;
+  background: #f4f6f8;
+  padding: 10rpx 32rpx;
+  display: flex;
+  align-items: center;
+}
+.dbar__text {
+  font-size: 24rpx;
+  color: #5c6b7a;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+.dbar--elder {
+  min-height: 72rpx;
+  padding: 12rpx 40rpx;
+}
+.dbar--elder .dbar__text {
+  font-size: 36rpx;
+  color: #414d5a;
+  white-space: normal;
+}

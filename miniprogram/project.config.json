@@ -1,0 +1,81 @@
+{
+  "description": "替你记着吃药 · 家庭用药提醒小程序",
+  "appid": "wx14b8533dcc7839d1",
+  "projectname": "替你记着吃药",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "./",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": false,
+    "coverView": true,
+    "useCompilerPlugins": [
+      "typescript"
+    ],
+    "ignoreDevUnusedFiles": false,
+    "packNpmManually": false,
+    "showShadowRootInWxmlPanel": true,
+    "bigPackageSizeSupport": false,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "condition": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "首页·子女端",
+          "pathName": "pages/home/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "打卡页",
+          "pathName": "pages/checkin/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "被邀请落地页",
+          "pathName": "pages/launch/index",
+          "query": "invite=IVT8888&role=patient",
+          "scene": null
+        },
+        {
+          "name": "周报",
+          "pathName": "pages/weekly/index",
+          "query": "",
+          "scene": null
+        },
+        {
+          "name": "我的",
+          "pathName": "pages/profile/index",
+          "query": "",
+          "scene": null
+        }
+      ]
+    }
+  },
+  "editorSetting": {
+    "tabIndent": "insertSpaces",
+    "tabSize": 2
+  },
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  }
+}

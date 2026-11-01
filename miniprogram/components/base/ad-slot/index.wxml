@@ -1,0 +1,17 @@
+<view
+  wx:if="{{adOn && unitId}}"
+  class="ads"
+  style="height:{{failed ? 0 : (elder ? elderHeight : height)}}rpx"
+>
+  <view wx:if="{{!mounted}}" class="ads__sk"></view>
+  <ad
+    wx:elif="{{!failed}}"
+    unit-id="{{unitId}}"
+    ad-type="banner"
+    ad-theme="white"
+    ad-intervals="60"
+    bindload="onLoad"
+    binderror="onError"
+  ></ad>
+  <text wx:if="{{!failed}}" class="ads__tag">广告</text>
+</view>

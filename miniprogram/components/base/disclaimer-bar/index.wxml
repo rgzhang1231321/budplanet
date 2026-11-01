@@ -1,0 +1,3 @@
+<view class="dbar {{elder ? 'dbar--elder' : ''}}" bindtap="onTap">
+  <text class="dbar__text">{{text}}</text>
+</view>

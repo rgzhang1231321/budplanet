@@ -1,0 +1,15 @@
+<view class="sub">
+  <view class="sub__head">
+    <view class="sub__dot"></view>
+    <text class="sub__title">{{title}}</text>
+  </view>
+  <text class="sub__desc">{{desc}}</text>
+  <view wx:if="{{!done}}">
+    <view class="btn btn--primary sub__btn" bindtap="onAction">{{actionText}}</view>
+    <view class="sub__second" bindtap="onSecondary">{{secondaryText}}</view>
+  </view>
+  <view wx:else class="sub__ok">
+    <view class="i i-check-plain sub__ok-icon"></view>
+    <text>提醒已开启</text>
+  </view>
+</view>

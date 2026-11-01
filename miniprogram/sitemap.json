@@ -1,0 +1,10 @@
+{
+  "desc": "允许微信索引首页、打卡页、周报页（搜一搜的技术前提）",
+  "rules": [
+    { "action": "allow", "page": "pages/home/index" },
+    { "action": "allow", "page": "pages/checkin/index" },
+    { "action": "allow", "page": "pages/weekly/index" },
+    { "action": "allow", "page": "pages/launch/index" },
+    { "action": "disallow", "page": "*" }
+  ]
+}

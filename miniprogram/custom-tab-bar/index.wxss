@@ -1,0 +1,43 @@
+/* tabBar 是 page 之外的独立节点，拿不到 app.wxss 里 page 作用域的 --h-tabbar
+   （之前 height: calc(var(--h-tabbar) + ...) 整条失效，高度靠内容撑，所以显得局促）。
+   这里本地定义一份，与 app.wxss 的 --h-tabbar 保持同值：改高度要两处一起改。 */
+.tb {
+  --h-tabbar: 116rpx;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  height: calc(var(--h-tabbar) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.98);
+  border-top: 1rpx solid var(--line);
+  box-sizing: border-box;
+}
+.tb--hidden {
+  display: none;
+}
+.tb__item {
+  flex: 1;
+  height: var(--h-tabbar);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.tb__icon {
+  width: 48rpx;
+  height: 48rpx;
+}
+.tb__text {
+  font-size: 22rpx;
+  color: var(--text-3);
+  margin-top: 6rpx;
+  line-height: 1.2;
+}
+.tb__item--on .tb__text {
+  color: var(--brand-500);
+  font-weight: 600;
+}

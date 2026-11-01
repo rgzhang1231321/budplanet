@@ -1,0 +1,6 @@
+<view class="badge badge--{{status}} {{big ? 'badge--big' : ''}}" aria-role="text" aria-label="{{label}}">
+  <view class="badge__dot">
+    <text wx:if="{{glyph}}" class="badge__glyph">{{glyph}}</text>
+  </view>
+  <text class="badge__label">{{label}}</text>
+</view>

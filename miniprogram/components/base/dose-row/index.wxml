@@ -1,0 +1,24 @@
+<view class="dose {{row.status === 'missed' && !soft ? 'dose--missed' : ''}} {{large ? 'dose--large' : ''}}" bindtap="onTap" hover-class="{{clickable ? 'dose--hover' : ''}}">
+  <view wx:if="{{row.status === 'missed' && !soft}}" class="dose__bar"></view>
+  <view class="dose__time">
+    <text class="dose__time-t">{{row.due_time}}</text>
+    <text wx:if="{{row.snooze_count > 0}}" class="dose__snooze">已延后{{row.snooze_count}}次</text>
+  </view>
+
+  <view class="dose__main">
+    <view class="dose__line">
+      <text class="dose__name">{{row.medicine_name}}</text>
+      <text class="dose__dose">{{row.dose_text}}</text>
+    </view>
+    <text wx:if="{{showTaken && subText}}" class="dose__sub {{subWarn ? 'dose__sub--warn' : ''}}">{{subText}}</text>
+  </view>
+
+  <view class="dose__state">
+    <status-badge status="{{badgeStatus}}"></status-badge>
+    <text wx:if="{{showTaken && row.is_corrected}}" class="dose__edited">已修改</text>
+  </view>
+
+  <view wx:if="{{admin}}" class="dose__menu" catchtap="onMenu">
+    <view class="i i-dots i--lg"></view>
+  </view>
+</view>

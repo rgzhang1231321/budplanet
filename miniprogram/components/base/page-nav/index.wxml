@@ -1,0 +1,20 @@
+<!-- bg 为空时不写内联背景，交给 .nav 的默认底色（var(--bg-page)）。
+     之前默认 transparent，漏传 bg 的页面滚动时内容会从状态栏/胶囊后面透出（穿模）。 -->
+<view class="nav" style="padding-top:{{statusBar}}px;{{bg ? 'background:' + bg + ';' : ''}}">
+  <view class="nav__bar">
+    <view class="nav__left">
+      <view wx:if="{{back}}" class="nav__back" hover-class="nav__back--hover" bindtap="goBack">
+        <view class="i i-back"></view>
+      </view>
+      <view class="nav__titles">
+        <text class="nav__title">{{title}}</text>
+        <text wx:if="{{subtitle}}" class="nav__sub">{{subtitle}}</text>
+      </view>
+    </view>
+    <view class="nav__right" style="padding-right:{{rightPad}}px">
+      <slot name="right"></slot>
+    </view>
+  </view>
+</view>
+<view class="nav__ph" style="height:{{statusBar}}px"></view>
+<view class="nav__ph" style="height:var(--h-nav)"></view>

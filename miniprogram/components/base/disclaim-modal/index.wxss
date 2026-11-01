@@ -1,0 +1,60 @@
+/* 遮罩 + 居中：一个根节点搞定，遮罩本身是 flex 容器 */
+.dmask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 200;
+  background: rgba(17, 34, 51, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 48rpx;
+  box-sizing: border-box;
+}
+.dlg {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 32rpx;
+  box-shadow: 0 8rpx 32rpx rgba(17, 34, 51, 0.18);
+  padding: 48rpx 40rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+}
+.dlg__title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--text-1);
+  text-align: center;
+  line-height: 1.3;
+}
+.dlg__body {
+  margin-top: 24rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #414d5a;
+  text-align: center;
+}
+.dlg__btn {
+  margin-top: 40rpx;
+  height: 96rpx;
+}
+.btn--disabled {
+  background: var(--disabled) !important;
+  box-shadow: none !important;
+}
+
+/* 老人规格：点「我自己吃药」后弹的那一档 */
+.dlg--elder .dlg__title {
+  font-size: 48rpx;
+}
+.dlg--elder .dlg__body {
+  font-size: 40rpx;
+  line-height: 1.6;
+  color: #414d5a;
+}
+.dlg--elder .dlg__btn {
+  height: 112rpx;
+  font-size: 48rpx;
+}

@@ -1,0 +1,11 @@
+<view wx:if="{{show}}" class="mask" catchtap="onClose" catchtouchmove="noop"></view>
+<view wx:if="{{show}}" class="sheet nudge">
+  <text class="nudge__title">{{title}}</text>
+  <text class="nudge__desc">{{desc}}</text>
+  <view class="btn btn--primary nudge__btn" bindtap="onUnlock">
+    <text>{{actionText}}</text>
+  </view>
+  <view class="nudge__close" bindtap="onClose">
+    <text>关闭</text>
+  </view>
+</view>

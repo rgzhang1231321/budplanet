@@ -1,0 +1,60 @@
+.sub {
+  background: #ffffff;
+  border-radius: var(--r-l);
+  padding: var(--sp-5) var(--sp-4) var(--sp-4);
+  box-shadow: var(--shadow-2);
+  border: 1rpx solid var(--line);
+}
+.sub__head {
+  display: flex;
+  align-items: center;
+}
+.sub__dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: var(--warm-500);
+  margin-right: 12rpx;
+  flex: none;
+}
+.sub__title {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.sub__desc {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.sub__btn {
+  margin-top: var(--sp-4);
+}
+.sub__second {
+  margin-top: var(--sp-2);
+  height: var(--h-sub-btn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-body);
+  color: var(--text-3);
+}
+.sub__ok {
+  margin-top: var(--sp-3);
+  display: flex;
+  align-items: center;
+  font-size: var(--fs-body);
+  color: var(--st-taken-text);
+  font-weight: 600;
+}
+.sub__ok-icon {
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: 8rpx;
+  background-color: var(--st-taken);
+  border-radius: 50%;
+  padding: 4rpx;
+  background-size: 70%;
+}

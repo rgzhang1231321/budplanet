@@ -1,0 +1,13 @@
+:host {
+  display: block;
+  width: 100%;
+}
+.btn {
+  width: 100%;
+}
+.btn__label {
+  line-height: 1;
+}
+.btn__arrow {
+  margin-left: 8rpx;
+}

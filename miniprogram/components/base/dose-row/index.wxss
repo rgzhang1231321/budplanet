@@ -1,0 +1,112 @@
+.dose {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: var(--row-h);
+  padding: 16rpx var(--sp-4) 16rpx 0;
+  background: var(--bg-card);
+  box-sizing: border-box;
+}
+.dose--hover {
+  background: #f8fafc;
+}
+.dose--missed {
+  background: var(--danger-bg);
+}
+.dose__bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4rpx;
+  background: var(--st-missed);
+}
+.dose__time {
+  width: 116rpx;
+  flex: none;
+  padding-left: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+}
+.dose--large .dose__time {
+  width: 158rpx;
+}
+.dose__time-t {
+  font-size: var(--fs-body-s);
+  font-weight: 600;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.dose__snooze {
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  margin-top: 2rpx;
+}
+.dose__main {
+  flex: 1;
+  min-width: 0;
+  padding-right: var(--sp-2);
+}
+.dose__line {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+.dose__name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-body);
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 老人端药名允许换行 2 行，行高上限 200rpx（老人不会点进详情看全名） */
+.dose--large .dose__line {
+  align-items: center;
+}
+.dose--large .dose__name {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
+}
+.dose__dose {
+  flex: none;
+  margin-left: var(--sp-2);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--brand-600);
+  white-space: nowrap;
+}
+.dose__sub {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  margin-top: 4rpx;
+  line-height: 1.3;
+}
+.dose__sub--warn {
+  color: var(--st-warn);
+}
+.dose__state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+}
+.dose__edited {
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  margin-top: 4rpx;
+}
+.dose__menu {
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: 4rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}

@@ -1,0 +1,254 @@
+/**
+ * store/index.ts —— 60 行自研 store（不引入状态管理库）
+ * 纪律：页面只读 store.get()，只经 actions 改；onLoad 里 sub 一个监听在 onUnload 注销。
+ */
+import type { AppConfig, DoseRow, FamilyListItemDto, Member, Mode, Patient, Role } from '../types/api';
+import { dateCN } from '../utils/time';
+
+export interface AppState {
+  ready: boolean;
+  user: {
+    openid: string;
+    nickname: string;
+    avatar: string;
+    serverOffset: number;
+    modeOverride: Mode | null;
+    disclaimerAgreed: boolean;
+    privacyAgreed: boolean;
+    reduceMotion: boolean;
+    sound: boolean;
+    quiet: boolean;
+    config: AppConfig;
+    entitlement: { memberLevel: string; credits: number };
+    quota: { CHECKIN: number; MISSED: number; WEEKLY: number };
+  };
+  family: {
+    /** 我加入的全部家庭（login/family.list 下发），冷启拿它选默认 fid */
+    all: FamilyListItemDto[];
+    fid: string;
+    name: string;
+    role: Role;
+    mode: Mode;
+    selfUids: string[];
+    patients: Patient[];
+    members: Member[];
+    inviteToken: string;
+  };
+  today: {
+    date: string;
+    rows: DoseRow[];
+    recentView: { alias: string; at: number } | null;
+    lastSyncAt: number;
+    loading: boolean;
+  };
+  ad: { elderPreview: boolean };
+}
+
+const PREF = 'app_pref_v1';
+const TODAY = 'app_today_v1';
+
+function prefs(): any {
+  try {
+    return wx.getStorageSync(PREF) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+export const state: AppState = {
+  ready: false,
+  user: {
+    openid: '',
+    nickname: '',
+    avatar: '',
+    serverOffset: 0,
+    modeOverride: prefs().modeOverride || null,
+    disclaimerAgreed: !!prefs().disclaimerAgreed,
+    privacyAgreed: !!prefs().privacyAgreed,
+    reduceMotion: !!prefs().reduceMotion,
+    sound: prefs().sound !== false,
+    quiet: prefs().quiet !== false,
+    config: {
+      adOn: false,
+      adSwitch: { interstitial: false, elderInterstitial: false },
+      interstitialCool: 30,
+      interstitialDayMax: 3,
+      freeMedLimit: 3,
+      freePatientLimit: 1,
+      tmplIds: { CHECKIN: '', MISSED: '', WEEKLY: '' },
+      quietHours: { start: '22:00', end: '07:00' },
+      missedThresholdMin: 60,
+      snoozeDeadlineMin: 45,
+      notice: '',
+    },
+    entitlement: { memberLevel: 'free', credits: 0 },
+    quota: { CHECKIN: 0, MISSED: 0, WEEKLY: 0 },
+  },
+  family: {
+    all: [],
+    fid: '',
+    name: '',
+    role: 'member',
+    mode: 'guardian',
+    selfUids: [],
+    patients: [],
+    members: [],
+    inviteToken: '',
+  },
+  today: { date: dateCN(), rows: [], recentView: null, lastSyncAt: 0, loading: false },
+  ad: { elderPreview: false },
+};
+
+type Listener = (s: AppState, changed: string) => void;
+const listeners: Listener[] = [];
+
+export function on(fn: Listener): () => void {
+  listeners.push(fn);
+  return () => {
+    const i = listeners.indexOf(fn);
+    if (i >= 0) listeners.splice(i, 1);
+  };
+}
+
+export function emit(changed = '') {
+  listeners.forEach((fn) => {
+    try {
+      fn(state, changed);
+    } catch (e) {
+      /* 单个页面监听异常不影响其它页面 */
+    }
+  });
+}
+
+export function get(): AppState {
+  return state;
+}
+
+function setByPath(path: string, value: any) {
+  const keys = path.split('.');
+  let obj: any = state;
+  for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
+  obj[keys[keys.length - 1]] = value;
+}
+
+export function set(path: string, value: any) {
+  setByPath(path, value);
+  persist();
+  emit(path);
+}
+
+export function patch(path: string, obj: Record<string, any>) {
+  const keys = path.split('.');
+  let target: any = state;
+  for (const k of keys) target = target[k];
+  Object.assign(target, obj);
+  persist();
+  emit(path);
+}
+
+function persist() {
+  try {
+    wx.setStorageSync(PREF, {
+      modeOverride: state.user.modeOverride,
+      disclaimerAgreed: state.user.disclaimerAgreed,
+      privacyAgreed: state.user.privacyAgreed,
+      reduceMotion: state.user.reduceMotion,
+      sound: state.user.sound,
+      quiet: state.user.quiet,
+    });
+    if (state.today.date === dateCN()) {
+      wx.setStorageSync(TODAY, {
+        date: state.today.date,
+        rows: state.today.rows,
+        recentView: state.today.recentView,
+      });
+    }
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+/** 冷启秒开：读上次缓存直出（打卡页 1.2s 指标的本地底座） */
+export function loadCachedToday() {
+  try {
+    const c = wx.getStorageSync(TODAY);
+    if (c && c.date === dateCN() && Array.isArray(c.rows) && c.rows.length) {
+      state.today.rows = c.rows;
+      state.today.recentView = c.recentView || null;
+      state.today.date = c.date;
+      return true;
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  return false;
+}
+
+/* ── selectors（两页必须同源，禁止各算各的） ── */
+
+/** 生效模式：mode 管渲染、role 管权限，二者解耦。
+ *  默认恒为普通版 —— 大字版只来自用户手动切换（modeOverride），
+ *  不再因为"我是服药人"就自动变大字（服务端 family.mode 只表示身份，不决定字号）。 */
+export function mode(): Mode {
+  return state.user.modeOverride || 'guardian';
+}
+
+/** 我本人就是这个家的服药人（服务端按 self_openid 派生）。决定数据视角，与字号无关。 */
+export function isSelf(): boolean {
+  return state.family.mode === 'elder';
+}
+
+/** 大字版界面。只决定字号/版式，不代表身份。 */
+export function isElder(): boolean {
+  return mode() === 'elder';
+}
+
+/** 服药人只看「我的今日」；无绑定患者时退化为第一位（演示态） */
+export function visibleRows(): DoseRow[] {
+  const rows = state.today.rows;
+  if (!isSelf()) return rows;
+  const self = state.family.selfUids.length ? state.family.selfUids : state.family.patients.slice(0, 1).map((p) => p.uid);
+  if (!self.length) return rows;
+  return rows.filter((r) => self.indexOf(r.pid) >= 0);
+}
+
+export function patientOf(pid: string): Patient | undefined {
+  return state.family.patients.find((p) => p.uid === pid);
+}
+
+export interface Overview {
+  taken: number;
+  total: number;
+  rate: number;
+  missed: number;
+  pending: number;
+}
+
+export function overview(): Overview {
+  const rows = visibleRows();
+  const total = rows.length;
+  const taken = rows.filter((r) => r.status === 'taken').length;
+  const missed = rows.filter((r) => r.status === 'missed').length;
+  const pending = rows.filter((r) => r.status === 'pending').length;
+  return { taken, total, rate: total ? Math.round((taken / total) * 100) : 0, missed, pending };
+}
+
+export function groups(): { patient: Patient; rows: DoseRow[]; taken: number; total: number }[] {
+  const rows = visibleRows();
+  const list: { patient: Patient; rows: DoseRow[]; taken: number; total: number }[] = [];
+  state.family.patients.forEach((p) => {
+    const rs = rows.filter((r) => r.pid === p.uid).sort((a, b) => a.slot - b.slot);
+    if (!rs.length) return;
+    list.push({ patient: p, rows: rs, taken: rs.filter((r) => r.status === 'taken').length, total: rs.length });
+  });
+  return list;
+}
+
+/** 补丁单行（setData 只传路径 diff 的底座） */
+export function patchRow(doseId: string, next: Partial<DoseRow>) {
+  const i = state.today.rows.findIndex((r) => r.dose_id === doseId);
+  if (i < 0) return -1;
+  Object.assign(state.today.rows[i], next);
+  persist();
+  return i;
+}

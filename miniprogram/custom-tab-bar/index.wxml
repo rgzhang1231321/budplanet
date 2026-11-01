@@ -1,0 +1,12 @@
+<view class="tb {{hidden ? 'tb--hidden' : ''}}">
+  <view
+    wx:for="{{tabs}}"
+    wx:key="path"
+    class="tb__item {{selected === index ? 'tb__item--on' : ''}}"
+    data-index="{{index}}"
+    bindtap="onTap"
+  >
+    <view class="i i-{{item.icon}}{{selected === index ? '-on' : ''}} tb__icon"></view>
+    <text class="tb__text">{{item.text}}</text>
+  </view>
+</view>

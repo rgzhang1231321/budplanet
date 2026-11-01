@@ -1,0 +1,17 @@
+<view class="pr">
+  <view
+    class="pr__ring"
+    style="width:{{size}}rpx;height:{{size}}rpx;background:conic-gradient(var(--st-taken) 0% {{rate}}%, #E8EDF2 {{rate}}% 100%)"
+  >
+    <view class="pr__inner">
+      <view class="pr__num-row">
+        <text class="pr__num">{{rate}}</text>
+        <text class="pr__pct">%</text>
+      </view>
+      <text class="pr__label">{{label}}</text>
+    </view>
+  </view>
+  <view wx:if="{{delta}}" class="pr__delta {{deltaDown ? 'pr__delta--down' : ''}}">
+    <text>{{delta}} 比上周</text>
+  </view>
+</view>

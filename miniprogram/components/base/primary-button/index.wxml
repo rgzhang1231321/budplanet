@@ -1,0 +1,13 @@
+<view
+  class="btn btn--{{type}} {{pressed ? 'btn--press' : ''}}"
+  bindtouchstart="onTouchStart"
+  bindtouchend="onTouchEnd"
+  bindtouchcancel="onTouchCancel"
+  bindtap="onTap"
+  aria-role="button"
+  aria-label="{{label}}"
+  aria-disabled="{{disabled}}"
+>
+  <text class="btn__label">{{label}}</text>
+  <view wx:if="{{arrow}}" class="i i-chevron btn__arrow"></view>
+</view>

@@ -1,0 +1,40 @@
+:host {
+  display: block;
+  width: 100%;
+}
+.share-btn {
+  /* 用 vw + !important：原生 button 默认样式会压掉作者宽度 */
+  width: calc(100vw - 64rpx) !important;
+  height: 112rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 2rpx solid var(--brand-500);
+  border-radius: var(--r-xl);
+  color: var(--brand-600);
+  font-size: var(--fs-btn);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.share-btn::after {
+  border: none;
+}
+.share-btn__icon {
+  margin-left: 12rpx;
+  width: 40rpx;
+  height: 40rpx;
+}
+.share-btn--elder {
+  width: calc(100vw - 80rpx) !important;
+  height: 112rpx;
+  font-size: 44rpx;
+}
+.share-btn--elder .share-btn__icon {
+  width: 56rpx;
+  height: 56rpx;
+}

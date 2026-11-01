@@ -1,0 +1,6 @@
+<view wx:if="{{show}}" class="tbar tbar--{{state}}">
+  <text class="tbar__text">{{text || (state === 'sending' ? '正在发送给家人…' : '网络不好，已记在本机，会自动重试')}}</text>
+  <view wx:if="{{state === 'error'}}" class="tbar__retry" catchtap="onRetry">
+    <text>重试</text>
+  </view>
+</view>

@@ -1,0 +1,39 @@
+.tbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 300;
+  height: 64rpx;
+  padding-top: env(safe-area-inset-top);
+  box-sizing: content-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: var(--sp-4);
+  padding-right: var(--sp-2);
+}
+.tbar--sending {
+  background: #ff8a3d;
+}
+.tbar--error {
+  background: #c25e17;
+}
+.tbar__text {
+  flex: 1;
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: #ffffff;
+  line-height: 1.2;
+}
+.tbar__retry {
+  width: 104rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-caption);
+  color: #ffffff;
+  font-weight: 600;
+  border-left: 1rpx solid rgba(255, 255, 255, 0.4);
+}

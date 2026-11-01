@@ -1,0 +1,9 @@
+<view class="stack">
+  <view
+    wx:for="{{list}}"
+    wx:key="key"
+    class="stack__item {{lit ? 'stack__item--lit' : ''}}"
+    style="animation-delay:{{index * 200}}ms"
+  >{{item.initial}}</view>
+  <view wx:if="{{more > 0}}" class="stack__more">+{{more}}</view>
+</view>

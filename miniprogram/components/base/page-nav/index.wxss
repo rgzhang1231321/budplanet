@@ -1,0 +1,61 @@
+.nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 90;
+  /* 默认底色 = 页面底色（老人端 --bg-page 被覆写成 #ffffff，这里自动跟随）。
+     自定义组件在 page 节点内，CSS 变量可正常继承——与 custom-tab-bar（page 之外的独立节点）不同。
+     fallback 值防止变量意外缺失时又退回透明。 */
+  background: var(--bg-page, #f4f6f8);
+  /* 极淡的分界：顶部未滚动时几乎不可见，内容滚到下方时能把导航与内容分开 */
+  box-shadow: 0 1rpx 8rpx rgba(17, 34, 51, 0.04);
+}
+.nav__bar {
+  height: var(--h-nav);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: var(--pad-page);
+}
+.nav__left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+.nav__back {
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: -16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav__back--hover {
+  opacity: 0.6;
+}
+.nav__titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.nav__title {
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  color: var(--text-1);
+  line-height: 1.2;
+}
+.nav__sub {
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  margin-top: 2rpx;
+}
+.nav__right {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.nav__ph {
+  width: 100%;
+}

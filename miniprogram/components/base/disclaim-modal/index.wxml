@@ -1,0 +1,17 @@
+<!-- 单根节点：遮罩与卡片放在同一容器内，用 flex 居中。
+     之前是两个并列根节点（mask + fixed 的 dlg）靠 z-index 分层，在开发者工具模拟器里
+     会出现"看得见、点不到"（点击命中被下层吃掉），真机却正常。改为同容器布局后不再依赖层叠命中。 -->
+<view wx:if="{{show}}" class="dmask" catchtouchmove="noop" catchtap="noop">
+  <view class="dlg {{elder ? 'dlg--elder' : ''}}">
+    <text class="dlg__title">{{title}}</text>
+    <text class="dlg__body">{{content}}</text>
+    <view
+      class="btn btn--primary dlg__btn {{canConfirm ? '' : 'btn--disabled'}}"
+      catchtap="onConfirm"
+      aria-role="button"
+      aria-label="{{confirmText}}"
+    >
+      <text>{{confirmText}}</text>
+    </view>
+  </view>
+</view>

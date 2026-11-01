@@ -1,0 +1,62 @@
+{
+  "pages": [
+    "pages/launch/index",
+    "pages/home/index",
+    "pages/checkin/index",
+    "pages/medicine/index",
+    "pages/weekly/index",
+    "pages/profile/index",
+    "pages/legal/index"
+  ],
+  "subPackages": [
+    {
+      "root": "packageManage",
+      "name": "manage",
+      "pages": [
+        "pages/medicine-form/index",
+        "pages/medicine-detail/index",
+        "pages/patient/index",
+        "pages/family/index",
+        "pages/plan-form/index"
+      ]
+    },
+    {
+      "root": "packageReport",
+      "name": "report",
+      "pages": ["pages/report-detail/index", "pages/history/index"]
+    },
+    {
+      "root": "packageSettings",
+      "name": "settings",
+      "pages": ["pages/settings/index", "pages/unlocks/index", "pages/about/index"]
+    }
+  ],
+  "preloadRule": {
+    "pages/home/index": { "network": "wifi", "packages": ["manage"] },
+    "pages/weekly/index": { "network": "all", "packages": ["report"] }
+  },
+  "window": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#F4F6F8",
+    "backgroundTextStyle": "dark",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "替你记着吃药",
+    "navigationBarBackgroundColor": "#FFFFFF"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#8A94A0",
+    "selectedColor": "#2E6BE6",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "今日" },
+      { "pagePath": "pages/medicine/index", "text": "药品" },
+      { "pagePath": "pages/weekly/index", "text": "周报" },
+      { "pagePath": "pages/profile/index", "text": "我的" }
+    ]
+  },
+  "lazyCodeLoading": "requiredComponents",
+  "style": "v2",
+  "renderer": "webview"
+}

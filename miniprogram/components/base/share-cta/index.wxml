@@ -1,0 +1,4 @@
+<button class="share-btn {{elder ? 'share-btn--elder' : ''}}" open-type="share" data-kind="{{kind}}" bindtap="onShareTap">
+  <text class="share-btn__label">{{label}}</text>
+  <view class="i i-share share-btn__icon"></view>
+</button>

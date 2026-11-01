@@ -1,0 +1,558 @@
+/**
+ * app.wxss —— 双层 Design Token（子女端默认值 + .p-root.elder 覆写）
+ * 纪律：页面 WXSS 内禁止写死字号/热区高度，一律 var(--fs-*) / var(--h-*)。
+ * 原因：老人端 20 处尺寸靠一次 setData 切换，写死一处就会静默掉回 12px。
+ */
+page {
+  /* 品牌色 */
+  --brand-500: #2e6be6;
+  --brand-600: #1e4fbf;
+  --brand-100: #eaf1fe;
+  --brand-900: #0b2b66;
+  --warm-500: #ff8a3d;
+
+  /* 四态 + 同步 + 存疑（变量名与后端枚举同名，组件内零映射） */
+  --st-taken: #12a150;
+  --st-taken-text: #0b7f38;
+  --st-taken-bg: #e8f6ee;
+  --st-pending: #a9b4c0;
+  --st-pending-text: #4a5969;
+  --st-pending-bg: #ffffff;
+  --st-missed: #e0402f;
+  --st-missed-text: #c22c1b;
+  --st-missed-bg: #fff4f2;
+  --st-skipped: #e3e8ed;
+  --st-skipped-text: #7a8492;
+  --st-skipped-bg: #f5f7f9;
+  --st-syncing: #ff8a3d;
+  --st-syncing-text: #c25e17;
+  --st-warn: #c25e17;
+
+  /* 中性色 */
+  --text-1: #1a1f26;
+  --text-2: #5c6b7a;
+  --text-3: #8a94a0;
+  --bg-page: #f4f6f8;
+  --bg-card: #ffffff;
+  --line: #e8edf2;
+  --danger-bg: #fff4f2;
+  --disabled: #c7cfd8;
+  --mask: rgba(17, 34, 51, 0.4);
+
+  /* 字号阶梯（子女端） */
+  --fs-display: 56rpx;
+  --fs-h1: 40rpx;
+  --fs-h2: 32rpx;
+  --fs-num: 64rpx;
+  --fs-body: 28rpx;
+  --fs-body-s: 30rpx;
+  --fs-caption: 24rpx;
+  --fs-micro: 20rpx;
+  --fs-btn: 32rpx;
+  --lh-body: 1.5;
+
+  /* 展示型字号（数字/剂量/强调），双模同步放大 */
+  --fs-num-xl: 72rpx;
+  --fs-num-l: 64rpx;
+  --fs-num-m: 56rpx;
+  --fs-num-s: 48rpx;
+  --fs-emph: 40rpx;
+  --fs-dose: 40rpx;
+  --fs-icon: 44rpx;
+
+  /* 间距栅格 */
+  --sp-1: 8rpx;
+  --sp-2: 16rpx;
+  --sp-3: 24rpx;
+  --sp-4: 32rpx;
+  --sp-5: 40rpx;
+  --sp-6: 48rpx;
+  --sp-7: 64rpx;
+  --pad-page: 32rpx;
+
+  /* 圆角与阴影 */
+  --r-s: 8rpx;
+  --r-m: 16rpx;
+  --r-l: 24rpx;
+  --r-xl: 32rpx;
+  --r-full: 999rpx;
+  --shadow-1: 0 2rpx 12rpx rgba(17, 34, 51, 0.06);
+  --shadow-2: 0 8rpx 32rpx rgba(17, 34, 51, 0.1);
+  --shadow-elder: 0 4rpx 20rpx rgba(17, 34, 51, 0.1);
+
+  /* 组件尺寸 */
+  --row-h: 112rpx;
+  --h-main-btn: 88rpx;
+  --h-sub-btn: 72rpx;
+  --h-nav: 88rpx;
+  --h-tabbar: 116rpx;
+  --h-input: 96rpx;
+  --badge-h: 48rpx;
+
+  background: var(--bg-page);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  color: var(--text-1);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 老人端覆写：纯白全屏、字号 ×1.5、热区 ×1.8 ── */
+.p-root.elder {
+  --fs-display: 76rpx;
+  --fs-h1: 60rpx;
+  --fs-h2: 48rpx;
+  --fs-num: 76rpx;
+  --fs-body: 40rpx;
+  --fs-body-s: 44rpx;
+  --fs-caption: 36rpx;
+  --fs-micro: 28rpx;
+  --fs-btn: 48rpx;
+  --lh-body: 1.55;
+  --fs-num-xl: 80rpx;
+  --fs-num-l: 76rpx;
+  --fs-num-m: 64rpx;
+  --fs-num-s: 56rpx;
+  --fs-emph: 44rpx;
+  --fs-dose: 56rpx;
+  --fs-icon: 56rpx;
+  --text-1: #0f1620;
+  --text-2: #414d5a;
+  --text-3: #414d5a;
+  --bg-page: #ffffff;
+  --pad-page: 40rpx;
+  --r-l: 32rpx;
+  --r-xl: 32rpx;
+  --row-h: 168rpx;
+  --h-main-btn: 160rpx;
+  --h-sub-btn: 112rpx;
+  --h-input: 128rpx;
+  --badge-h: 64rpx;
+  --shadow-1: 0 4rpx 20rpx rgba(17, 34, 51, 0.08);
+  background: #ffffff;
+}
+
+view,
+text,
+scroll-view,
+navigator,
+button,
+input,
+textarea,
+picker {
+  box-sizing: border-box;
+}
+
+.p-root {
+  min-height: 100vh;
+  background: var(--bg-page);
+  color: var(--text-1);
+  font-size: var(--fs-body);
+}
+
+/* ── 排版 ── */
+.t-display {
+  font-size: var(--fs-display);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-1);
+}
+.t-h1 {
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-1);
+}
+.t-h2 {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-1);
+}
+.t-body {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text-1);
+}
+.t-strong {
+  font-size: var(--fs-body-s);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-1);
+}
+.t-caption {
+  font-size: var(--fs-caption);
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.t-micro {
+  font-size: var(--fs-micro);
+  line-height: 1.2;
+  color: var(--text-3);
+}
+.t-2 {
+  color: var(--text-2);
+}
+.t-3 {
+  color: var(--text-3);
+}
+.t-brand {
+  color: var(--brand-600);
+}
+.t-center {
+  text-align: center;
+}
+.t-bold {
+  font-weight: 600;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 布局 ── */
+.page {
+  padding: 0 var(--pad-page);
+}
+.page--tab {
+  padding-bottom: calc(var(--h-tabbar) + env(safe-area-inset-bottom) + var(--sp-3));
+}
+.page--safe {
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--sp-5));
+}
+.row {
+  display: flex;
+  align-items: center;
+}
+.row--between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+}
+.flex1 {
+  flex: 1;
+  min-width: 0;
+}
+.gap-1 {
+  margin-left: var(--sp-1);
+}
+.gap-2 {
+  margin-left: var(--sp-2);
+}
+.mt-1 {
+  margin-top: var(--sp-1);
+}
+.mt-2 {
+  margin-top: var(--sp-2);
+}
+.mt-3 {
+  margin-top: var(--sp-3);
+}
+.mt-4 {
+  margin-top: var(--sp-4);
+}
+.mt-5 {
+  margin-top: var(--sp-5);
+}
+.mt-6 {
+  margin-top: var(--sp-6);
+}
+.mb-2 {
+  margin-bottom: var(--sp-2);
+}
+.mb-3 {
+  margin-bottom: var(--sp-3);
+}
+
+/* ── 卡片 ── */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-1);
+  padding: var(--sp-4);
+}
+.card--flat {
+  box-shadow: none;
+  border: 1rpx solid var(--line);
+}
+.card--pad-l {
+  padding: var(--sp-5);
+}
+.divider {
+  height: 1rpx;
+  background: var(--line);
+}
+
+/* ── 按钮（原生 button 重置） ── */
+/* 注意：原生 button 的默认样式优先级高于作者样式，宽度必须 !important 才能真正拉满 */
+button.btn,
+.btn.btn--full {
+  width: 100% !important;
+  display: flex;
+}
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-xl);
+  font-size: var(--fs-btn);
+  font-weight: 600;
+  line-height: 1;
+  background: transparent;
+  transition: transform 150ms ease-out, opacity 150ms ease-out, background-color 150ms;
+}
+.btn::after {
+  border: none;
+}
+.btn--primary {
+  height: var(--h-main-btn);
+  background: var(--brand-500);
+  color: #ffffff;
+  box-shadow: 0 8rpx 24rpx rgba(46, 107, 230, 0.24);
+}
+.btn--primary.btn--press {
+  transform: scale(0.96);
+  background: var(--brand-600);
+}
+.btn--primary[disabled] {
+  background: var(--disabled);
+  color: #ffffff;
+  box-shadow: none;
+}
+.btn--sub {
+  height: var(--h-sub-btn);
+  border: 2rpx solid var(--disabled);
+  color: var(--text-1);
+  background: var(--bg-card);
+}
+.btn--outline-brand {
+  height: var(--h-sub-btn);
+  border: 2rpx solid var(--brand-500);
+  color: var(--brand-600);
+  background: transparent;
+}
+.btn--text {
+  height: var(--h-sub-btn);
+  color: var(--text-3);
+  background: transparent;
+  font-weight: 400;
+}
+.btn--ghost {
+  height: var(--h-main-btn);
+  background: var(--brand-100);
+  color: var(--brand-600);
+}
+.btn--block-gap {
+  margin-top: var(--sp-4);
+}
+
+/* ── 徽标 / 标签 ── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 40rpx;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-s);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  background: var(--brand-100);
+  color: var(--brand-600);
+}
+.tag--grey {
+  background: var(--line);
+  color: var(--text-2);
+}
+.tag--warn {
+  background: #fdf1e6;
+  color: var(--st-warn);
+}
+
+/* ── 列表行 ── */
+.list {
+  background: var(--bg-card);
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+.list__row {
+  display: flex;
+  align-items: center;
+  min-height: 104rpx;
+  padding: 0 var(--sp-4);
+  position: relative;
+}
+.p-root.elder .list__row {
+  min-height: 128rpx;
+  padding: 0 var(--sp-5);
+}
+.list__row::after {
+  content: "";
+  position: absolute;
+  left: var(--sp-4);
+  right: 0;
+  bottom: 0;
+  height: 1rpx;
+  background: var(--line);
+}
+.list__row:last-child::after {
+  display: none;
+}
+.list__label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-body);
+  color: var(--text-1);
+}
+.list__value {
+  font-size: var(--fs-body);
+  color: var(--text-3);
+}
+.p-root.elder .list__value {
+  color: var(--text-2);
+}
+
+/* ── 图标：SVG data-uri，色值固定写死以保证老人端高对比 ── */
+.i {
+  display: inline-block;
+  width: 40rpx;
+  height: 40rpx;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  flex: none;
+}
+.i--lg {
+  width: 48rpx;
+  height: 48rpx;
+}
+.i--sm {
+  width: 32rpx;
+  height: 32rpx;
+}
+.i-chevron {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A94A0' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l6 6-6 6'/%3E%3C/svg%3E");
+}
+.i-back {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231A1F26' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E");
+}
+.i-plus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232E6BE6' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+}
+.i-gear {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3.2'/%3E%3Cpath d='M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6h.09A1.7 1.7 0 0 0 10.09 3V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z'/%3E%3C/svg%3E");
+}
+.i-dots {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235C6B7A'%3E%3Ccircle cx='5' cy='12' r='1.9'/%3E%3Ccircle cx='12' cy='12' r='1.9'/%3E%3Ccircle cx='19' cy='12' r='1.9'/%3E%3C/svg%3E");
+}
+.i-share {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E4FBF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16V4M12 4L7.5 8.5M12 4l4.5 4.5'/%3E%3Cpath d='M4.5 14v5a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-5'/%3E%3C/svg%3E");
+}
+.i-clock {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 7.5V12l3 2'/%3E%3C/svg%3E");
+}
+.i-user {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8.5' r='3.6'/%3E%3Cpath d='M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6'/%3E%3C/svg%3E");
+}
+.i-pill {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.2' y='8.6' width='17.6' height='6.8' rx='3.4' transform='rotate(-40 12 12)'/%3E%3Cpath d='M8.7 15.3l6.6-6.6'/%3E%3C/svg%3E");
+}
+.i-chart {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19V5M4 19h16'/%3E%3Cpath d='M8 16V11M12.5 16V8M17 16v-6'/%3E%3C/svg%3E");
+}
+.i-bell {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 15.5V11a6 6 0 0 0-12 0v4.5L4.5 18h15z'/%3E%3Cpath d='M10 18a2 2 0 0 0 4 0'/%3E%3C/svg%3E");
+}
+.i-unlock {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='10.5' width='15' height='9.5' rx='2.2'/%3E%3Cpath d='M8 10.5V8a4 4 0 0 1 7.4-2'/%3E%3C/svg%3E");
+}
+.i-doc {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z'/%3E%3Cpath d='M14 3.5V8h4.5M9 12.5h6M9 16h4'/%3E%3C/svg%3E");
+}
+.i-shield {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5l7 3v6c0 4.4-3 7.2-7 8.5-4-1.3-7-4.1-7-8.5v-6z'/%3E%3Cpath d='M9 12l2.2 2.2L15.5 10'/%3E%3C/svg%3E");
+}
+.i-video {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231E4FBF' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='6' width='13' height='12' rx='2.2'/%3E%3Cpath d='M16 10.5l4.5-2.6v8.2L16 13.5z'/%3E%3C/svg%3E");
+}
+.i-phone {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C6B7A' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.2 3.8h3l1.5 3.8-2 1.3a11 11 0 0 0 5.4 5.4l1.3-2 3.8 1.5v3a1.8 1.8 0 0 1-2 1.8C10.9 18.2 5.8 13 4.4 5.8a1.8 1.8 0 0 1 1.8-2z'/%3E%3C/svg%3E");
+}
+.i-check-plain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+}
+.i-check-green {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2312A150' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 12.5l5 5L20 7'/%3E%3C/svg%3E");
+}
+.i-close {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A94A0' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E");
+}
+.i-home {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A94A0' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 10.5L12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19z'/%3E%3Cpath d='M9.5 20.5v-6h5v6'/%3E%3C/svg%3E");
+}
+.i-home-on {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232E6BE6' stroke='%232E6BE6' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 10.5L12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19z'/%3E%3C/svg%3E");
+}
+.i-report {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A94A0' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='4' width='16' height='16' rx='2.4'/%3E%3Cpath d='M8 14.5l2.6-3 2.4 2.2 3-4'/%3E%3C/svg%3E");
+}
+.i-report-on {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232E6BE6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='4' width='16' height='16' rx='2.4'/%3E%3Cpath d='M8 14.5l2.6-3 2.4 2.2 3-4'/%3E%3C/svg%3E");
+}
+.i-pill-on {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232E6BE6' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.2' y='8.6' width='17.6' height='6.8' rx='3.4' transform='rotate(-40 12 12)'/%3E%3Cpath d='M8.7 15.3l6.6-6.6'/%3E%3C/svg%3E");
+}
+.i-me {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A94A0' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8.5' r='3.6'/%3E%3Cpath d='M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6'/%3E%3C/svg%3E");
+}
+.i-me-on {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232E6BE6' stroke='%232E6BE6' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8.5' r='3.6'/%3E%3Cpath d='M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6'/%3E%3C/svg%3E");
+}
+
+/* ── 浮层通用 ── */
+.mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--mask);
+  z-index: 100;
+}
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 101;
+  background: var(--bg-card);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: var(--sp-5) var(--pad-page) calc(env(safe-area-inset-bottom) + var(--sp-5));
+  box-shadow: var(--shadow-2);
+}
+.press {
+  transition: transform 120ms ease-out;
+}
+.press:active {
+  transform: scale(0.98);
+}
+
+/* ── 骨架屏 ── */
+.sk {
+  background: var(--line);
+  border-radius: var(--r-m);
+  animation: sk 1.2s ease-in-out infinite;
+}
+@keyframes sk {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}

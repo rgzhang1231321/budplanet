@@ -1,0 +1,88 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: var(--badge-h);
+  padding: 0 16rpx 0 8rpx;
+  border-radius: var(--r-full);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge__dot {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8rpx;
+  flex: none;
+}
+.badge__glyph {
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+.badge__label {
+  line-height: 1;
+}
+
+/* 已服：实心绿 + 白 ✓ */
+.badge--taken {
+  background: var(--st-taken-bg);
+  color: var(--st-taken-text);
+}
+.badge--taken .badge__dot {
+  background: var(--st-taken);
+}
+.badge--taken .badge__glyph {
+  color: #ffffff;
+}
+
+/* 待服：空心灰环（不用蓝色，避免与品牌色混淆） */
+.badge--pending {
+  background: #f3f6f9;
+  color: var(--st-pending-text);
+}
+.badge--pending .badge__dot {
+  border: 3rpx solid var(--st-pending);
+  background: transparent;
+  box-sizing: border-box;
+}
+
+/* 漏服：实心红 + 白 ！ */
+.badge--missed {
+  background: var(--danger-bg);
+  color: var(--st-missed-text);
+}
+.badge--missed .badge__dot {
+  background: var(--st-missed);
+}
+.badge--missed .badge__glyph {
+  color: #ffffff;
+}
+
+/* 跳过：中性灰 + — */
+.badge--skipped {
+  background: var(--st-skipped-bg);
+  color: var(--st-skipped-text);
+}
+.badge--skipped .badge__dot {
+  background: var(--st-skipped);
+}
+.badge--skipped .badge__glyph {
+  color: #ffffff;
+}
+
+.badge--big {
+  height: 64rpx;
+  padding: 0 24rpx 0 12rpx;
+}
+.badge--big .badge__dot {
+  width: 40rpx;
+  height: 40rpx;
+}
+.badge--big .badge__glyph {
+  font-size: 26rpx;
+}
