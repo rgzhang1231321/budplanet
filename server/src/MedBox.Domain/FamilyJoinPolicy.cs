@@ -15,7 +15,12 @@ public static class FamilyJoinPolicy
     public static bool CanJoin(bool isMember, string? familyInviteToken, string? ivt)
         => isMember || TokenMatches(familyInviteToken, ivt);
 
-    /// <summary>家庭还没生成令牌的历史数据不拦（没有码可验）；有令牌就逐字相等。</summary>
+    /// <summary>
+    /// 家庭还没生成令牌时不拦（没有码可验）；有令牌就逐字相等。
+    /// ⚠️ 这不是纯防御分支：`families.invite_token` 可空，令牌为 NULL 的家庭等于**凭 fid 就能加入**。
+    /// 与本次改动前逐字等价、非本次引入，但已登记为批 4 待决（三选一：没码就拒 / info 时补生成 /
+    /// 明确接受并写进契约）。别把它当"历史数据兜底"顺手扩到别处。
+    /// </summary>
     private static bool TokenMatches(string? familyInviteToken, string? ivt)
         => string.IsNullOrEmpty(familyInviteToken) || string.Equals(familyInviteToken, ivt, StringComparison.Ordinal);
 }
