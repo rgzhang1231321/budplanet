@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
   version VARCHAR(16) PRIMARY KEY,
   checksum VARCHAR(64) NOT NULL,
   applied_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  execution_ms INTEGER NOT NULL DEFAULT 0,
+  execution_ms BIGINT NOT NULL DEFAULT 0,
   script_name VARCHAR(255) NOT NULL
 );" >/dev/null
 
@@ -93,11 +93,12 @@ for base in "${VERS[@]}"; do
   fi
 
   echo "  → 应用 $base …"
-  start=$(date +%s%3N)
+  start=$(date +%s%N)
   # 脚本内自带 BEGIN/COMMIT；ON_ERROR_STOP=1 保证出错即中断并回滚
   psql_q -v ON_ERROR_STOP=1 -f - < "$path" >/dev/null
-  end=$(date +%s%3N)
-  ms=$((end - start))
+  end=$(date +%s%N)
+  # date +%s%N 是纳秒级（19 位），换算成毫秒；%3N 在部分 date 上不截断会越界 INTEGER
+  ms=$(( (end - start) / 1000000 ))
   psql_q -v ON_ERROR_STOP=1 -c \
     "INSERT INTO schema_migrations(version,checksum,execution_ms,script_name) VALUES('$ver','$checksum',$ms,'$base');" >/dev/null
   echo "    ✓ 完成 (${ms}ms)"

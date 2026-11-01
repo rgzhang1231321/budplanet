@@ -42,8 +42,5 @@
 	tls /etc/caddy/certs/api.apiyun.net_bundle.crt /etc/caddy/certs/api.apiyun.net.key
 }
 
-# www 只是证书里的附带域名，没有业务，统一跳到主域，避免两个可访问入口
-www.{$DOMAIN} {
-	redir https://{$DOMAIN}{uri} permanent
-	tls /etc/caddy/certs/api.apiyun.net_bundle.crt /etc/caddy/certs/api.apiyun.net.key
-}
+# 说明：本证书 SAN 仅 api.apiyun.net（不含 www），故不设 www 区块；
+# 微信小程序 request 合法域名也只登记 https://api.apiyun.net。
