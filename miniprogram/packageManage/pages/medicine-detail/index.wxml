@@ -1,0 +1,39 @@
+<view class="p-root">
+  <page-nav title="药品详情" back="{{true}}"></page-nav>
+
+  <view wx:if="{{med}}" class="page page--safe">
+    <view class="head">
+      <view class="head__icon"><view class="i i-pill i--lg"></view></view>
+      <text class="head__name">{{med.name}}</text>
+      <text class="head__spec">{{med.spec || '未填规格'}}</text>
+      <view class="head__tags">
+        <text class="tag">{{patientAlias}}</text>
+        <text class="tag tag--grey">{{med.cycle_type === 'cycle_30' ? '30 天' : '长期用药'}}</text>
+      </view>
+    </view>
+
+    <view class="list mt-4">
+      <view class="list__row">
+        <text class="list__label">默认剂量</text>
+        <text class="list__value">{{med.default_dose}}</text>
+      </view>
+      <view class="list__row">
+        <text class="list__label">每天怎么吃</text>
+        <text class="list__value">{{timesText || '还没设时间'}}</text>
+      </view>
+      <view class="list__row">
+        <text class="list__label">备注</text>
+        <text class="list__value">{{med.note || '—'}}</text>
+      </view>
+    </view>
+
+    <view class="mt-4">
+      <primary-button label="编辑药品" bind:tap="onEdit"></primary-button>
+    </view>
+    <view class="mt-3">
+      <primary-button label="调整时间与剂量" type="sub" bind:tap="onPlan"></primary-button>
+    </view>
+
+    <view class="danger mt-5" bindtap="onArchive">删除这个药</view>
+  </view>
+</view>

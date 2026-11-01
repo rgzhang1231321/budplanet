@@ -1,0 +1,30 @@
+<view class="p-root">
+  <page-nav title="时间与剂量" back="{{true}}"></page-nav>
+
+  <view class="page page--safe">
+    <text class="med">{{name}}</text>
+    <text class="hint">每个时间点可以吃不同的量（比如早 1 片、晚半片）。改完当天还没到点的提醒会自动换掉。</text>
+
+    <view class="rows">
+      <view wx:for="{{times}}" wx:key="index" class="trow">
+        <picker mode="time" value="{{item.t}}" data-i="{{index}}" bindchange="onTime" class="trow__picker">
+          <view class="trow__time">{{item.t}}</view>
+        </picker>
+        <input class="trow__dose" value="{{item.d}}" data-i="{{index}}" bindinput="onDose" placeholder="{{defaultDose}}" />
+        <view class="trow__del" data-i="{{index}}" bindtap="removeTime"><view class="i i-close i--sm"></view></view>
+      </view>
+    </view>
+
+    <view class="add" bindtap="addTime">+ 再加一个时间</view>
+
+    <text class="label">吃到什么时候</text>
+    <view class="chips">
+      <view class="chip2 {{cycle === 'long_term' ? 'chip2--on' : ''}}" data-cycle="long_term" bindtap="onCycle">长期用药</view>
+      <view class="chip2 {{cycle === 'cycle_30' ? 'chip2--on' : ''}}" data-cycle="cycle_30" bindtap="onCycle">30 天</view>
+    </view>
+
+    <view class="mt-5">
+      <primary-button label="保存" bind:tap="onSave"></primary-button>
+    </view>
+  </view>
+</view>

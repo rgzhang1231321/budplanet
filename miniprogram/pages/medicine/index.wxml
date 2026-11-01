@@ -1,0 +1,50 @@
+<view class="p-root {{elder ? 'elder' : ''}}">
+  <page-nav title="药品" subtitle="{{total ? total + ' 种在吃' : ''}}">
+    <view slot="right">
+      <view class="nav-act" bindtap="onAdd"><view class="i i-plus i--lg"></view></view>
+    </view>
+  </page-nav>
+
+  <view class="page page--tab">
+    <view wx:if="{{total}}" class="quota">
+      <text class="quota__text">已添加 {{total}} 种 · 免费名额 {{limit}} 个</text>
+      <text class="quota__hint">第 {{limit + 1}} 个起看视频可解锁</text>
+    </view>
+
+    <block wx:if="{{!isEmpty}}">
+      <view wx:for="{{groups}}" wx:key="uid" class="mg">
+        <view class="mg__head">
+          <view class="avatar">{{item.initial}}</view>
+          <text class="mg__name">{{item.alias}}</text>
+          <text class="mg__count">{{item.list.length}} 种</text>
+        </view>
+        <view class="mg__body">
+          <block wx:for="{{item.list}}" wx:for-item="med" wx:key="mid">
+            <view class="mrow" hover-class="mrow--hover" data-mid="{{med.mid}}" bindtap="onOpen">
+              <view class="mrow__icon"><view class="i i-pill"></view></view>
+              <view class="mrow__main">
+                <text class="mrow__name">{{med.name}}</text>
+                <text class="mrow__spec">{{med.spec || '未填规格'}}</text>
+                <view class="mrow__times">
+                  <text wx:for="{{med.times}}" wx:for-item="sl" wx:key="t" class="chip">{{sl.t}} · {{sl.d}}</text>
+                </view>
+              </view>
+              <view class="i i-chevron"></view>
+            </view>
+          </block>
+        </view>
+      </view>
+    </block>
+
+    <empty-state
+      wx:else
+      icon="pill"
+      title="还没有添加药品"
+      desc="一次填清药名、剂量和吃药时间，之后每天照着提醒点就行"
+      actionText="添加第一个药品"
+      bind:action="onAdd"
+    ></empty-state>
+
+    <ad-slot adOn="{{adOn}}" unitId="" slot="b" height="{{200}}"></ad-slot>
+  </view>
+</view>

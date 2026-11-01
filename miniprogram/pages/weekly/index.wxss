@@ -1,0 +1,158 @@
+.ring-card {
+  margin-top: var(--sp-2);
+  background: var(--bg-card);
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-1);
+  padding: var(--sp-5) var(--sp-4) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ring-card__family {
+  margin-top: var(--sp-4);
+  font-size: var(--fs-body);
+  color: var(--text-1);
+  font-weight: 600;
+}
+.ring-card__manual {
+  margin-top: 8rpx;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+
+.miss-card {
+  margin-top: var(--sp-3);
+}
+.miss-list {
+  margin-top: var(--sp-2);
+}
+.miss-list__row {
+  display: flex;
+  align-items: center;
+  height: 72rpx;
+  border-bottom: 1rpx solid var(--line);
+}
+.miss-list__row:last-child {
+  border-bottom: none;
+}
+.miss-list__dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: var(--st-missed);
+  margin-right: var(--sp-2);
+  flex: none;
+}
+.miss-list__text {
+  flex: 1;
+  font-size: var(--fs-body);
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.miss-list__dose {
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  margin-left: var(--sp-2);
+}
+.miss-none {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-body);
+  color: var(--st-taken-text);
+}
+
+.week {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1rpx solid var(--line);
+}
+.week__cell {
+  width: 84rpx;
+  height: 104rpx;
+  border-radius: var(--r-m);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7f9;
+}
+.week__label {
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+.week__mark {
+  margin-top: 6rpx;
+  font-size: var(--fs-body-s);
+  font-weight: 700;
+  color: var(--text-3);
+}
+.week__cell--ok {
+  background: var(--st-taken-bg);
+}
+.week__cell--ok .week__mark {
+  color: var(--st-taken-text);
+}
+.week__cell--miss {
+  background: var(--danger-bg);
+}
+.week__cell--miss .week__mark {
+  color: var(--st-missed-text);
+}
+.week__cell--future {
+  background: #ffffff;
+  border: 1rpx dashed var(--line);
+}
+
+.d-card {
+  margin-top: var(--sp-3);
+  background: var(--brand-100);
+  border-radius: var(--r-l);
+  padding: var(--sp-4);
+  min-height: 240rpx;
+  display: flex;
+  align-items: center;
+}
+.d-card__icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.d-card__text {
+  flex: 1;
+  margin-left: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+}
+.d-card__title {
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--brand-600);
+}
+.d-card__desc {
+  margin-top: 8rpx;
+  font-size: var(--fs-caption);
+  color: #3c5a92;
+  line-height: 1.5;
+}
+
+.share {
+  margin-top: var(--sp-4);
+}
+.share__btn {
+  border-color: var(--brand-500);
+  color: var(--brand-600);
+}
+
+/* WEEKLY 授权卡片：放在分享按钮上方，与屏幕底部留出 tabBar 距离 */
+.weekly-sub {
+  margin-top: var(--sp-4);
+}

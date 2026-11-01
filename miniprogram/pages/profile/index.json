@@ -1,0 +1,7 @@
+{
+  "usingComponents": {
+    "page-nav": "../../components/base/page-nav/index",
+    "unlock-nudge": "../../components/base/unlock-nudge/index"
+  },
+  "navigationStyle": "custom"
+}

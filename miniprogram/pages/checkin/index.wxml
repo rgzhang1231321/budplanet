@@ -1,0 +1,92 @@
+<view class="p-root {{elder ? 'elder' : ''}} ckroot">
+  <!-- 不传 bg：底色由 .nav 的 var(--bg-page) 决定，老人端自动跟随 .p-root.elder 的 #ffffff -->
+  <page-nav title="{{elder ? '' : '该吃药了'}}" back="{{!elder}}">
+    <view slot="right">
+      <view class="nav-act" bindtap="onSettings"><view class="i i-gear i--lg"></view></view>
+    </view>
+  </page-nav>
+
+  <!-- ── P11 待打卡 ── -->
+  <view wx:if="{{viewState === 'pending'}}" class="ck">
+    <view class="ck__head">
+      <text class="ck__when">{{headText}}</text>
+      <text wx:if="{{showProgress}}" class="ck__prog">{{progressText}}</text>
+    </view>
+
+    <view class="ck__card">
+      <block wx:if="{{!batch}}">
+        <text class="ck__name">{{list[0].medicine_name}}</text>
+        <text class="ck__dose">{{list[0].dose_text}}</text>
+        <view class="ck__badge"><status-badge status="pending" big="{{true}}"></status-badge></view>
+      </block>
+      <block wx:else>
+        <view wx:for="{{list}}" wx:key="dose_id" class="ck__brow">
+          <text class="ck__bname">{{item.medicine_name}}</text>
+          <text class="ck__bdose">{{item.dose_text}}</text>
+        </view>
+        <view wx:if="{{folded}}" class="ck__fold">等 {{extra}} 种药</view>
+      </block>
+    </view>
+
+    <view class="ck__actions">
+      <primary-button label="{{btnLabel}}" bind:tap="onTake"></primary-button>
+      <text wx:if="{{lastOne}}" class="ck__last">今天最后一次了</text>
+
+      <view wx:if="{{!batch}}" class="ck__subs">
+        <view class="ck__sub" hover-class="ck__sub--hover" bindtap="onSnooze">
+          <text class="ck__sub-t">稍后提醒</text>
+          <text class="ck__sub-d">15 分钟</text>
+        </view>
+        <view class="ck__sub" hover-class="ck__sub--hover" bindtap="onSkip">
+          <text class="ck__sub-t">今天不吃</text>
+        </view>
+      </view>
+
+      <view wx:if="{{showCountdown}}" class="ck__cd">
+        <text class="ck__cd-t">还有</text>
+        <text class="ck__cd-n">{{countdownText}}</text>
+        <text class="ck__cd-t">提醒你吃药</text>
+      </view>
+
+      <text class="ck__who">{{whoText}}</text>
+    </view>
+  </view>
+
+  <!-- ── P12 打卡成功 ── -->
+  <view wx:elif="{{viewState === 'taken'}}" class="ok">
+    <view class="ok__ring">
+      <view class="ok__wave"></view>
+      <view class="i i-check-green ok__check"></view>
+    </view>
+    <text class="ok__title">已经记下了</text>
+    <text class="ok__sub">{{subText}}</text>
+
+    <view class="ok__stack"><member-avatar-stack members="{{members}}"></member-avatar-stack></view>
+    <text class="ok__known">{{knownText}}</text>
+
+    <view class="ok__share">
+      <share-cta style="flex:1" elder="{{elder}}" bind:sharetap="onShareTap"></share-cta>
+    </view>
+
+    <view wx:if="{{canUndo}}" class="ok__undo" bindtap="onUndo"><text>撤销</text></view>
+
+    <view class="ok__back" bindtap="goHome"><text>返回今日</text></view>
+
+    <view class="ok__ad">
+      <ad-slot adOn="{{adOn}}" unitId="" slot="a" height="{{210}}" elder="{{elder}}"></ad-slot>
+    </view>
+  </view>
+
+  <!-- ── 今日已全部完成 / 无数据 ── -->
+  <view wx:else class="ck">
+    <view class="ck__empty">
+      <text class="ck__empty-t">今天都记好了</text>
+      <text class="ck__empty-d">到点会提醒你，点一下就好</text>
+    </view>
+    <view class="ck__actions">
+      <primary-button label="返回今日" bind:tap="goHome"></primary-button>
+    </view>
+  </view>
+
+  <toast-bar show="{{syncShow}}" state="{{syncState}}" bind:retry="onRetrySync"></toast-bar>
+</view>

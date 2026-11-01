@@ -1,0 +1,103 @@
+<view class="p-root {{elder ? 'elder' : ''}}">
+  <page-nav title="我的"></page-nav>
+
+  <view class="page page--tab">
+    <view class="me">
+      <view class="me__avatar">{{initial}}</view>
+      <view class="me__text">
+        <text class="me__name">{{nickname}}</text>
+        <text class="me__sub">{{familyName}} · {{roleText}}</text>
+      </view>
+    </view>
+
+    <view class="quota-card">
+      <view class="quota-card__left">
+        <text class="quota-card__num">{{limit + credits}}<text class="quota-card__of"> 个名额</text></text>
+        <text class="quota-card__label">已解锁 {{credits}} 个额外药品</text>
+      </view>
+      <view class="quota-card__btn" bindtap="onUnlockMore">
+        <text>再加 1 个</text>
+      </view>
+    </view>
+
+    <view class="list mt-4">
+      <view class="list__row">
+        <view class="list__ico"><view class="i i-user"></view></view>
+        <text class="list__label">界面模式</text>
+        <text class="list__value">{{elder ? '大字版' : '普通版'}}</text>
+        <switch
+          checked="{{elder}}"
+          color="#2E6BE6"
+          bindchange="onToggleMode"
+          style="transform:scale(0.8);margin-left:8rpx"
+        />
+      </view>
+      <view class="list__row" data-url="/packageManage/pages/family/index" bindtap="go">
+        <view class="list__ico"><view class="i i-shield"></view></view>
+        <text class="list__label">家庭组与成员</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" data-url="/packageManage/pages/patient/index" bindtap="go">
+        <view class="list__ico"><view class="i i-user"></view></view>
+        <text class="list__label">服药人</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" data-url="/packageSettings/pages/unlocks/index" bindtap="go">
+        <view class="list__ico"><view class="i i-unlock"></view></view>
+        <text class="list__label">我解锁过的</text>
+        <view class="i i-chevron"></view>
+      </view>
+    </view>
+
+    <view class="list mt-3">
+      <view class="list__row" data-url="/packageSettings/pages/settings/index" bindtap="go">
+        <view class="list__ico"><view class="i i-bell"></view></view>
+        <text class="list__label">提醒与设置</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" data-url="/pages/legal/index?type=privacy" bindtap="go">
+        <view class="list__ico"><view class="i i-doc"></view></view>
+        <text class="list__label">隐私政策</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" data-url="/pages/legal/index?type=agreement" bindtap="go">
+        <view class="list__ico"><view class="i i-doc"></view></view>
+        <text class="list__label">用户协议</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" data-url="/pages/legal/index?type=disclaimer" bindtap="go">
+        <view class="list__ico"><view class="i i-shield"></view></view>
+        <text class="list__label">免责声明</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" data-url="/packageSettings/pages/about/index" bindtap="go">
+        <view class="list__ico"><view class="i i-chart"></view></view>
+        <text class="list__label">关于</text>
+        <text class="list__value">v{{version}}</text>
+        <view class="i i-chevron"></view>
+      </view>
+    </view>
+
+    <view class="list mt-3">
+      <view class="list__row" bindtap="onExport">
+        <text class="list__label">导出我的数据</text>
+        <text class="list__value">24 小时链接</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" bindtap="onErase">
+        <text class="list__label list__label--danger">注销并删除全部数据</text>
+        <view class="i i-chevron"></view>
+      </view>
+    </view>
+
+    <text class="foot">替你记着吃药 v{{version}} · 只做提醒与记录</text>
+  </view>
+
+  <unlock-nudge
+    show="{{showNudge}}"
+    title="想再加一个药？"
+    desc="看 15 秒视频，免费再加 1 个药品名额，永久有效。"
+    bind:unlock="onNudgeUnlock"
+    bind:close="onNudgeClose"
+  ></unlock-nudge>
+</view>

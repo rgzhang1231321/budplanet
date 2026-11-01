@@ -1,0 +1,44 @@
+<view class="p-root">
+  <page-nav title="服药人" back="{{true}}"></page-nav>
+
+  <view class="page page--safe">
+    <text class="hint">{{limitText}}</text>
+
+    <view class="list">
+      <view wx:for="{{list}}" wx:key="uid" class="list__row" data-uid="{{item.uid}}" bindtap="onOpen">
+        <view class="avatar">{{item.initial}}</view>
+        <view class="col flex1 gap-2">
+          <view class="row">
+            <text class="list__label">{{item.alias}}</text>
+            <text wx:if="{{item.isSelf}}" class="tag gap-1">这是你</text>
+          </view>
+          <text class="sub">{{item.name}} · {{item.count}} 种药</text>
+        </view>
+        <view class="i i-chevron"></view>
+      </view>
+    </view>
+
+    <view class="mt-4">
+      <primary-button label="添加服药人" type="sub" bind:tap="onAdd"></primary-button>
+    </view>
+  </view>
+
+  <view wx:if="{{showForm}}" class="mask" catchtap="onClose"></view>
+  <view wx:if="{{showForm}}" class="sheet">
+    <text class="sheet__title">{{editingUid ? '编辑服药人' : '添加服药人'}}</text>
+
+    <view class="field">
+      <text class="field__label">姓名</text>
+      <input class="field__input" value="{{name}}" placeholder="例如 张建国" bindinput="onName" />
+    </view>
+    <view class="field">
+      <text class="field__label">在列表里显示为</text>
+      <input class="field__input" value="{{alias}}" placeholder="例如 爸爸" bindinput="onAlias" />
+    </view>
+
+    <view class="sheet__btns">
+      <primary-button label="保存" bind:tap="onSave"></primary-button>
+      <view wx:if="{{editingUid}}" class="danger" data-uid="{{editingUid}}" bindtap="onArchive">删除这个服药人</view>
+    </view>
+  </view>
+</view>

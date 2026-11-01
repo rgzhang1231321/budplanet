@@ -1,0 +1,38 @@
+<view class="p-root">
+  <page-nav title="关于" back="{{true}}"></page-nav>
+
+  <view class="page page--safe">
+    <view class="brand">
+      <view class="brand__logo"><view class="i i-pill brand__icon"></view></view>
+      <text class="brand__name">替你记着吃药</text>
+      <text class="brand__ver">v{{version}}</text>
+      <text class="brand__desc">只做三件事：按时提醒、记录吃没吃、让家人看见。</text>
+    </view>
+
+    <view class="list mt-4">
+      <view class="list__row" data-type="privacy" bindtap="goLegal">
+        <text class="list__label">隐私政策</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" data-type="agreement" bindtap="goLegal">
+        <text class="list__label">用户协议</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" data-type="disclaimer" bindtap="goLegal">
+        <text class="list__label">免责声明</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" bindtap="onCopy">
+        <text class="list__label">联系客服</text>
+        <text class="list__value">support@example.com</text>
+        <view class="i i-chevron"></view>
+      </view>
+    </view>
+
+    <text class="note">
+      本小程序不是医疗器械，不提供诊断、处方或用药建议。药品名称与用药记录属敏感个人信息，仅在你所在家庭组内可见。
+    </text>
+
+    <view class="bar"><disclaimer-bar></disclaimer-bar></view>
+  </view>
+</view>

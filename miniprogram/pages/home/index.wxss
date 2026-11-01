@@ -1,0 +1,201 @@
+.nav-act {
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── 概览卡：全页唯一深色块，视觉锚点 ── */
+.ov {
+  border-radius: var(--r-l);
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  background: linear-gradient(135deg, #2e6be6 0%, #1e4fbf 100%);
+  box-shadow: 0 10rpx 30rpx rgba(30, 79, 191, 0.24);
+}
+.ov__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ov__date {
+  font-size: var(--fs-caption);
+  color: rgba(255, 255, 255, 0.86);
+}
+.ov__week {
+  font-size: var(--fs-micro);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--r-full);
+  padding: 4rpx 16rpx;
+}
+.ov__nums {
+  margin-top: var(--sp-2);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.ov__big {
+  font-size: var(--fs-num-l);
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.ov__of {
+  font-size: var(--fs-body);
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.9);
+}
+.ov__pct {
+  font-size: var(--fs-emph);
+  font-weight: 700;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+.ov__bar {
+  margin-top: var(--sp-3);
+  height: 8rpx;
+  border-radius: 4rpx;
+  background: rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+}
+.ov__bar-in {
+  height: 100%;
+  border-radius: 4rpx;
+  background: #ffffff;
+  transition: width 400ms ease-out;
+}
+.ov__foot {
+  margin-top: var(--sp-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ov__per {
+  font-size: var(--fs-caption);
+  color: rgba(255, 255, 255, 0.85);
+}
+.ov__alert {
+  font-size: var(--fs-micro);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--r-full);
+  padding: 4rpx 14rpx;
+}
+
+/* ── 漏服强提示条（不用全屏弹窗，避免"被追着骂"） ── */
+.miss {
+  margin-top: var(--sp-3);
+  min-height: 96rpx;
+  border-radius: var(--r-m);
+  background: #fff4f2;
+  border: 1rpx solid #ffd9d2;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-3) 0 var(--sp-4);
+}
+.miss__text {
+  flex: 1;
+  font-size: var(--fs-caption);
+  color: var(--st-missed-text);
+  line-height: 1.4;
+}
+.miss__btn {
+  margin-left: var(--sp-2);
+  height: 64rpx;
+  padding: 0 24rpx;
+  border-radius: var(--r-full);
+  border: 2rpx solid var(--st-missed);
+  display: flex;
+  align-items: center;
+  font-size: var(--fs-caption);
+  color: var(--st-missed-text);
+  font-weight: 600;
+  flex: none;
+}
+
+/* ── 分组卡 ── */
+.group {
+  margin-top: var(--sp-3);
+  background: var(--bg-card);
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+.group__head {
+  display: flex;
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4) var(--sp-2);
+}
+.avatar {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: var(--brand-100);
+  color: var(--brand-600);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.group__name {
+  margin-left: var(--sp-2);
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.group__sum {
+  margin-left: auto;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.group__body {
+  padding-bottom: 4rpx;
+}
+.group__line {
+  height: 1rpx;
+  background: var(--line);
+  margin-left: 116rpx;
+}
+
+.fresh {
+  margin-top: var(--sp-3);
+  text-align: center;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+
+/* ── 老人端 ── */
+.e-date {
+  display: block;
+  padding-top: var(--sp-3);
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+}
+.e-cta {
+  margin-top: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.e-card {
+  background: var(--bg-card);
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-1);
+  border: 1rpx solid var(--line);
+  overflow: hidden;
+}
+.e-line {
+  height: 1rpx;
+  background: var(--line);
+  margin-left: 158rpx;
+}
+.e-recent {
+  display: block;
+  margin-top: var(--sp-4);
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}

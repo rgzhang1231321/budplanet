@@ -1,0 +1,7 @@
+{
+  "usingComponents": {
+    "page-nav": "../../components/base/page-nav/index",
+    "disclaimer-bar": "../../components/base/disclaimer-bar/index"
+  },
+  "navigationStyle": "custom"
+}

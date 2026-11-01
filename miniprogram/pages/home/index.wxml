@@ -1,0 +1,108 @@
+<view class="p-root {{elder ? 'elder' : ''}}">
+  <!-- 不传 bg：底色由 .nav 的 var(--bg-page) 决定，老人端自动跟随 .p-root.elder 的 #ffffff -->
+  <page-nav
+    title="{{elder ? '今天要吃的药' : familyName}}"
+    subtitle="{{elder ? '' : dateText}}"
+  >
+    <view slot="right">
+      <view wx:if="{{elder}}" class="nav-act" bindtap="onSettings">
+        <view class="i i-gear i--lg"></view>
+      </view>
+      <view wx:else class="nav-act" bindtap="onAdd">
+        <view class="i i-plus i--lg"></view>
+      </view>
+    </view>
+  </page-nav>
+
+  <!-- ── 子女端 P10 ── -->
+  <block wx:if="{{!elder}}">
+    <view class="page page--tab">
+      <view class="ov">
+        <view class="ov__top">
+          <text class="ov__date">{{dateText}}</text>
+          <view class="ov__week">本周</view>
+        </view>
+        <view class="ov__nums">
+          <text class="ov__big">{{ov.taken}}<text class="ov__of"> / {{ov.total}} 已服用</text></text>
+          <text class="ov__pct">{{ov.rate}}%</text>
+        </view>
+        <view class="ov__bar"><view class="ov__bar-in" style="width:{{ov.rate}}%"></view></view>
+        <view class="ov__foot">
+          <text class="ov__per">{{perText || '今天还没有安排'}}</text>
+          <view wx:if="{{ov.missed > 0}}" class="ov__alert">⚠ {{ov.missed}} 次漏服</view>
+        </view>
+      </view>
+
+      <view wx:if="{{showMissed}}" class="miss" bindtap="onMissedBar">
+        <text class="miss__text">{{missedText}}</text>
+        <view class="miss__btn"><text>去提醒</text></view>
+      </view>
+
+      <block wx:if="{{hasRows}}">
+        <view wx:for="{{groups}}" wx:key="uid" class="group">
+          <view class="group__head">
+            <view class="avatar">{{item.initial}}</view>
+            <text class="group__name">{{item.alias}}</text>
+            <text class="group__sum">{{item.taken}}/{{item.total}}</text>
+          </view>
+          <view class="group__body">
+            <block wx:for="{{item.rows}}" wx:for-item="row" wx:key="dose_id">
+              <dose-row row="{{row}}" admin="{{true}}" bind:tap="onRowTap" bind:menu="onMenu"></dose-row>
+              <view wx:if="{{index < item.rows.length - 1}}" class="group__line"></view>
+            </block>
+          </view>
+        </view>
+      </block>
+
+      <empty-state
+        wx:else
+        icon="{{hasPatients ? 'pill' : 'user'}}"
+        title="{{hasPatients ? '还没有添加药品' : '还没有服药人'}}"
+        desc="{{hasPatients ? '设好药品和时间，到点手机会提醒' : '先添加一位家人，再给他设吃药提醒'}}"
+        actionText="{{hasPatients ? '添加第一个药品' : '添加服药人'}}"
+        bind:action="onEmptyAdd"
+      ></empty-state>
+
+      <ad-slot adOn="{{adOn}}" unitId="" slot="b" height="{{200}}"></ad-slot>
+
+      <view wx:if="{{refreshAt}}" class="fresh">刚刚 {{refreshAt}} 更新 · 下拉可刷新</view>
+    </view>
+  </block>
+
+  <!-- ── 老人端 E10（无 tabBar、无漏服红条、无「⋯」） ── -->
+  <block wx:else>
+    <view class="page page--safe">
+      <text class="e-date">{{dateText}}</text>
+
+      <view class="e-cta">
+        <primary-button label="去打卡" bind:tap="onGoCheckin"></primary-button>
+      </view>
+
+      <view wx:if="{{hasRows}}" class="e-card">
+        <block wx:for="{{elderRows}}" wx:for-item="row" wx:key="dose_id">
+          <dose-row
+            row="{{row}}"
+            large="{{true}}"
+            soft="{{true}}"
+            showTaken="{{false}}"
+            admin="{{false}}"
+            bind:tap="onRowTap"
+          ></dose-row>
+          <view wx:if="{{index < elderRows.length - 1}}" class="e-line"></view>
+        </block>
+      </view>
+
+      <empty-state
+        wx:else
+        icon="pill"
+        title="今天还没有药"
+        desc="让家人帮你加一个吧"
+        actionText=""
+      ></empty-state>
+
+      <text wx:if="{{recentText}}" class="e-recent">{{recentText}}</text>
+
+      <ad-slot adOn="{{adOn}}" unitId="" slot="b" elder="{{true}}" elderHeight="{{180}}"></ad-slot>
+    </view>
+  </block>
+</view>

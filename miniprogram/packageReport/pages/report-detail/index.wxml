@@ -1,0 +1,50 @@
+<view class="p-root">
+  <page-nav title="详细报告" subtitle="{{rangeText}}" back="{{true}}"></page-nav>
+
+  <view class="page page--safe">
+    <view class="ov">
+      <view class="ov__left">
+        <text class="ov__num">{{rate}}<text class="ov__pct">%</text></text>
+        <text class="ov__label">本周完成率</text>
+      </view>
+      <view class="ov__right">
+        <text class="ov__miss">漏服 {{missCount}} 次</text>
+        <text class="ov__manual">手动修改 {{manualCount}} 次（不计入完成率）</text>
+      </view>
+    </view>
+
+    <view class="card mt-3">
+      <view class="days">
+        <view wx:for="{{days}}" wx:key="key" class="day {{item.future ? 'day--future' : (item.miss ? 'day--miss' : '')}}">
+          <text class="day__label">{{item.label}}</text>
+          <text class="day__mark">{{item.future ? '·' : (item.miss ? '✗' : '✓')}}</text>
+        </view>
+      </view>
+    </view>
+
+    <text class="label">漏服明细</text>
+    <view wx:if="{{misses.length}}" class="list">
+      <view wx:for="{{misses}}" wx:key="index" class="mrow">
+        <view class="mrow__left">
+          <text class="mrow__date">{{item.date}} {{item.week}}</text>
+          <text class="mrow__time">{{item.time}}</text>
+        </view>
+        <view class="mrow__mid">
+          <text class="mrow__name">{{item.name}}</text>
+          <text class="mrow__who">{{item.patient}} · {{item.dose}}</text>
+        </view>
+        <text class="tag tag--warn">漏服</text>
+      </view>
+    </view>
+    <view wx:else class="none">这周没有漏服记录</view>
+
+    <view class="mt-5">
+      <primary-button label="导出给医生看" type="sub" bind:tap="onExport"></primary-button>
+    </view>
+
+    <text class="note">
+      完成率只统计「系统判定 + 老人自主打卡」。管理员手动修改的记录单独计数，不进分子也不进分母，
+      这样改两次也刷不出 100%。
+    </text>
+  </view>
+</view>

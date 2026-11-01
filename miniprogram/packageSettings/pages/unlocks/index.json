@@ -1,0 +1,8 @@
+{
+  "usingComponents": {
+    "page-nav": "../../../components/base/page-nav/index",
+    "empty-state": "../../../components/base/empty-state/index",
+    "ad-slot": "../../../components/base/ad-slot/index"
+  },
+  "navigationStyle": "custom"
+}

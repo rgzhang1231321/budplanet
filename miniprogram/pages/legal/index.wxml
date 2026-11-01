@@ -1,0 +1,14 @@
+<view class="p-root {{elder ? 'elder' : ''}}">
+  <page-nav title="{{title}}" back="{{true}}"></page-nav>
+  <view class="page page--safe legal">
+    <block wx:for="{{list}}" wx:key="index">
+      <text wx:if="{{item.t === 'h'}}" class="legal__h">{{item.v}}</text>
+      <text wx:elif="{{item.t === 'h2'}}" class="legal__h2">{{item.v}}</text>
+      <text wx:else class="legal__p">{{item.v}}</text>
+    </block>
+
+    <view class="legal__bar">
+      <disclaimer-bar elder="{{elder}}"></disclaimer-bar>
+    </view>
+  </view>
+</view>

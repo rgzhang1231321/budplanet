@@ -1,0 +1,12 @@
+{
+  "usingComponents": {
+    "page-nav": "../../components/base/page-nav/index",
+    "primary-button": "../../components/base/primary-button/index",
+    "status-badge": "../../components/base/status-badge/index",
+    "member-avatar-stack": "../../components/base/member-avatar-stack/index",
+    "share-cta": "../../components/base/share-cta/index",
+    "ad-slot": "../../components/base/ad-slot/index",
+    "toast-bar": "../../components/base/toast-bar/index"
+  },
+  "navigationStyle": "custom"
+}

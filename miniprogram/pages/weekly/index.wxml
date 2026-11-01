@@ -1,0 +1,60 @@
+<view class="p-root {{elder ? 'elder' : ''}}">
+  <page-nav title="周报" subtitle="{{rangeText}}"></page-nav>
+
+  <view class="page page--tab">
+    <view class="ring-card">
+      <progress-ring rate="{{rate}}" size="{{320}}" delta="{{delta}}" deltaDown="{{deltaDown}}"></progress-ring>
+      <text class="ring-card__family">{{familyText}}</text>
+      <text wx:if="{{manualText}}" class="ring-card__manual">{{manualText}}</text>
+    </view>
+
+    <view class="card miss-card">
+      <view class="row--between">
+        <text class="t-h2">漏服 {{missCount}} 次</text>
+        <text class="t-caption" bindtap="onHistory">看历史 ›</text>
+      </view>
+      <view wx:if="{{missCount}}" class="miss-list">
+        <view wx:for="{{misses}}" wx:key="index" class="miss-list__row">
+          <view class="miss-list__dot"></view>
+          <text class="miss-list__text">{{item.text}}</text>
+          <text class="miss-list__dose">{{item.dose}}</text>
+        </view>
+      </view>
+      <text wx:else class="miss-none">这周一次没漏，很好</text>
+
+      <view class="week">
+        <view wx:for="{{days}}" wx:key="key" class="week__cell week__cell--{{item.state}}">
+          <text class="week__label">{{item.label}}</text>
+          <text class="week__mark">{{item.state === 'ok' ? '✓' : (item.state === 'miss' ? '✗' : '·')}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{!isSelf}}" class="d-card" bindtap="onOpenDetail">
+      <view class="d-card__icon"><view class="i i-video i--lg"></view></view>
+      <view class="d-card__text">
+        <text class="d-card__title">看 15 秒视频，查看详细报告</text>
+        <text class="d-card__desc">含每次漏服的具体时间与趋势</text>
+      </view>
+      <view class="i i-chevron"></view>
+    </view>
+
+    <!-- WEEKLY 授权触点（合规 §6.3）：周报页按钮。老人端不出现 —— 周报是发给子女的 -->
+    <view wx:if="{{showWeeklyCta}}" class="weekly-sub">
+      <subscribe-cta
+        title="每周日给你一份用药周报"
+        desc="微信规定，每条周报推送都要你点一次同意。勾选「总是保持以上选择」，以后每周自动发。"
+        actionText="开启周报推送"
+        secondaryText="先不用"
+        bind:action="onSubscribeWeekly"
+        bind:secondary="onSubscribeWeeklyLater"
+      ></subscribe-cta>
+    </view>
+
+    <view class="share">
+      <button class="btn btn--sub share__btn" open-type="share">转发到家庭群</button>
+    </view>
+
+    <ad-slot adOn="{{adOn}}" unitId="" slot="b" height="{{200}}"></ad-slot>
+  </view>
+</view>

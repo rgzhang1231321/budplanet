@@ -1,0 +1,92 @@
+.med {
+  display: block;
+  padding-top: var(--sp-3);
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  color: var(--text-1);
+}
+.hint {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  line-height: 1.6;
+}
+.rows {
+  margin-top: var(--sp-4);
+}
+.trow {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--sp-2);
+}
+.trow__picker {
+  width: 200rpx;
+}
+.trow__time {
+  height: 88rpx;
+  background: #f6f8fb;
+  border-radius: var(--r-m);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-body-s);
+  font-weight: 600;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.trow__dose {
+  flex: 1;
+  height: 88rpx;
+  margin-left: var(--sp-2);
+  background: #f6f8fb;
+  border-radius: var(--r-m);
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-body);
+  color: var(--text-1);
+}
+.trow__del {
+  width: 72rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.add {
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-body);
+  color: var(--brand-600);
+  border: 2rpx dashed var(--line);
+  border-radius: var(--r-m);
+  margin-top: var(--sp-2);
+}
+.label {
+  display: block;
+  margin: var(--sp-5) 0 var(--sp-2) 4rpx;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+.chips {
+  display: flex;
+}
+.chip2 {
+  height: 64rpx;
+  padding: 0 26rpx;
+  border-radius: var(--r-full);
+  background: #ffffff;
+  border: 2rpx solid var(--line);
+  color: var(--text-1);
+  font-size: var(--fs-body);
+  display: flex;
+  align-items: center;
+  margin-right: 16rpx;
+}
+.chip2--on {
+  background: var(--brand-100);
+  border-color: var(--brand-500);
+  color: var(--brand-600);
+  font-weight: 600;
+}

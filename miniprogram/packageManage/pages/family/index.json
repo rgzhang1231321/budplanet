@@ -1,0 +1,8 @@
+{
+  "usingComponents": {
+    "page-nav": "../../../components/base/page-nav/index",
+    "primary-button": "../../../components/base/primary-button/index",
+    "subscribe-cta": "../../../components/base/subscribe-cta/index"
+  },
+  "navigationStyle": "custom"
+}

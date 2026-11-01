@@ -1,0 +1,29 @@
+<view class="p-root">
+  <page-nav title="历史记录" back="{{true}}"></page-nav>
+
+  <view class="page page--safe">
+    <block wx:if="{{!isEmpty}}">
+      <view wx:for="{{groups}}" wx:key="date" class="g">
+        <view class="g__head">
+          <text class="g__date">{{item.label}}</text>
+          <text class="g__sum">{{item.taken}}/{{item.total}}</text>
+        </view>
+        <view class="list">
+          <view wx:for="{{item.rows}}" wx:for-item="row" wx:key="dose_id" class="hrow">
+            <text class="hrow__time">{{row.due_time}}</text>
+            <text class="hrow__name">{{row.medicine_name}}</text>
+            <text class="hrow__dose">{{row.dose_text}}</text>
+            <status-badge status="{{row.status}}"></status-badge>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <empty-state
+      wx:elif="{{!loading}}"
+      icon="chart"
+      title="还没有记录"
+      desc="等第一次打卡之后，这里会按天留下痕迹"
+    ></empty-state>
+  </view>
+</view>

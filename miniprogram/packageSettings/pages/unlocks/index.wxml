@@ -1,0 +1,69 @@
+<view class="p-root">
+  <page-nav title="我解锁过的" back="{{true}}"></page-nav>
+
+  <view class="page page--safe">
+    <block wx:if="{{!isEmpty}}">
+      <view class="ov">
+        <text class="ov__num">{{count}}</text>
+        <text class="ov__label">你已经解锁 {{count}} 次</text>
+      </view>
+
+      <block wx:if="{{medUnlocks.length}}">
+        <view class="row--between gs">
+          <text class="gs__t">药品名额</text>
+          <text class="gs__n">{{credits}} 个额外</text>
+        </view>
+        <view class="list">
+          <view wx:for="{{medUnlocks}}" wx:key="id" class="list__row">
+            <view class="list__ico"><view class="i i-unlock"></view></view>
+            <view class="col flex1">
+              <text class="list__label">{{item.title}}</text>
+              <text class="sub">{{item.desc}}</text>
+            </view>
+            <text class="list__value">{{item.date}}</text>
+          </view>
+        </view>
+      </block>
+
+      <block wx:if="{{reportUnlocks.length}}">
+        <view class="gs"><text class="gs__t">周报详情</text></view>
+        <view class="list">
+          <view wx:for="{{reportUnlocks}}" wx:key="id" class="list__row">
+            <view class="list__ico"><view class="i i-chart"></view></view>
+            <view class="col flex1">
+              <text class="list__label">{{item.title}}</text>
+              <text class="sub">{{item.desc}}</text>
+            </view>
+            <text class="list__value">{{item.date}}</text>
+          </view>
+        </view>
+      </block>
+
+      <view class="gs"><text class="gs__t">历史数据</text></view>
+      <view class="list">
+        <view class="list__row">
+          <view class="list__ico"><view class="i i-doc"></view></view>
+          <view class="col flex1">
+            <text class="list__label">历史明细</text>
+            <text class="sub">默认免费，不限时间随时可查</text>
+          </view>
+          <text class="list__value">已生效</text>
+        </view>
+      </view>
+    </block>
+
+    <block wx:else>
+      <view class="empty-wrap">
+        <empty-state
+          icon="unlock"
+          title="还没有解锁过东西"
+          desc="看 15 秒视频，可以解锁：&#10;· 多加 1 个药品名额&#10;· 本周详细漏服分析&#10;· 导出报告给医生看"
+          actionText="去看看"
+          bind:action="onGo"
+        ></empty-state>
+      </view>
+    </block>
+
+    <ad-slot adOn="{{adOn}}" unitId="" slot="b" height="{{200}}"></ad-slot>
+  </view>
+</view>

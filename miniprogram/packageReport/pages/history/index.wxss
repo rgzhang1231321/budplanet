@@ -1,0 +1,61 @@
+.g {
+  margin-top: var(--sp-4);
+}
+.g__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 4rpx var(--sp-2);
+}
+.g__date {
+  font-size: var(--fs-body-s);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.g__sum {
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.hrow {
+  display: flex;
+  align-items: center;
+  min-height: 96rpx;
+  padding: 0 var(--sp-4);
+  position: relative;
+}
+.hrow::after {
+  content: "";
+  position: absolute;
+  left: var(--sp-4);
+  right: 0;
+  bottom: 0;
+  height: 1rpx;
+  background: var(--line);
+}
+.hrow:last-child::after {
+  display: none;
+}
+.hrow__time {
+  width: 100rpx;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.hrow__name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-body);
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hrow__dose {
+  font-size: var(--fs-caption);
+  color: var(--brand-600);
+  margin: 0 var(--sp-2);
+  flex: none;
+}

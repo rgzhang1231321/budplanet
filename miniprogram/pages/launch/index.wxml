@@ -1,0 +1,139 @@
+<view class="p-root launch {{step === 'invite' ? 'elder' : ''}}">
+  <!-- ── P00 欢迎 ── -->
+  <block wx:if="{{step === 'welcome'}}">
+    <view class="hero" style="padding-top:{{statusBar + 24}}px">
+      <view class="hero__logo">
+        <view class="i i-pill hero__logo-icon"></view>
+      </view>
+      <text class="hero__title">替你记着吃药</text>
+      <text class="hero__sub">到点手机会响，响了点一下就成</text>
+    </view>
+
+    <view class="page demo-wrap">
+      <view class="demo">
+        <view class="demo__head">
+          <text class="demo__date">今天 8月14日 周三</text>
+          <text class="demo__rate">3 / 6 已服用</text>
+        </view>
+        <view class="demo__bar"><view class="demo__bar-in"></view></view>
+        <view class="demo__row">
+          <text class="demo__time">08:00</text>
+          <text class="demo__med">降压药 1 片</text>
+          <view class="demo__badge demo__badge--ok">✓ 已服</view>
+        </view>
+        <view class="demo__row">
+          <text class="demo__time">12:30</text>
+          <text class="demo__med">二甲双胍 1 片</text>
+          <view class="demo__badge demo__badge--miss">! 漏服</view>
+        </view>
+        <view class="demo__row">
+          <text class="demo__time">19:00</text>
+          <text class="demo__med">阿司匹林 1 片</text>
+          <view class="demo__badge">○ 待服</view>
+        </view>
+      </view>
+
+      <view class="props">
+        <view class="props__item">
+          <view class="props__dot"></view>
+          <text class="props__t">子女设好，老人不用学</text>
+        </view>
+        <view class="props__item">
+          <view class="props__dot"></view>
+          <text class="props__t">吃了没吃，全家都看得见</text>
+        </view>
+        <view class="props__item">
+          <view class="props__dot"></view>
+          <text class="props__t">不看内容、不外传，只在家里可见</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="foot page">
+      <primary-button label="开始使用" bind:tap="onStart"></primary-button>
+      <!-- 手动加入：家人把邀请码用微信/短信发过来，不走分享链接也能进 -->
+      <view class="manual" hover-class="manual--hover" bindtap="onManualInvite">
+        <text class="manual__t">我有邀请码</text>
+      </view>
+      <text class="foot__note">只做提醒与记录，不提供任何医疗建议</text>
+    </view>
+  </block>
+
+  <!-- ── P01 双模选择 ── -->
+  <block wx:if="{{step === 'mode'}}">
+    <view class="mode" style="padding-top:{{statusBar + 40}}px">
+      <text class="mode__title">你是哪种情况？</text>
+      <text class="mode__sub">选错了也没关系，随时能在「我的」里改</text>
+
+      <!-- 手动输码进来的人：把用的码摆出来，输错了能就地换 -->
+      <view wx:if="{{invite.ivt}}" class="mode__ivt" bindtap="onManualInvite">
+        <text class="mode__ivt-code">邀请码 {{invite.ivt}}</text>
+        <text class="mode__ivt-edit">换一个</text>
+      </view>
+
+      <view class="mode__card" hover-class="mode__card--hover" bindtap="onPickGuardian">
+        <view class="mode__icon"><view class="i i-user i--lg"></view></view>
+        <view class="mode__text">
+          <text class="mode__name">我帮家人看着</text>
+          <text class="mode__desc">设提醒、看今天吃没吃</text>
+        </view>
+        <view class="i i-chevron"></view>
+      </view>
+
+      <view class="mode__card" hover-class="mode__card--hover" bindtap="onPickElder">
+        <view class="mode__icon mode__icon--elder"><view class="i i-pill i--lg"></view></view>
+        <view class="mode__text">
+          <text class="mode__name">我自己吃药</text>
+          <text class="mode__desc">到点提醒我，一点就好</text>
+        </view>
+        <view class="i i-chevron"></view>
+      </view>
+
+      <text class="mode__hint">两种身份可以同时存在：自己吃药，也能管着全家</text>
+    </view>
+  </block>
+
+  <!-- ── P42 被邀请落地页（整页按老人规格，不做双模） ── -->
+  <block wx:if="{{step === 'invite'}}">
+    <view class="p42" style="padding-top:{{statusBar + 16}}px">
+      <view class="p42__close" bindtap="onClose"><view class="i i-close"></view></view>
+
+      <text class="p42__kicker">女儿已经替你做好了</text>
+      <text class="p42__title">{{familyName}}</text>
+
+      <view class="p42__list">
+        <view wx:for="{{meds}}" wx:key="index" class="p42__item">
+          <text class="p42__time">{{item.time}}</text>
+          <text class="p42__med">{{item.name}}</text>
+          <text class="p42__dose">{{item.dose}}</text>
+        </view>
+        <view wx:if="{{medMore > 0}}" class="p42__more">等 {{medMore}} 次吃药</view>
+      </view>
+
+      <text class="p42__line">到点手机会响，响了点下面一下就成。</text>
+
+      <view class="p42__actions">
+        <view class="btn btn--primary p42__main" bindtap="onJoinAsPatient">
+          <text>我自己吃药</text>
+        </view>
+        <text class="p42__tip">点了就会收到提醒</text>
+
+        <view class="btn p42__second" bindtap="onJoinAsGuardian">
+          <text>我帮家人看着</text>
+        </view>
+        <text class="p42__tip2">家里谁没吃药，你都能看见</text>
+      </view>
+
+      <view class="p42__bar">
+        <disclaimer-bar elder="{{true}}"></disclaimer-bar>
+      </view>
+    </view>
+  </block>
+
+  <disclaim-modal
+    id="disclaimModal"
+    show="{{showDisclaim}}"
+    elder="{{disclaimElder}}"
+    bind:confirm="onDisclaimConfirm"
+  ></disclaim-modal>
+</view>

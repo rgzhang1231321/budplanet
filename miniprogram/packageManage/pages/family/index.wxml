@@ -1,0 +1,82 @@
+<view class="p-root">
+  <page-nav title="家庭组" back="{{true}}"></page-nav>
+
+  <view class="page page--safe">
+    <view class="preview">
+      <view class="preview__inner">
+        <text class="preview__kicker">小药盒 · 家庭用药提醒</text>
+        <text class="preview__title">一起盯着爸妈吃药</text>
+        <text class="preview__desc">不用注册，填一次邀请码就加入</text>
+        <view class="preview__row">
+          <text class="preview__time">08:00</text>
+          <text class="preview__med">降压药 1 片</text>
+          <view class="preview__ok">✓ 已服</view>
+        </view>
+      </view>
+    </view>
+
+    <text class="title">把邀请码发给家人</text>
+    <text class="desc">家人在小程序首页点「我有邀请码」，粘贴就能加入</text>
+
+    <!-- 邀请码本体：大字展示 + 整块可点复制。
+         邀请码是长期有效的，不依赖分享链接，微信里随便哪个入口都能用。 -->
+    <view class="ivt" bindtap="onCopyCode">
+      <text class="ivt__k">邀请码</text>
+      <text class="ivt__code">{{token || '加载中…'}}</text>
+      <text class="ivt__act">点一下复制</text>
+    </view>
+
+    <button class="btn btn--primary share-main" bindtap="onCopyCode">复制邀请码</button>
+
+    <view class="mt-3">
+      <button class="btn btn--sub btn--full share-sub" open-type="share">也可以转发给微信好友</button>
+    </view>
+
+    <view wx:if="{{isAdmin}}" class="copy" bindtap="onReset">
+      <text>重发邀请码（当前 {{token}}）</text>
+    </view>
+
+    <text class="label">已加入（{{members.length}} 人）</text>
+    <view class="list">
+      <view
+        wx:for="{{members}}"
+        wx:key="openid"
+        class="list__row"
+        hover-class="{{item.canManage ? 'row-hover' : 'none'}}"
+        data-openid="{{item.openid}}"
+        bindtap="onMemberTap"
+      >
+        <view class="avatar">{{item.initial}}</view>
+        <text class="list__label">{{item.nick}}{{item.isMe ? '（我）' : ''}}</text>
+        <text class="list__value">{{item.roleText}}</text>
+        <view wx:if="{{item.canManage}}" class="i i-chevron"></view>
+      </view>
+    </view>
+
+    <!-- 成员列表下方给一个显式的「再邀请」入口：
+         原先只能回到页面顶部找分享按钮，加完第一个人后不知道还能不能继续加。
+         邀请码是长期有效的（除非主动「重发邀请码」），所以同一个按钮可以反复用。 -->
+    <button class="btn btn--sub btn--full invite-more" bindtap="onCopyCode">+ 再邀请一位家人</button>
+    <text class="invite-more__hint">点一下复制邀请码，发给家人即可；同一个码可以邀请多人</text>
+
+    <view wx:if="{{showMissedCta}}" class="missed-sub">
+      <subscribe-cta
+        title="漏服药时，第一时间告诉你"
+        desc="到点没打卡，微信会给你发一条提醒。微信规定每条提醒都要你点一次同意，勾选「总是保持以上选择」以后就不用再点了。"
+        actionText="开启漏服提醒"
+        secondaryText="先不用"
+        bind:action="onSubscribeMissed"
+        bind:secondary="onSubscribeMissedLater"
+      ></subscribe-cta>
+    </view>
+
+    <text class="note">
+      家里谁没吃药，你都能看见。用药记录只在这个家庭组内可见，不对外共享。{{isAdmin ? '点上面的成员可以调整管理员权限。' : ''}}
+    </text>
+
+    <!-- 只剩自己时不给入口：后端会拒（退出后这张药单就没人管了） -->
+    <view wx:if="{{canLeave}}" class="leave" bindtap="onLeave">
+      <text>退出这个家庭</text>
+    </view>
+  </view>
+</view>

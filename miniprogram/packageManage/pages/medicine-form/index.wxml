@@ -1,0 +1,124 @@
+<view class="p-root">
+  <page-nav title="{{mid ? '编辑药品' : '添加药品'}}" back="{{true}}"></page-nav>
+
+  <view class="page form">
+    <view class="steps">
+      <view class="steps__line"></view>
+      <view class="steps__bar" style="width:{{(step - 1) * 33.33}}%"></view>
+      <view class="step" wx:for="{{['药名', '剂量', '时间']}}" wx:key="*this">
+        <view class="step__dot {{step >= index + 1 ? 'step__dot--on' : ''}}"></view>
+        <text class="step__label {{step === index + 1 ? 'step__label--on' : ''}}">{{item}}</text>
+      </view>
+      <text class="steps__hint">{{stepHint}}</text>
+    </view>
+
+    <!-- Step 1 药名 -->
+    <view hidden="{{step !== 1}}">
+      <text class="q">吃的是什么药？</text>
+
+      <view wx:if="{{patients.length > 1}}" class="who">
+        <text class="who__label">给谁吃</text>
+        <view class="chips">
+          <view
+            wx:for="{{patients}}"
+            wx:key="uid"
+            class="chip2 {{uid === item.uid ? 'chip2--on' : ''}}"
+            data-uid="{{item.uid}}"
+            bindtap="onPickPatient"
+          >{{item.alias}}</view>
+        </view>
+      </view>
+
+      <view class="input-wrap">
+        <input class="input" value="{{name}}" placeholder="输入药名（可手写）" bindinput="onName" />
+      </view>
+
+      <view class="input-wrap mt-3">
+        <input class="input" value="{{spec}}" placeholder="规格，例如 5mg×7片（可不填）" bindinput="onSpec" />
+      </view>
+
+      <text class="label">常用药</text>
+      <view class="chips">
+        <view wx:for="{{common}}" wx:key="name" class="chip2" data-i="{{index}}" bindtap="onPickCommon">{{item.name}}</view>
+      </view>
+    </view>
+
+    <!-- Step 2 剂量 -->
+    <view hidden="{{step !== 2}}">
+      <text class="q">一次吃多少？</text>
+      <text class="q__sub">每个时间点可以单独改剂量，这里先定一个默认值</text>
+      <view class="chips">
+        <view
+          wx:for="{{doses}}"
+          wx:key="*this"
+          class="chip2 {{dose === item ? 'chip2--on' : ''}}"
+          data-dose="{{item}}"
+          bindtap="onPickDose"
+        >{{item}}</view>
+      </view>
+      <view class="input-wrap mt-4">
+        <input class="input" value="{{dose}}" placeholder="自定义，例如 3/4片" bindinput="onDoseInput" />
+      </view>
+    </view>
+
+    <!-- Step 3 时间与周期 -->
+    <view hidden="{{step !== 3}}">
+      <text class="q">什么时候吃？</text>
+      <text class="q__sub">选一个模板就行，不用一个个调时间</text>
+
+      <view class="tpls">
+        <view
+          wx:for="{{templates}}"
+          wx:key="key"
+          class="tpl {{template === item.key ? 'tpl--on' : ''}}"
+          data-i="{{index}}"
+          bindtap="onPickTemplate"
+        >
+          <text class="tpl__name">{{item.name}}</text>
+          <text class="tpl__desc">{{item.desc}}</text>
+          <text class="tpl__times">{{item.times[0]}}{{item.times.length > 1 ? ' 起' : ''}}</text>
+        </view>
+      </view>
+
+      <text class="label">具体时间与剂量</text>
+      <view wx:for="{{times}}" wx:key="index" class="trow">
+        <picker mode="time" value="{{item.t}}" data-i="{{index}}" bindchange="onTime" class="trow__picker">
+          <view class="trow__time">{{item.t}}</view>
+        </picker>
+        <input class="trow__dose" value="{{item.d}}" data-i="{{index}}" bindinput="onSlotDose" placeholder="剂量" />
+        <view class="trow__del" data-i="{{index}}" bindtap="removeTime"><view class="i i-close i--sm"></view></view>
+      </view>
+      <view class="add-time" bindtap="addTime">+ 再加一个时间</view>
+
+      <text class="label">吃到什么时候</text>
+      <view class="chips">
+        <view class="chip2 {{cycle === 'long_term' ? 'chip2--on' : ''}}" data-cycle="long_term" bindtap="onCycle">长期用药</view>
+        <view class="chip2 {{cycle === 'cycle_30' ? 'chip2--on' : ''}}" data-cycle="cycle_30" bindtap="onCycle">30 天</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="footer">
+    <primary-button label="{{step === 3 ? '保存计划' : '下一步'}}" bind:tap="onNext"></primary-button>
+  </view>
+
+  <!-- 保存成功后的订阅引导（底部卡片，非系统弹窗先行） -->
+  <block wx:if="{{showSubscribe}}">
+    <view class="mask"></view>
+    <view class="sheet">
+      <view class="ok-line">
+        <view class="ok-line__dot"></view>
+        <text class="ok-line__t">计划已保存</text>
+      </view>
+      <subscribe-cta bind:action="onSubscribe" bind:secondary="onSubscribeLater"></subscribe-cta>
+    </view>
+  </block>
+
+  <unlock-nudge
+    show="{{showNudge}}"
+    title="免费名额用完了"
+    desc="看 15 秒视频，免费再加 1 个药品名额，永久有效。已填的内容都还在。"
+    bind:unlock="onNudgeUnlock"
+    bind:close="onNudgeClose"
+  ></unlock-nudge>
+</view>

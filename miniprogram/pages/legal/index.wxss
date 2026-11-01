@@ -1,0 +1,34 @@
+.legal {
+  padding-top: var(--sp-3);
+}
+.legal__h {
+  display: block;
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  color: var(--text-1);
+  line-height: 1.4;
+  margin-bottom: var(--sp-3);
+}
+.legal__h2 {
+  display: block;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--text-1);
+  margin-top: var(--sp-5);
+  margin-bottom: var(--sp-2);
+}
+.legal__p {
+  display: block;
+  font-size: var(--fs-body);
+  line-height: 1.75;
+  color: var(--text-2);
+  margin-bottom: var(--sp-3);
+}
+.p-root.elder .legal__p {
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  color: #414d5a;
+}
+.legal__bar {
+  margin: var(--sp-5) calc(-1 * var(--pad-page)) 0;
+}

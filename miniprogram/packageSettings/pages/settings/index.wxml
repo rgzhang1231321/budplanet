@@ -1,0 +1,94 @@
+<view class="p-root {{elder ? 'elder' : ''}}">
+  <page-nav title="设置" back="{{true}}"></page-nav>
+
+  <!-- ── E43 老人端：6 行平铺大字 ── -->
+  <view wx:if="{{elder}}" class="page page--safe">
+    <view class="elist">
+      <view class="elist__row">
+        <view class="list__ico"><view class="i i-bell"></view></view>
+        <text class="elist__label">提醒声音</text>
+        <switch checked="{{sound}}" color="#2E6BE6" bindchange="onSound" />
+      </view>
+      <view class="elist__row">
+        <view class="list__ico"><view class="i i-clock"></view></view>
+        <text class="elist__label">晚上不打扰</text>
+        <switch checked="{{quiet}}" color="#2E6BE6" bindchange="onQuiet" />
+      </view>
+      <view class="elist__row" bindtap="onToggleMode">
+        <view class="list__ico"><view class="i i-user"></view></view>
+        <text class="elist__label">界面模式</text>
+        <text class="elist__value">{{modeLabel}}</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="elist__row" data-url="/packageManage/pages/family/index" bindtap="go">
+        <view class="list__ico"><view class="i i-shield"></view></view>
+        <text class="elist__label">家庭成员</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="elist__row" data-url="/pages/legal/index?type=privacy" bindtap="go">
+        <view class="list__ico"><view class="i i-doc"></view></view>
+        <text class="elist__label">隐私政策</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="elist__row" bindtap="onCall">
+        <view class="list__ico"><view class="i i-phone"></view></view>
+        <text class="elist__label">联系客服</text>
+        <view class="i i-chevron"></view>
+      </view>
+    </view>
+
+    <view class="ebar"><disclaimer-bar elder="{{true}}"></disclaimer-bar></view>
+  </view>
+
+  <!-- ── P43 子女端：分组列表 ── -->
+  <view wx:else class="page page--safe">
+    <text class="gs">提醒</text>
+    <view class="list">
+      <view class="list__row">
+        <text class="list__label">提醒声音</text>
+        <switch checked="{{sound}}" color="#2E6BE6" bindchange="onSound" style="transform:scale(0.85)" />
+      </view>
+      <view class="list__row">
+        <text class="list__label">晚上不打扰</text>
+        <text class="list__value">22:00 - 07:00</text>
+        <switch checked="{{quiet}}" color="#2E6BE6" bindchange="onQuiet" style="transform:scale(0.85)" />
+      </view>
+      <view class="list__row" bindtap="onSubscribe">
+        <text class="list__label">用药提醒</text>
+        <text class="list__value">{{quotaText}}</text>
+        <view class="i i-chevron"></view>
+      </view>
+    </view>
+
+    <text class="gs">显示</text>
+    <view class="list">
+      <view class="list__row" bindtap="onToggleMode">
+        <text class="list__label">界面模式</text>
+        <text class="list__value">{{modeLabel}}</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row">
+        <text class="list__label">减少动画</text>
+        <switch checked="{{reduceMotion}}" color="#2E6BE6" bindchange="onReduceMotion" style="transform:scale(0.85)" />
+      </view>
+    </view>
+
+    <text class="gs">其他</text>
+    <view class="list">
+      <view class="list__row" data-url="/packageManage/pages/family/index" bindtap="go">
+        <text class="list__label">家庭组与成员</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" data-url="/pages/legal/index?type=privacy" bindtap="go">
+        <text class="list__label">隐私政策</text>
+        <view class="i i-chevron"></view>
+      </view>
+      <view class="list__row" bindtap="onCall">
+        <text class="list__label">联系客服</text>
+        <view class="i i-chevron"></view>
+      </view>
+    </view>
+
+    <view class="ebar"><disclaimer-bar></disclaimer-bar></view>
+  </view>
+</view>

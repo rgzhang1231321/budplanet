@@ -1,0 +1,189 @@
+.preview {
+  border-radius: var(--r-l);
+  background: linear-gradient(135deg, #2e6be6, #1e4fbf);
+  padding: var(--sp-4);
+  margin-top: var(--sp-2);
+  box-shadow: 0 10rpx 30rpx rgba(30, 79, 191, 0.22);
+}
+.preview__inner {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-m);
+  padding: var(--sp-4);
+}
+.preview__kicker {
+  font-size: var(--fs-micro);
+  color: rgba(255, 255, 255, 0.8);
+}
+.preview__title {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-emph);
+  font-weight: 700;
+  color: #ffffff;
+}
+.preview__desc {
+  display: block;
+  margin-top: 8rpx;
+  font-size: var(--fs-caption);
+  color: rgba(255, 255, 255, 0.85);
+}
+.preview__row {
+  margin-top: var(--sp-3);
+  background: #ffffff;
+  border-radius: var(--r-m);
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-3);
+}
+.preview__time {
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  width: 100rpx;
+  font-variant-numeric: tabular-nums;
+}
+.preview__med {
+  flex: 1;
+  font-size: var(--fs-body);
+  color: var(--text-1);
+}
+.preview__ok {
+  font-size: var(--fs-micro);
+  color: var(--st-taken-text);
+  background: var(--st-taken-bg);
+  border-radius: var(--r-full);
+  padding: 4rpx 12rpx;
+}
+.title {
+  display: block;
+  margin-top: var(--sp-5);
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.desc {
+  display: block;
+  margin-top: 6rpx;
+  font-size: var(--fs-body);
+  color: var(--text-2);
+}
+.share-main {
+  margin-top: var(--sp-4);
+  height: 96rpx;
+}
+.share-main::after {
+  border: none;
+}
+.share-sub {
+  height: 88rpx;
+  font-size: var(--fs-body-s);
+}
+.share-sub::after {
+  border: none;
+}
+
+/* 邀请码本体：像一张"票"，字距拉开便于逐字念给电话那头的人听 */
+.ivt {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4) var(--sp-3);
+  background: #ffffff;
+  border: 2rpx dashed var(--brand-300, #a9c2f5);
+  border-radius: var(--r-l);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ivt__k {
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  letter-spacing: 2rpx;
+}
+.ivt__code {
+  margin-top: 8rpx;
+  font-size: var(--fs-emph);
+  font-weight: 700;
+  color: var(--brand-600);
+  letter-spacing: 6rpx;
+  font-variant-numeric: tabular-nums;
+}
+.ivt__act {
+  margin-top: 8rpx;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+.copy {
+  margin-top: var(--sp-3);
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+.label {
+  display: block;
+  margin: var(--sp-5) 0 var(--sp-2) 4rpx;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+.avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: var(--brand-100);
+  color: var(--brand-600);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--sp-3);
+  flex: none;
+}
+.note {
+  display: block;
+  margin-top: var(--sp-4);
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  line-height: 1.6;
+}
+
+/* 退出家庭：次级危险动作 —— 描边而不是实心红，避免和"删除药品"抢注意力 */
+.leave {
+  margin-top: var(--sp-6);
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-lg);
+  border: 2rpx solid var(--line);
+  color: var(--text-2);
+  font-size: var(--fs-body-s);
+}
+
+/* 成员行点击态：只有管理员能点别人那行，其余行 hover-class 传 none */
+.row-hover {
+  background: #f4f6f8;
+}
+
+/* 漏服告警授权卡：夹在成员列表和说明文案之间，讲的是同一件事的另一半
+   （"能看见谁没吃" → "不用打开小程序也知道"） */
+.missed-sub {
+  margin-top: var(--sp-4);
+}
+
+/* 成员列表下方的「再邀请」入口：浅品牌底，和主分享按钮（实心蓝）拉开层级，
+   避免同一页两个同样重的按钮抢注意力 */
+.invite-more {
+  margin-top: var(--sp-3);
+  background: var(--brand-100);
+  border-color: var(--brand-100);
+  color: var(--brand-600);
+}
+.invite-more__hint {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  text-align: center;
+}

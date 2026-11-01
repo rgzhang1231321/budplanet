@@ -1,0 +1,9 @@
+{
+  "usingComponents": {
+    "page-nav": "../../../components/base/page-nav/index",
+    "status-badge": "../../../components/base/status-badge/index",
+    "empty-state": "../../../components/base/empty-state/index"
+  },
+  "navigationStyle": "custom",
+  "enablePullDownRefresh": true
+}

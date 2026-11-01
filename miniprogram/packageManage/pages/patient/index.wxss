@@ -1,0 +1,61 @@
+.hint {
+  display: block;
+  padding: var(--sp-3) 4rpx;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+.avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: var(--brand-100);
+  color: var(--brand-600);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--sp-3);
+  flex: none;
+}
+.sub {
+  margin-top: 4rpx;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+.sheet__title {
+  display: block;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: var(--sp-4);
+}
+.field {
+  margin-bottom: var(--sp-3);
+}
+.field__label {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  margin-bottom: 8rpx;
+}
+.field__input {
+  height: var(--h-input);
+  background: #f6f8fb;
+  border-radius: var(--r-m);
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-body-s);
+  color: var(--text-1);
+}
+.sheet__btns {
+  margin-top: var(--sp-4);
+}
+.danger {
+  margin-top: var(--sp-3);
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-body);
+  color: var(--st-missed-text);
+}

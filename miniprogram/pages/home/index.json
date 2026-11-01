@@ -1,0 +1,12 @@
+{
+  "usingComponents": {
+    "page-nav": "../../components/base/page-nav/index",
+    "dose-row": "../../components/base/dose-row/index",
+    "ad-slot": "../../components/base/ad-slot/index",
+    "empty-state": "../../components/base/empty-state/index",
+    "primary-button": "../../components/base/primary-button/index"
+  },
+  "navigationStyle": "custom",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
+}
