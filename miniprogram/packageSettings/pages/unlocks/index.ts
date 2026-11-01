@@ -7,6 +7,7 @@ import { bootstrap } from '../../../store/user';
 import { get } from '../../../store/index';
 import { unlockLog } from '../../../utils/ad';
 import { shortDate } from '../../../utils/time';
+import { AD_UNITS } from '../../../config/index';
 
 const TITLE: Record<string, { title: string; desc: string; icon: string }> = {
   med_slot: { title: '额外药品名额', desc: '永久有效，按名额累加', icon: 'pill' },
@@ -21,6 +22,7 @@ Page({
     medUnlocks: [] as any[],
     reportUnlocks: [] as any[],
     adOn: false,
+    adUnitB: AD_UNITS.b,
     isEmpty: true,
   },
 

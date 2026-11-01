@@ -103,7 +103,9 @@
     <view class="p42" style="padding-top:{{statusBar + 16}}px">
       <view class="p42__close" bindtap="onClose"><view class="i i-close"></view></view>
 
-      <text class="p42__kicker">女儿已经替你做好了</text>
+      <!-- 邀请人昵称拿不到（契约里没有"凭 invite_token 预览"的接口，落地页只知道自己），
+           所以不写死"女儿"——儿子/儿媳/老伴邀请时那句就是错的。取不到就退化成"家人"。 -->
+      <text class="p42__kicker">家人已经替你做好了</text>
       <text class="p42__title">{{familyName || '一起看吃药'}}</text>
 
       <text class="p42__line">到点手机会响，响了点下面一下就成。</text>

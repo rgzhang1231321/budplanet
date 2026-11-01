@@ -9,12 +9,13 @@ import { flushHeld, skip, snooze, take, undoTake } from '../../store/today';
 import { flush, dirtyToday } from '../../utils/queue';
 import { isAlwaysAccept, isMainSwitchOn } from '../../utils/subscribe';
 import { countdown, humanGap, diffMinutes, partOfDay } from '../../utils/time';
+import { AD_UNITS } from '../../config/index';
 import { report } from '../../utils/report';
 
 Page({
   data: {
     elder: false,
-    viewState: 'pending' as 'pending' | 'taken' | 'missed' | 'empty' | 'stale',
+    viewState: 'pending' as 'pending' | 'taken' | 'missed' | 'empty' | 'stale' | 'loading',
     list: [] as any[],
     folded: false,
     extra: 0,
@@ -30,6 +31,7 @@ Page({
     canUndo: false,
     showShare: false,
     adOn: false,
+    adUnitA: AD_UNITS.a,
     syncShow: false,
     syncState: 'sending' as 'sending' | 'error',
     showCountdown: false,
@@ -96,7 +98,10 @@ Page({
     if (!rows.length) {
       // 带了 ?dose= 却今天一条都没有：说明这条确实不在了（改计划会生成新 dose_id），
       // 仍然要说"这条已失效"，不能退化成"今天都记好了"让人以为记过了。
-      this.setData({ elder: isElder(), viewState: this._doseId ? 'stale' : 'empty', whoText: this.who() });
+      // 数据还在路上时更不能下结论：空 rows + loading 一律先出加载态，
+      // 否则首屏会闪一句"今天都记好了"，老人看到就真的不吃了。
+      const viewState = this._doseId ? 'stale' : s.today.loading ? 'loading' : 'empty';
+      this.setData({ elder: isElder(), viewState, whoText: this.who() });
       return;
     }
     let list: any[] = [];
@@ -380,9 +385,14 @@ Page({
     const s = get();
     const r = (this._pendingAll || [])[0] || {};
     const alias = this.who().split(' · ')[0] || '爸';
+    // invite_token 只对 admin 下发：拿不到码时不要拼 `ivt=`（空串会让落地页落到普通欢迎页，
+    // 用户以为是邀请卡、点进去却发现要重新开始）。宁可分享成普通入口。
+    const ivt = s.family.inviteToken;
     return {
       title: `${alias}今天按时吃药了`,
-      path: `/pages/launch/index?from=checkin&fid=${s.family.fid}&ivt=${s.family.inviteToken}`,
+      path: ivt
+        ? `/pages/launch/index?from=checkin&fid=${s.family.fid}&ivt=${ivt}`
+        : '/pages/launch/index?from=checkin',
       success: () => report('share_click', { channel: 'wechat', from: 'checkin' }),
     };
   },

@@ -1,7 +1,14 @@
 <view class="p-root">
   <page-nav title="详细报告" subtitle="{{rangeText}}" back="{{true}}"></page-nav>
 
-  <view class="page page--safe">
+  <view wx:if="{{loadError}}" class="page page--safe">
+    <view class="none">这周的报告还没取到</view>
+    <view class="mt-5">
+      <primary-button label="再试一次" type="sub" bind:tap="onRetry"></primary-button>
+    </view>
+  </view>
+
+  <view wx:else class="page page--safe">
     <view class="ov">
       <view class="ov__left">
         <text class="ov__num">{{rate}}<text class="ov__pct">%</text></text>

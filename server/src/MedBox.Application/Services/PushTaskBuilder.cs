@@ -163,12 +163,12 @@ public sealed class PushTaskBuilder(IAppDbContext db, IClock clock, ConfigReader
             ? PushPolicy.TaskId(openid, now / 60_000, tmplKey)
             : PushPolicy.ScopedTaskId(openid, dedupeScope, tmplKey);
 
-        if (await db.PushTasks.AnyAsync(t => t.TaskId == taskId, ct)) return 0;
-
-        db.Add(new PushTask
+        // 幂等靠 ON CONFLICT：返回 0 行 = 这条已经在队列里（同一分钟桶 / 同一周报周）。
+        // 原来先 AnyAsync 再 Add，两个 tick 同时到就撞主键抛 1009，而任务其实已经排上了。
+        return await db.InsertPushTaskIgnoreConflictAsync(new PushTask
         {
             TaskId = taskId,
-            Shard = (short)(Math.Abs(openid.GetHashCode()) % 4),
+            Shard = PushPolicy.Shard(openid),
             Openid = openid,
             TmplKey = tmplKey,
             Status = "queued",
@@ -177,8 +177,7 @@ public sealed class PushTaskBuilder(IAppDbContext db, IClock clock, ConfigReader
             RetryCount = 0,
             NextRetryAt = 0,
             CreatedAt = now,
-        });
-        return 1;
+        }, ct);
     }
 }
 

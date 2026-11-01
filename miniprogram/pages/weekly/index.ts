@@ -6,8 +6,9 @@
 import { bootstrap } from '../../store/user';
 import { get, isElder, isSelf } from '../../store/index';
 import { get as apiGet } from '../../utils/request';
-import { addDays, dateCN, shortDate, weekdayOf, weekStartOf } from '../../utils/time';
+import { addDays, dateCN, partOfDay, shortDate, weekdayOf, weekStartOf } from '../../utils/time';
 import { unlockByAd } from '../../utils/ad';
+import { AD_UNITS } from '../../config/index';
 import { report } from '../../utils/report';
 import { requestOne } from '../../utils/subscribe';
 
@@ -26,6 +27,7 @@ Page({
     familyText: '',
     manualText: '',
     adOn: false,
+    adUnitB: AD_UNITS.b,
     isEmpty: false,
     week: '',
     unlocked: false,
@@ -75,8 +77,10 @@ Page({
         rate: d.rate || 0,
         delta: deltaNum === 0 ? '' : `${deltaNum > 0 ? '+' : ''}${deltaNum}%`,
         deltaDown: deltaNum < 0,
+        // 时段用 partOfDay 归类（0-5 凌晨 / 5-9 早上 / 9-11:30 上午 / 11:30-13 中午 / 13-18 下午 / 18-24 晚上）。
+        // 原来按 slot<720 一刀切，12:00-17:59 全被说成"晚"，与事实不符。
         misses: (d.missList || []).slice(0, 5).map((m: any) => ({
-          text: `${weekdayOf(m.date)} ${m.slot < 720 ? '早' : '晚'} · ${m.medicine_name}`,
+          text: `${weekdayOf(m.date)} ${partOfDay(m.slot)} · ${m.medicine_name}`,
           dose: m.dose_text,
         })),
         missCount: (d.missList || []).length,
@@ -97,7 +101,11 @@ Page({
 
   /** 广告位 D：看 15 秒视频换详细报告（成本在前、权益在后）；服药人本人不给看 */
   onOpenDetail() {
-    if (this.data.isSelf) return;
+    // 静默 return 会表现成"点了没反应"：服药人点了也要给一句人话（不能出现"失败/错误"）
+    if (this.data.isSelf) {
+      wx.showToast({ title: '详细报告是给家人看的', icon: 'none' });
+      return;
+    }
     unlockByAd('week_report', (d: any) => {
       this.setData({ unlocked: true });
       wx.navigateTo({ url: `/packageReport/pages/report-detail/index?week=${this.data.week}` });
@@ -125,9 +133,11 @@ Page({
 
   onShareAppMessage() {
     const s = get();
+    // 同上：非管理员拿不到邀请码，不要拼空的 `ivt=`（会静默退化成普通欢迎页）
+    const ivt = s.family.inviteToken;
     return {
       title: `${s.family.name || '我家'}这周服药完成率 ${this.data.rate}%`,
-      path: `/pages/launch/index?from=weekly&fid=${s.family.fid}&ivt=${s.family.inviteToken}`,
+      path: ivt ? `/pages/launch/index?from=weekly&fid=${s.family.fid}&ivt=${ivt}` : '/pages/launch/index?from=weekly',
       success: () => report('share_click', { channel: 'wechat', from: 'weekly' }),
     };
   },

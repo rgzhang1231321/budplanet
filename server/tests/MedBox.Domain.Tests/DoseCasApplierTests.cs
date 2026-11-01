@@ -14,6 +14,8 @@ public class DoseCasApplierTests
 {
     private const string DoseId = "p1_2026-11-01_480";
     private const string FamilyId = "f1";
+    private const string DueDate = "2026-11-01";
+    private const int Slot = 480;
     private const long DueTs = 1_761_955_200_000L;
 
     [Fact]
@@ -99,7 +101,7 @@ public class DoseCasApplierTests
         db.CompareAndSetDoseAsync(Arg.Any<DoseCasUpdate>(), Arg.Any<CancellationToken>())
             .Returns(ci => Task.FromResult(store.CompareAndSet(ci.Arg<DoseCasUpdate>())));
 
-        return new DoseCasApplier(db, clock);
+        return new DoseCasApplier(db, clock, lateToleranceMin: 15);
     }
 
     /// <summary>内存里的 dose_logs 单行，只实现"状态 CAS"这一件事。</summary>
@@ -130,7 +132,11 @@ public class DoseCasApplierTests
         public DoseSnapshot? Read() =>
             _status is null
                 ? null
-                : new DoseSnapshot(StaleReads-- > 0 ? _initialStatus! : _status, IsCorrected: false, DueTs);
+                : new DoseSnapshot(
+                    StaleReads-- > 0 ? _initialStatus! : _status,
+                    IsCorrected: false,
+                    DueDate,
+                    Slot);
 
         public int CompareAndSet(DoseCasUpdate update)
         {

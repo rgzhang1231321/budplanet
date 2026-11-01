@@ -61,7 +61,14 @@ services:
 
     # 1G 机器上三方共存（db + api + caddy），给每个容器设上限，避免互相挤爆触发 OOM Killer
     mem_limit: ${DB_MEM_LIMIT:-420m}
+    # 三个容器 CPU 上限之和 = 1.80 核（机器 2 核），留 0.2 核给 sshd/dockerd，
+    # 防止发版或慢查询把机器跑满后 SSH 进不去。见 docker-compose.api.yml 同一处注释。
+    cpus: ${DB_CPU_LIMIT:-0.75}
     shm_size: 128mb
+
+    # 数据库不需要任何提权路径；PG 以 postgres 用户跑，禁止 no-new-privileges 之外的花样
+    security_opt:
+      - no-new-privileges:true
 
     logging:
       driver: json-file

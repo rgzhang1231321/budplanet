@@ -3,6 +3,7 @@ using MedBox.Application.Abstractions;
 using MedBox.Application.Services;
 using MedBox.Application.UseCases;
 using MedBox.Domain;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace MedBox.Domain.Tests;
@@ -48,8 +49,8 @@ public class ScheduleDateInputTests
         var db = Substitute.For<IAppDbContext>();
         var clock = Substitute.For<IClock>();
         clock.TodayCn.Returns(Today);
-        var materializer = new DoseMaterializer(db, clock);
-        return new TodayHandler(db, MemberGuardStub(), materializer, clock);
+        var materializer = new DoseMaterializer(db, clock, NullLogger<DoseMaterializer>.Instance);
+        return new TodayHandler(db, MemberGuardStub(), materializer, clock, NullLogger<TodayHandler>.Instance);
     }
 
     private static WeekHandler NewWeekHandler()
@@ -57,7 +58,7 @@ public class ScheduleDateInputTests
         var db = Substitute.For<IAppDbContext>();
         var clock = Substitute.For<IClock>();
         clock.TodayCn.Returns(Today);
-        var materializer = new DoseMaterializer(db, clock);
+        var materializer = new DoseMaterializer(db, clock, NullLogger<DoseMaterializer>.Instance);
         return new WeekHandler(db, MemberGuardStub(), materializer, clock);
     }
 

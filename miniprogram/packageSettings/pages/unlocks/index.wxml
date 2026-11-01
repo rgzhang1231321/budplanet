@@ -64,6 +64,6 @@
       </view>
     </block>
 
-    <ad-slot adOn="{{adOn}}" unitId="" slot="b" height="{{200}}"></ad-slot>
+    <ad-slot adOn="{{adOn}}" unitId="{{adUnitB}}" slot="b" height="{{200}}"></ad-slot>
   </view>
 </view>

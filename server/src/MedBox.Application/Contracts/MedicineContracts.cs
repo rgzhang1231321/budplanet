@@ -17,7 +17,8 @@ public sealed class MedicineItemDto
     [JsonPropertyName("spec")] public string Spec { get; set; } = "";
     [JsonPropertyName("default_dose")] public string DefaultDose { get; set; } = "";
     [JsonPropertyName("note")] public string? Note { get; set; }
-    [JsonPropertyName("active")] public int Active { get; set; } = 1;
+    /// <summary>与同表的 is_late / is_corrected 同为布尔；list 已按 status=active 过滤，恒为 true。</summary>
+    [JsonPropertyName("active")] public bool Active { get; set; } = true;
     [JsonPropertyName("slots")] public List<SlotDto> Slots { get; set; } = [];
     [JsonPropertyName("cycle_type")] public string CycleType { get; set; } = "long_term";
 }
@@ -38,6 +39,7 @@ public sealed class CommonMedDto
 public sealed class CommonMedResult
 {
     [JsonPropertyName("items")] public List<CommonMedDto> Items { get; set; } = [];
+    [JsonPropertyName("server_ts")] public long ServerTs { get; set; }
 }
 
 public sealed class PlanUpsertRequest

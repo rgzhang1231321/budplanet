@@ -77,7 +77,20 @@ export function useMock(): boolean {
   return USE_MOCK;
 }
 
-// 广告位：未开通流量主时留空，AdSlot 会自动折叠为 0 高，不破坏布局
+/**
+ * ⚠️⚠️ 广告位 unitId：**必须去微信公众平台开流量主、建好广告位后填进来** ⚠️⚠️
+ *
+ * 位置：mp.weixin.qq.com → 流量主 → 广告位管理 → 新建广告位，拿到的 16 位 unitId 填在下面。
+ *   a      = 打卡成功页底部 banner
+ *   b      = 看板/药品/周报/解锁记录页 banner（子女端）
+ *   bElder = 老人端首页 banner（单独一个位，便于老人端单独关停）
+ *   c      = 插屏（子女端，返回药品列表时）
+ *   d      = 激励视频（看 15 秒换权益）
+ *
+ * 留空 = 全站不展示广告（AdSlot 静默折叠为 0 高，不会留白块），`ad_show` 埋点也不会触发。
+ * 所以「config.adOn 配了但一个广告都不出来」的第一嫌疑就是这里还是空串 —— 不是开关没生效。
+ * 未开通流量主时**不要**为了"看起来有广告"去填别人的 unitId：unitId 与 appid 不匹配会直接加载失败。
+ */
 export const AD_UNITS = {
   a: '',
   b: '',

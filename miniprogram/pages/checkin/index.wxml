@@ -73,7 +73,7 @@
     <view class="ok__back" bindtap="goHome"><text>返回今日</text></view>
 
     <view class="ok__ad">
-      <ad-slot adOn="{{adOn}}" unitId="" slot="a" height="{{210}}" elder="{{elder}}"></ad-slot>
+      <ad-slot adOn="{{adOn}}" unitId="{{adUnitA}}" slot="a" height="{{210}}" elder="{{elder}}"></ad-slot>
     </view>
   </view>
 
@@ -114,11 +114,19 @@
     </view>
   </view>
 
-  <!-- ── 今日已全部完成 / 无数据 ── -->
+  <!-- ── 正在拉今天的药：数据没到之前不下任何结论 ── -->
+  <view wx:elif="{{viewState === 'loading'}}" class="ck">
+    <view class="ck__empty">
+      <text class="ck__empty-t">正在看看今天的药</text>
+      <text class="ck__empty-d">稍等一下就好</text>
+    </view>
+  </view>
+
+  <!-- ── 今天确实没有排药（真空态；"都记好了"是另一件事，不能拿这句顶） ── -->
   <view wx:else class="ck">
     <view class="ck__empty">
-      <text class="ck__empty-t">今天都记好了</text>
-      <text class="ck__empty-d">到点会提醒你，点一下就好</text>
+      <text class="ck__empty-t">今天还没有安排</text>
+      <text class="ck__empty-d">还没设今天的药和时间，设好之后到点会提醒</text>
     </view>
     <view class="ck__actions">
       <primary-button label="返回今日" bind:tap="goHome"></primary-button>

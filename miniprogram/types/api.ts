@@ -30,6 +30,8 @@ export interface DoseRow {
   today_total: number;
   /** 前端本地态：已点但未同步（契约无此字段，不上送） */
   syncing?: boolean;
+  /** 前端本地态：这一行属于哪个东八区自然日（契约 rows[] 无 date，落库时靠它防止跨天写错日期） */
+  localDate?: string;
 }
 
 export interface ScheduleToday {
@@ -75,7 +77,8 @@ export interface FamilyInfo {
   selfUids: string[];
   members: Member[];
   patients: Patient[];
-  invite_token: string;
+  /** 只对 admin 下发；member / elder 收到 null（reset_invite 是 admin 权限） */
+  invite_token?: string | null;
 }
 
 export interface AppConfig {
@@ -113,7 +116,8 @@ export interface MedicineItem {
   spec: string;
   default_dose: string;
   note?: string;
-  active: number;
+  /** 与同表的 is_late / is_corrected 一致用布尔；medicine.list 已按 active 过滤，实际恒为 true */
+  active: boolean;
   slots: { t: string; d: string; slot_key: string }[];
   cycle_type: string;
 }

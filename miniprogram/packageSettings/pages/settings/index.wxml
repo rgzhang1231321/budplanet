@@ -50,7 +50,7 @@
       </view>
       <view class="list__row">
         <text class="list__label">晚上不打扰</text>
-        <text class="list__value">22:00 - 07:00</text>
+        <text class="list__value">{{quietText}}</text>
         <switch checked="{{quiet}}" color="#2E6BE6" bindchange="onQuiet" style="transform:scale(0.85)" />
       </view>
       <view class="list__row" bindtap="onSubscribe">

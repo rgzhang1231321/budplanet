@@ -55,14 +55,21 @@ public static class DependencyInjection
         return services;
     }
 
-    public static IServiceCollection AddMedBoxApplication(this IServiceCollection services)
+    public static IServiceCollection AddMedBoxApplication(this IServiceCollection services, IConfiguration config)
     {
+        // 迟到容差是业务阈值（is_late 的配色口径），走配置不写 const；
+        // 用 appsettings 而不是 app_config 表：契约 §三 冻结了 config 下发键，多一个键就是改契约。
+        var lateToleranceMin = config.GetValue("Checkin:LateToleranceMin", 15);
+
         services.AddScoped<IMemberGuard, MemberGuard>();
         // Singleton：注册成 Scoped 时每个请求都 new 一个，实例字段的 60s 缓存永远命中不了
         services.AddSingleton<ConfigReader>();
         services.AddScoped<ContentSecurityChecker>();
         services.AddScoped<DoseMaterializer>();
-        services.AddScoped<DoseCasApplier>();
+        services.AddScoped(sp => new DoseCasApplier(
+            sp.GetRequiredService<IAppDbContext>(),
+            sp.GetRequiredService<IClock>(),
+            lateToleranceMin));
         services.AddScoped<EntitlementService>();
         services.AddScoped<PushTaskBuilder>();
 

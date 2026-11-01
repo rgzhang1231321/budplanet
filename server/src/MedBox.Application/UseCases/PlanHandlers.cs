@@ -41,7 +41,17 @@ public sealed class PlanUpsertHandler(IAppDbContext db, IMemberGuard guard, IClo
         minutes.Sort();
 
         var today = clock.TodayCn;
-        var start = string.IsNullOrWhiteSpace(startDate) ? today : startDate!;
+        string start;
+        if (string.IsNullOrWhiteSpace(startDate))
+        {
+            start = today;
+        }
+        else if (!TimeCn.TryParseDate(startDate, out start))
+        {
+            // startDate 会进 plans.start_date 与 nextFireAt 的换算，格式不对必须 1005，
+            // 不能让它一路走到 ParseExact 变成 1009（前端会当服务异常无限重投）
+            throw new ValidationException("startDate 格式应为 YYYY-MM-DD（东八区自然日）");
+        }
         var now = clock.NowMs;
 
         var plan = await db.Plans.FirstOrDefaultAsync(p => p.MedicineId == mid && p.Status != "finished", ct);
@@ -87,7 +97,9 @@ public sealed class PlanUpsertHandler(IAppDbContext db, IMemberGuard guard, IClo
         return new PlanUpsertResult
         {
             PlanId = planId,
-            NextFireAt = TimeCn.SlotUtcMs(today, minutes[0]),
+            // 基准日必须取 max(start, today)：计划从明天开始时，拿 today 算出来的"下次触发"
+            // 是今天早上那个已经过去的时刻，前端倒计时会立刻变成负数。
+            NextFireAt = TimeCn.SlotUtcMs(string.CompareOrdinal(start, today) > 0 ? start : today, minutes[0]),
         };
     }
 }

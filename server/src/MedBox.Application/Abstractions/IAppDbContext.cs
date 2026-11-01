@@ -59,4 +59,10 @@ public interface IAppDbContext
     /// 0 行 = 同一个 ad_trace 已经被核销过（激励视频重复回调），调用方按幂等返回而不是报错。
     /// </summary>
     Task<int> InsertAdEventIgnoreConflictAsync(AdEvent row, CancellationToken ct = default);
+
+    /// <summary>
+    /// 推送任务幂等插入：`INSERT … ON CONFLICT (task_id) DO NOTHING`，返回真正新增的行数。
+    /// 不用"先 Any 再 Add"——两个 tick / 两个实例同时入队会撞主键抛 1009，而任务其实已经排上了。
+    /// </summary>
+    Task<int> InsertPushTaskIgnoreConflictAsync(PushTask row, CancellationToken ct = default);
 }

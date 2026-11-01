@@ -72,13 +72,19 @@ public sealed class ReminderTickWorker(
         return (missed, reminders, alerts);
     }
 
+    /// <summary>
+    /// 漏服判定：扫描**全部** pending 行（只封到明天 00:00，未来的行不该判）。
+    /// 原来只回溯 3 天 —— 停机超过 3 天，更早的 pending 行就永远停在 pending：
+    /// 既不进完成率分母、也不进 missed，完成率长期偏高且没人发现。判定成本不靠窗口控制，
+    /// 靠 status='pending' 这个极小的子集（只有活跃计划会产出 pending，未来日期不物化）；
+    /// 真正老的 pending 按 MissedPolicy 本来就该判 missed。告警链路另有 1 天窗口，不会补发一堆旧告警。
+    /// </summary>
     private async Task<int> MarkMissedAsync(IAppDbContext db, IClock clock, int thresholdMin, long now, CancellationToken ct)
     {
-        var fromTs = TimeCn.DayStartUtcMs(TimeCn.DateCn(now - 3 * 86_400_000L));
         var tomorrowTs = TimeCn.DayStartUtcMs(clock.TodayCn) + 86_400_000L;
 
         var candidates = await db.DoseLogs
-            .Where(d => d.Status == DoseStatusWire.Pending && d.DueTs >= fromTs && d.DueTs < tomorrowTs)
+            .Where(d => d.Status == DoseStatusWire.Pending && d.DueTs < tomorrowTs)
             .Select(d => new { d.DoseId, d.DueDate, d.Slot, d.IsCorrected })
             .ToListAsync(ct);
 

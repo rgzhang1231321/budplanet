@@ -7,8 +7,8 @@
 
   <view class="page page--tab">
     <view wx:if="{{total}}" class="quota">
-      <text class="quota__text">已添加 {{total}} 种 · 免费名额 {{limit}} 个</text>
-      <text class="quota__hint">第 {{limit + 1}} 个起看视频可解锁</text>
+      <text class="quota__text">{{quotaText}}</text>
+      <text class="quota__hint">{{quotaHint}}</text>
     </view>
 
     <block wx:if="{{!isEmpty}}">
@@ -26,7 +26,7 @@
                 <text class="mrow__name">{{med.name}}</text>
                 <text class="mrow__spec">{{med.spec || '未填规格'}}</text>
                 <view class="mrow__times">
-                  <text wx:for="{{med.times}}" wx:for-item="sl" wx:key="t" class="chip">{{sl.t}} · {{sl.d}}</text>
+                  <text wx:for="{{med.times}}" wx:for-item="sl" wx:key="t" class="chip">{{sl.t ? sl.t + ' · ' : ''}}{{sl.d}}</text>
                 </view>
               </view>
               <view class="i i-chevron"></view>
@@ -45,6 +45,6 @@
       bind:action="onAdd"
     ></empty-state>
 
-    <ad-slot adOn="{{adOn}}" unitId="" slot="b" height="{{200}}"></ad-slot>
+    <ad-slot adOn="{{adOn}}" unitId="{{adUnitB}}" slot="b" height="{{200}}"></ad-slot>
   </view>
 </view>

@@ -36,6 +36,16 @@
 	header {
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
+		# 只允许 https 访问（一年），防止降级到 http 被中间人劫持。
+		# includeSubDomains 的作用域是本域名的**下级**，即 *.api.apiyun.net，
+		# 不涉及 apiyun.net 主域或别的兄弟域（HSTS 不能跨父域下发，这里也做不到）。
+		# 本项目除 api.apiyun.net 外没有任何 http 子域（证书 SAN 也只有它，见文件末尾），
+		# 所以不存在"某个子域还没上 https 被这条规则锁死"的风险。
+		# 不加 preload：preload 要主动提交到浏览器内置列表，且移除周期以月计，收益不抵风险。
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# 本站只提供 JSON 接口，没有任何需要被 iframe 嵌入的页面 → 一律禁止被嵌
+		# （防点击劫持；将来若真要做可嵌入的 H5，改 SAMEORIGIN 并在此处注明原因）。
+		X-Frame-Options "DENY"
 		-Server
 	}
 

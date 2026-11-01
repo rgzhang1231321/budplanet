@@ -33,6 +33,14 @@ services:
       - ${DATA_ROOT:-/data/medbox}/caddy/config:/config
 
     mem_limit: ${EDGE_MEM_LIMIT:-96m}
+    # Caddy 只做 TLS 终止 + 反代，CPU 需求最小；上限压在 0.3 核，
+    # 给 API/PG 让路（三者之和 1.80 核，见 docker-compose.api.yml）。
+    cpus: ${EDGE_CPU_LIMIT:-0.30}
+
+    # Caddy 需要 bind 80/443 已由镜像的 capability 提供，不需要任何**新增**特权；
+    # no-new-privileges 只挡 setuid 提权，不影响它监听低端口。
+    security_opt:
+      - no-new-privileges:true
 
     logging:
       driver: json-file

@@ -13,7 +13,11 @@ public sealed class FamilyInfoDto
     [JsonPropertyName("selfUids")] public string[] SelfUids { get; set; } = [];
     [JsonPropertyName("members")] public List<MemberDto> Members { get; set; } = [];
     [JsonPropertyName("patients")] public List<PatientDto> Patients { get; set; } = [];
-    [JsonPropertyName("invite_token")] public string InviteToken { get; set; } = "";
+    /// <summary>
+    /// 只有 admin 拿得到；其余角色为 null。邀请令牌等于"能把外人拉进这个家"的凭证，
+    /// 下发到 elder 客服端就等于给了老人一个绕过 family.reset_invite 权限的后门。
+    /// </summary>
+    [JsonPropertyName("invite_token")] public string? InviteToken { get; set; }
     [JsonPropertyName("server_ts")] public long ServerTs { get; set; }
 }
 

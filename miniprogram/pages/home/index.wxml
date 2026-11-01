@@ -54,16 +54,21 @@
         </view>
       </block>
 
-      <empty-state
-        wx:else
-        icon="{{hasPatients ? 'pill' : 'user'}}"
-        title="{{hasPatients ? '还没有添加药品' : '还没有服药人'}}"
-        desc="{{hasPatients ? '设好药品和时间，到点手机会提醒' : '先添加一位家人，再给他设吃药提醒'}}"
-        actionText="{{hasPatients ? '添加第一个药品' : '添加服药人'}}"
-        bind:action="onEmptyAdd"
-      ></empty-state>
+      <!-- 三态互斥：有数据 → 加载中 → 真空态。缺了中间那层，数据没到就会闪一下"还没有添加药品" -->
+      <block wx:else>
+        <view wx:if="{{loading}}" class="fresh">正在看看今天的药…</view>
 
-      <ad-slot adOn="{{adOn}}" unitId="" slot="b" height="{{200}}"></ad-slot>
+        <empty-state
+          wx:else
+          icon="{{hasPatients ? 'pill' : 'user'}}"
+          title="{{hasPatients ? '还没有添加药品' : '还没有服药人'}}"
+          desc="{{hasPatients ? '设好药品和时间，到点手机会提醒' : '先添加一位家人，再给他设吃药提醒'}}"
+          actionText="{{hasPatients ? '添加第一个药品' : '添加服药人'}}"
+          bind:action="onEmptyAdd"
+        ></empty-state>
+      </block>
+
+      <ad-slot adOn="{{adOn}}" unitId="{{adUnitB}}" slot="b" height="{{200}}"></ad-slot>
 
       <view wx:if="{{refreshAt}}" class="fresh">刚刚 {{refreshAt}} 更新 · 下拉可刷新</view>
     </view>
@@ -92,17 +97,21 @@
         </block>
       </view>
 
-      <empty-state
-        wx:else
-        icon="pill"
-        title="今天还没有药"
-        desc="让家人帮你加一个吧"
-        actionText=""
-      ></empty-state>
+      <block wx:else>
+        <view wx:if="{{loading}}" class="fresh">正在看看今天的药…</view>
+
+        <empty-state
+          wx:else
+          icon="pill"
+          title="今天还没有药"
+          desc="让家人帮你加一个吧"
+          actionText=""
+        ></empty-state>
+      </block>
 
       <text wx:if="{{recentText}}" class="e-recent">{{recentText}}</text>
 
-      <ad-slot adOn="{{adOn}}" unitId="" slot="b" elder="{{true}}" elderHeight="{{180}}"></ad-slot>
+      <ad-slot adOn="{{adOn}}" unitId="{{adUnitBElder}}" slot="b" elder="{{true}}" elderHeight="{{180}}"></ad-slot>
     </view>
   </block>
 </view>

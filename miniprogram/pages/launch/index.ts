@@ -163,7 +163,13 @@ Page({
         if (res && res.fid) set('family.fid', res.fid);
         await loadFamily();
       }
-      if (role === 'patient') await bindSelf('patient');
+      if (role === 'patient') {
+        // 刚刚带着 ivt 的 join 已经在服务端把 role=elder / self_patient_id 绑好了，
+        // 再调一次 bindSelf 等于重复加入；而 invite_token 现在只给 admin，
+        // 非管理员此刻手上是空串 → 第二次 join 必被 1005「邀请码无效」顶回，
+        // 把一次已经成功的加入变成报错页。所以只在"没走 invite join"时才补绑。
+        if (!this.data.invite.ivt) await bindSelf('patient');
+      }
       report('invite_accepted', { role, ms: 0 });
       wx.reLaunch({ url: '/pages/home/index' });
     } catch (e: any) {
@@ -186,9 +192,13 @@ Page({
 
   onShareAppMessage() {
     const s = get();
+    // 非管理员拿不到邀请码：不拼空的 `invite=`，否则落地页会退化成普通欢迎页，
+    // 而分享文案说的是"一起盯着爸妈吃药"，对不上。分享普通入口即可。
     return {
       title: '一起盯着爸妈吃药',
-      path: `/pages/launch/index?invite=${s.family.inviteToken}&role=patient`,
+      path: s.family.inviteToken
+        ? `/pages/launch/index?invite=${s.family.inviteToken}&role=patient`
+        : '/pages/launch/index',
     };
   },
 });

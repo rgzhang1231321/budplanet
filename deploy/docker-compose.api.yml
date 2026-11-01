@@ -29,6 +29,14 @@ services:
 
     # 1G 机型：.NET 空跑约 120-150MB，压测再涨；上限给到 420m 留余量
     mem_limit: ${API_MEM_LIMIT:-420m}
+    # 2 核机器：三个容器（db/api/caddy）的 CPU 上限之和刻意压到 1.8 核（<2 核），
+    # 留 0.2 核给 sshd / dockerd / 内核，避免三方同时跑满时 SSH 敲不进去。
+    # API 是交互链路（打卡、首页），比重更大的一方给它。
+    cpus: ${API_CPU_LIMIT:-0.75}
+
+    # 提权兜底：即使容器内进程拿到 suid 二进制也不能提权（setuid/setgid 被内核拒绝）
+    security_opt:
+      - no-new-privileges:true
 
     logging:
       driver: json-file

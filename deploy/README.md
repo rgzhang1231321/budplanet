@@ -36,7 +36,7 @@ deploy/
   edge-up.sh             只更新 HTTPS 反代（改 Caddyfile 后热加载，不重建）
   deploy.sh              一键：infra → migrate → api → edge
   release.sh             【本地执行】构建镜像 → 传到服务器 → 只换 API（1G 机器走这条）
-  status.sh              容器/内存/健康/HTTPS/磁盘/迁移账本
+  status.sh              容器/内存/健康/HTTPS/证书剩余天数/磁盘/迁移账本
   logs.sh                看 api / db / edge 日志
   backup.sh              pg_dump 逻辑备份，保留 7 天
   push.sh                本地把代码同步到服务器（tar+ssh，不依赖 rsync）
@@ -293,6 +293,40 @@ bash deploy/backup.sh          # 生成 /data/medbox/backup/medbox-<时间>.dump
 0 3 * * * cd /opt/medbox && bash deploy/backup.sh >> /var/log/medbox-backup.log 2>&1
 ```
 
+**⚠️ 上面这行还会往 `/var/log/medbox-backup.log` 里无限追加**——容器日志有 10MB×3 的轮转（见 §1），
+宿主机这一份没有。备份脚本每天都成功时你根本不会打开它，等它把 38G 系统盘写满、
+数据库写不进去才发现，就晚了。**加 cron 的同一天必须配轮转**：
+
+```bash
+sudo tee /etc/logrotate.d/medbox-backup >/dev/null <<'CONF'
+/var/log/medbox-backup.log {
+    size 10M          # 单文件超过 10M 就切（与容器日志口径一致）
+    rotate 5          # 最多留 5 份历史，压缩后总计约 1-2M
+    compress
+    delaycompress     # 最旧一份先不压缩，方便直接 tail
+    missingok         # 日志还没生成时（首次部署前）不报错
+    notifempty        # 空文件不切
+    create 0640 root adm
+}
+CONF
+
+# 语法自检（-d 只打印将做什么，不真轮转；看不到报错即配置有效）
+sudo logrotate -d /etc/logrotate.d/medbox-backup
+```
+
+为什么选 logrotate 而不是 systemd timer：
+
+- 现状是 **crontab + `>>` 重定向**，logrotate 只加一个配置片段，不动已有的调度；换成 timer 要同时写
+  `.service` + `.timer` 两个 unit、还得把 `cd /opt/medbox` 和 `.env` 的加载关系重新表达一遍，改动面大得多。
+- 不需要 `postrotate` 重启任何东西：cron 每次都是**新进程**重新打开文件，切完下一轮自然写到新文件里
+  （这和"常驻进程持有 fd"的场景不同，不需要 `copytruncate` 或 `kill -USR1`）。
+- 换 timer 的唯一好处是日志进 journald（自带轮转 + `journalctl` 查），但代价是备份输出混进系统日志、
+  不便单独翻看；这份日志本来就该独立留档。
+
+> 每天只有一条 3 点的备份记录，正常全年也就几十 KB，`size 10M` 实际上很久才切一次；
+> 设它是为了兜住"备份脚本进入失败重试、一天刷几百行堆栈"这种异常情况
+> （logrotate 由系统定时器每天跑一次，`size` 是"每次跑的时候超了就切"，不是实时监控）。
+
 恢复：
 
 ```bash
@@ -302,22 +336,36 @@ docker exec -i medbox-db pg_restore -U medbox -d medbox --clean --if-exists \
 
 ## 6. 回滚
 
-镜像按 git sha 打 tag，直接切回旧镜像（不重新构建）：
+**先看自动的**：`api-up.sh` 每次部署成功会把镜像名写进 `deploy/.last_good`（机器本地，不进 git）。
+新镜像健康检查失败时它会**自动切回 `.last_good` 再检查一次**——只尝试一次、不递归，
+所以半夜发版炸了通常不用你动手。输出里会明确写「已回滚到 X」或「回滚也失败了，需要人工介入」。
+
+手动回滚（自动回滚没成、或想切到更早的版本）：
 
 ```bash
-docker images medbox-api                      # 找到上一个 tag
+cat deploy/.last_good                         # 上一次成功的镜像
+bash deploy/api-up.sh --use "$(cat deploy/.last_good)"
+
+docker images medbox-api                      # 想更早的版本，从列表里挑 tag
 bash deploy/api-up.sh --use medbox-api:6d09011
 ```
+
+`.last_good` 只在**健康检查通过后**才更新，失败的镜像永远不会写进去；
+`push.sh` / `release.sh` 同步代码时会排除它（本地那份不能覆盖服务器上的记录）。
 
 数据库回滚不在脚本里做 —— 迁移是 append-only，需要回退时写新的 `V00N__fix_*.sql`。
 
 ## 7. 排查
 
 ```bash
-bash deploy/status.sh          # 容器状态、健康、磁盘、迁移账本
+bash deploy/status.sh          # 容器状态、健康、证书剩余天数、磁盘、迁移账本
 bash deploy/logs.sh api 200    # API 最近 200 行
 bash deploy/logs.sh db 100     # 数据库日志
 ```
+
+> `status.sh` 会打一行 `证书：剩 N 天`，**少于 21 天标黄**。取不到（DNS 没解析、443 不通、
+> 证书链异常）时只提示跳过，不影响后面的磁盘/账本检查。到期提醒不能靠人记：
+> 证书 3 个月一轮，忘了换就是全站 502，建议每次查线上问题时顺手跑一次 status.sh。
 
 | 现象 | 原因 / 处理 |
 |---|---|
@@ -331,5 +379,7 @@ bash deploy/logs.sh db 100     # 数据库日志
 ## 8. 与本地开发的差异
 
 - `db/apply.sh` 现在支持 `CONTAINER` / `PGUSER` / `DB` 环境变量覆盖，本地默认值（`tigerrag-postgres-1` / `tigerrag` / `medbox`）保持不变。
+  **库名有白名单：除 `medbox` 外的库必须显式加 `--allow-db <名字>`**。原因：`CREATE TABLE IF NOT EXISTS`
+  在空库上静默成功，`DB=medbo` 这种拼错会跑完全量迁移、账本也建得很正常，等发现时数据已经在两个库里了。
 - 生产连接串由 compose 注入（`Host=medbox-db`），不读 `appsettings.json` 里的本地串。
 - 生产 `ASPNETCORE_ENVIRONMENT=Production`：JWT 秘钥必须显式注入，否则直接拒绝启动（这是有意为之）。

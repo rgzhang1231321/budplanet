@@ -13,6 +13,8 @@ export interface CallOptions {
   silent?: boolean;
   /** 1001 续期后只重放一次的标记，由本模块内部设置，调用方不要传 */
   replayed?: boolean;
+  /** 1009 读操作重试过一次的标记，由本模块内部设置，调用方不要传 */
+  retried?: boolean;
 }
 
 export class ApiError extends Error {
@@ -96,6 +98,17 @@ export async function call<T = any>(domain: string, action: string, data: Record
       code: 1001,
     });
     throw new ApiError(1001, env.msg || '登录已过期，请重新进入');
+  }
+  // 契约 §一：1009「写操作入队 / **读操作重试 1 次**」。
+  // 只重试 GET：写操作（submit/correct/unlock…）重投等于重复提交，宁可交给队列按幂等键去处理。
+  if (env.code === 1009 && method === 'GET' && !opts.retried) {
+    logClient('warn', `${domain}.${action} → code=1009 读接口重试一次`, {
+      scene: 'api_retry',
+      domain,
+      action,
+      code: 1009,
+    });
+    return call<T>(domain, action, data, { ...opts, retried: true });
   }
   handleError(env.code, env.msg, !!opts.silent);
   // 业务失败也落库：code=1005「点了没反应」、1004「名额不够」都从这条线出来。

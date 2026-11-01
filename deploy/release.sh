@@ -54,6 +54,7 @@ if [[ $SYNC -eq 1 ]]; then
     --exclude='server/**/TestResults' \
     --exclude='deploy/.env' \
     --exclude='deploy/.env.bak*' \
+    --exclude='deploy/.last_good' \
     server db deploy \
     | ssh "$HOST" "mkdir -p '$REMOTE_DIR' && tar -xzf - -C '$REMOTE_DIR'"
   ok "代码已同步"

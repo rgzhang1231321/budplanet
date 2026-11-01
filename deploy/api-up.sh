@@ -9,7 +9,13 @@
 # 用法：
 #   bash deploy/api-up.sh                     # 构建当前代码并上线（tag=git short sha）
 #   bash deploy/api-up.sh --tag v1.2.0        # 指定镜像 tag
-#   bash deploy/api-up.sh --use medbox-api:6d09011   # 不构建，直接切到已有镜像（回滚用）
+#   bash deploy/api-up.sh --use medbox-api:6d09011   # 不构建，直接切到已有镜像（手动回滚用）
+#
+# 部署记录与自动回滚：
+#   每次**通过健康检查**后，把镜像名写进 deploy/.last_good（机器本地，不进 git）。
+#   健康检查失败时自动切回 .last_good 里的镜像并再检查一次 —— 只尝试一次、内联执行
+#   （不递归调用本脚本），所以不会出现"回滚失败又回滚"的死循环。
+#   半夜发版炸了不用再靠人记上一个 tag 是谁。
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
@@ -21,6 +27,9 @@ IMAGE_REPO="${API_IMAGE_REPO:-medbox-api}"
 USE_IMAGE=""
 TAG=""
 FORCE_BUILD=0
+# 上一次**通过健康检查**的镜像，由本脚本成功时写入。失败时靠它自动回滚。
+# 放 deploy/ 下（已在 .gitignore），是机器本地状态，不跟着 git / tar 走。
+LAST_GOOD_FILE="$DEPLOY_DIR/.last_good"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -76,16 +85,59 @@ else
 fi
 
 log "更新 API 容器（project=medbox-api，--no-deps，不带数据库）"
-API_IMAGE="$IMAGE" docker compose -p medbox-api --project-directory "$DEPLOY_DIR" \
-  -f "$DEPLOY_DIR/docker-compose.api.yml" \
-  up -d --no-deps --force-recreate api
 
-if wait_api_ready; then
+# 起一个指定镜像的 API 容器（部署和回滚共用这一段，避免两处逻辑走偏）
+start_api() {
+  API_IMAGE="$1" docker compose -p medbox-api --project-directory "$DEPLOY_DIR" \
+    -f "$DEPLOY_DIR/docker-compose.api.yml" \
+    up -d --no-deps --force-recreate api
+}
+
+# 部署记录：原子写（先写 .tmp 再 mv），避免断电/中断留下半行 tag 害下次回滚失败
+record_last_good() {
+  printf '%s\n' "$1" > "${LAST_GOOD_FILE}.tmp" && mv "${LAST_GOOD_FILE}.tmp" "$LAST_GOOD_FILE"
+}
+read_last_good() {
+  [[ -f "$LAST_GOOD_FILE" ]] && head -1 "$LAST_GOOD_FILE" || true
+}
+
+# up 本身失败（端口冲突/网络不存在/镜像被 prune）也走回滚分支，不只管健康检查失败
+if start_api "$IMAGE" && wait_api_ready; then
+  record_last_good "$IMAGE" || warn "写入 $LAST_GOOD_FILE 失败，下次失败时无法自动回滚（本次上线是成功的）"
   ok "API 已上线：$IMAGE"
+  ok "已记为 .last_good（下次健康检查失败会自动回滚到这个镜像）"
 else
-  warn "新容器没通过健康检查，最近日志："
+  warn "新容器没起来 / 没通过健康检查，最近日志："
   docker logs --tail 40 "$API_CONTAINER" || true
-  warn "回滚：bash deploy/api-up.sh --use <上一个 tag>   （docker images $IMAGE_REPO 可查）"
+  warn "本次失败镜像：$IMAGE"
+
+  # ── 自动回滚：单次内联执行，**不递归调用本脚本**，所以不存在"回滚失败又回滚"的死循环 ──
+  last_good="$(read_last_good)"
+  if [[ -z "$last_good" ]]; then
+    warn "没有 .last_good 记录（首次部署，或上次也没成功）→ 无法自动回滚。"
+    warn "手动查镜像：docker images $IMAGE_REPO  然后 bash deploy/api-up.sh --use <上一个 tag>"
+    exit 1
+  fi
+  if [[ "$last_good" == "$IMAGE" ]]; then
+    warn "失败的这个镜像本身就是上次成功的版本（$last_good）→ 回滚到它没有意义，跳过自动回滚。"
+    warn "多半是配置/数据库/证书问题，不是镜像问题：bash deploy/logs.sh api 200 看完整日志"
+    exit 1
+  fi
+  if ! docker image inspect "$last_good" >/dev/null 2>&1; then
+    warn "上次成功的镜像 $last_good 已不在本机（被 prune 或换了机器）→ 无法自动回滚。"
+    warn "手动：docker images $IMAGE_REPO  然后 bash deploy/api-up.sh --use <tag>"
+    exit 1
+  fi
+
+  warn "自动回滚到上次成功镜像：$last_good（只尝试一次）"
+  if start_api "$last_good" && wait_api_ready; then
+    ok "已回滚到 $last_good，线上应已恢复可用。.last_good 保持不变。"
+    warn "本次发布失败，修好再发。排查：bash deploy/logs.sh api 200"
+  else
+    warn "回滚也失败了 —— 线上仍是 $last_good 的容器，但健康检查没过，需要人工介入："
+    docker logs --tail 40 "$API_CONTAINER" || true
+    warn "常见原因：数据库没起 / .env 变了 / 磁盘满了。bash deploy/status.sh 先看一圈"
+  fi
   exit 1
 fi
 
@@ -94,5 +146,7 @@ cat <<EOF
   容器：$API_CONTAINER（restart=unless-stopped）
   监听：${API_BIND:-127.0.0.1:5080} → 容器内 5080
   数据库：未做任何操作（$DB_CONTAINER 保持原样）
+  已记为 last_good：$(read_last_good)
+  手动回滚：bash deploy/api-up.sh --use \$(cat deploy/.last_good)
 
 EOF

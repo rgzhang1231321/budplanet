@@ -35,6 +35,10 @@ export interface SubmitOutcome {
 
 const keyOf = (r: { pid: string; date: string; slot: number }) => `${r.pid}_${r.date}_${r.slot}`;
 
+/** 这一行属于哪一天：优先用上屏时记下的 localDate，其次今日缓存的日期，最后才现算。
+ *  23:59 打开页面、00:00 才点按钮时，现算的 dateCN() 已是新的一天，会把这顿药写到明天去。 */
+const dateOf = (r: DoseRow): string => r.localDate || state().today.date || dateCN();
+
 /** 撤销窗口内暂缓上行：契约只允许 taken→missed/skipped 单向改判，没有 taken→pending，
  *  所以 3 秒撤销窗口内先不发请求，撤销即"没发生过"，比事后改判干净。 */
 let holdTimer: any = null;
@@ -102,7 +106,7 @@ async function submit(tasks: WriteTask[], origins: RowOrigin[] = []): Promise<Su
 }
 
 function commit(list: DoseRow[], origins: RowOrigin[] = []): Promise<SubmitOutcome> {
-  const date = dateCN();
+  const date = dateOf(list[0]);
   return submit(
     list.map((r) => ({ pid: r.pid, date, slot: r.slot, status: 'taken' as DoseStatus })),
     origins,
@@ -188,7 +192,7 @@ export function skip(r: DoseRow, reason: string): Promise<SubmitOutcome> {
   patchRow(r.dose_id, { status: 'skipped', taken_at: 0, syncing: true });
   emit('today.rows');
   report('checkin_skip', { reason });
-  return submit([{ pid: r.pid, date: dateCN(), slot: r.slot, status: 'skipped', skip_reason: reason }], [origin]);
+  return submit([{ pid: r.pid, date: dateOf(r), slot: r.slot, status: 'skipped', skip_reason: reason }], [origin]);
 }
 
 /** 稍后提醒：先续订（仅 S2 静默生效）再延后；失败时页面原地切大字倒计时卡片 */
@@ -212,8 +216,4 @@ export async function correct(r: DoseRow, to: 'taken' | 'missed' | 'skipped') {
   emit('today.rows');
   report('dose_correct', { from_status: r.status, to_status: to });
   return d;
-}
-
-export function rowsOf(date?: string): DoseRow[] {
-  return state().today.rows;
 }

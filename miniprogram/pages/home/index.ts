@@ -6,9 +6,19 @@
 import { bootstrap, refreshToday } from '../../store/user';
 import { get, groups, isElder, isSelf, on, overview, visibleRows } from '../../store/index';
 import { correct, skip, take } from '../../store/today';
-import { humanDate, humanGap, diffMinutes, tsToTime } from '../../utils/time';
+import { dateCN, dayStartTs, humanDate, humanGap, diffMinutes, tsToTime } from '../../utils/time';
 import { statusBarHeight } from '../../utils/theme';
+import { AD_UNITS } from '../../config/index';
 import { report } from '../../utils/report';
+
+/** 「XX 今天/昨天/N 天前看过」——回执时间不能写死成"昨天"，那是编的 */
+function relativeDay(at: number): string {
+  const today = dateCN();
+  const d = dateCN(at);
+  if (!at || d >= today) return '今天';
+  const diff = Math.round((dayStartTs(today) - dayStartTs(d)) / 86400000);
+  return diff === 1 ? '昨天' : `${diff} 天前`;
+}
 
 Page({
   data: {
@@ -25,9 +35,13 @@ Page({
     recentText: '',
     hasPatients: true,
     hasRows: true,
+    /** 今日数据还在路上（rows 为空 + loading）：别抢在它到达前说"还没有添加药品" */
+    loading: false,
     /** role === 'admin' 才有改记录的权限（role 管权限，mode 只管渲染，两者不要混用） */
     isAdmin: false,
     adOn: false,
+    adUnitB: AD_UNITS.b,
+    adUnitBElder: AD_UNITS.bElder,
     refreshAt: '',
   },
 
@@ -72,30 +86,41 @@ Page({
     }
 
     const rv = s.today.recentView;
-    this.setData({
+    const base = {
       elder,
       familyName: s.family.name || '我家',
       dateText: `今天 ${humanDate(s.today.date)}`,
       ov,
       perText,
-      groups: gs.map((g) => ({
-        uid: g.patient.uid,
-        alias: g.patient.alias,
-        initial: (g.patient.alias || '家').slice(0, 1),
-        taken: g.taken,
-        total: g.total,
-        rows: g.rows,
-      })),
-      elderRows: rows,
       missedText,
       showMissed: !!firstMiss && !isSelf(),
-      recentText: isSelf() && rv ? `${rv.alias}昨天看过` : '',
+      recentText: isSelf() && rv && rv.at ? `${rv.alias}${relativeDay(rv.at)}看过` : '',
       hasPatients: s.family.patients.length > 0,
       hasRows: rows.length > 0,
+      // 首屏：数据没到时 rows 也是空的，与"真的没排药"必须分开，否则老人会以为今天不用吃药
+      loading: s.today.loading && rows.length === 0,
       isAdmin: s.family.role === 'admin',
       adOn: !!s.user.config.adOn,
       refreshAt: s.today.lastSyncAt ? tsToTime(s.today.lastSyncAt) : '',
-    });
+    };
+    // 同一批行只传一份：大字版读 elderRows，子女端读 groups[].rows。
+    // 两个都塞等于把家里所有人的今日剂量传两遍（人多时单次 setData 直接翻倍）。
+    if (elder) {
+      this.setData({ ...base, groups: [], elderRows: rows });
+    } else {
+      this.setData({
+        ...base,
+        groups: gs.map((g) => ({
+          uid: g.patient.uid,
+          alias: g.patient.alias,
+          initial: (g.patient.alias || '家').slice(0, 1),
+          taken: g.taken,
+          total: g.total,
+          rows: g.rows,
+        })),
+        elderRows: [],
+      });
+    }
   },
 
   /* ── 交互 ── */

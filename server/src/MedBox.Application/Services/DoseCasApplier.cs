@@ -8,11 +8,8 @@ namespace MedBox.Application.Services;
 /// 与漏服判定 worker 抢同一行时，谁先写谁算、后者看真实状态决定（AlreadyDone / Reject），
 /// 不会出现"用户点了已服，最终被覆盖成 missed"。
 /// </summary>
-public sealed class DoseCasApplier(IAppDbContext db, IClock clock)
+public sealed class DoseCasApplier(IAppDbContext db, IClock clock, int lateToleranceMin)
 {
-    /// <summary>迟到容差：超过 slot 15 分钟只影响 is_late 配色，不是第五个状态。</summary>
-    private const int LateToleranceMin = 15;
-
     public async Task<CasOutcome> ApplyAsync(
         string doseId,
         string familyId,
@@ -38,9 +35,10 @@ public sealed class DoseCasApplier(IAppDbContext db, IClock clock)
                     return CasOutcome.Reject(1005, RejectReason(from, snap.IsCorrected));
             }
 
-            var isLate = to == DoseStatus.Taken && now - snap.DueTs > LateToleranceMin * 60_000;
+            // 迟到基准是原定 slot（与漏服判定同源）：拿 snap.DueTs 比，snooze 一次就永远不算迟到
+            var isLate = to == DoseStatus.Taken && LatePolicy.IsLate(snap.DueDate, snap.Slot, now, lateToleranceMin);
             var rows = await db.CompareAndSetDoseAsync(
-                new DoseCasUpdate(doseId, familyId, from, to, openid, now, snap.DueTs, isLate, skipReason), ct);
+                new DoseCasUpdate(doseId, familyId, from, to, openid, now, isLate, skipReason), ct);
 
             if (rows == 1) return CasOutcome.Done(to, changed: true);
             // 0 行：状态被并发改了（漏服判定抢先）→ 下一轮按重读到的真实状态再决定，绝不静默算成功

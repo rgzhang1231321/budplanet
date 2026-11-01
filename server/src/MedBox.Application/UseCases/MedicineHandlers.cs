@@ -37,7 +37,7 @@ public sealed class MedicineListHandler(IAppDbContext db, IMemberGuard guard, IC
                     Spec = med.Spec ?? "",
                     DefaultDose = med.DefaultDose ?? "",
                     Note = med.Remark,
-                    Active = 1,
+                    Active = true,
                     // 出参回前端认的 cycle_30；直接透传 days_n 会让"30 天"的 chip 回填不上
                     CycleType = PlanCycle.ToWire(plan?.CycleType, plan?.CycleDays),
                     Slots = plan is null
@@ -52,7 +52,7 @@ public sealed class MedicineListHandler(IAppDbContext db, IMemberGuard guard, IC
     }
 }
 
-public sealed class CommonMedsHandler(IAppDbContext db)
+public sealed class CommonMedsHandler(IAppDbContext db, IClock clock)
 {
     public async Task<CommonMedResult> HandleAsync(CancellationToken ct = default)
     {
@@ -60,6 +60,8 @@ public sealed class CommonMedsHandler(IAppDbContext db)
         return new CommonMedResult
         {
             Items = rows.Select(x => new CommonMedDto { Name = x.Name, Spec = x.Spec, DefaultDose = x.DefaultDose }).ToList(),
+            // 读接口必带 server_ts（契约 §一）：前端靠它做 server_ts + offset 的时钟补偿
+            ServerTs = clock.NowMs,
         };
     }
 }

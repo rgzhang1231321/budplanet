@@ -60,7 +60,7 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
     async Task<DoseSnapshot?> IAppDbContext.GetDoseSnapshotAsync(string doseId, string familyId, CancellationToken ct)
         => await DoseLogs.AsNoTracking()
             .Where(d => d.DoseId == doseId && d.FamilyId == familyId)
-            .Select(d => new DoseSnapshot(d.Status, d.IsCorrected, d.DueTs))
+            .Select(d => new DoseSnapshot(d.Status, d.IsCorrected, d.DueDate, d.Slot))
             .FirstOrDefaultAsync(ct);
 
     Task<int> IAppDbContext.CompareAndSetDoseAsync(DoseCasUpdate u, CancellationToken ct)
@@ -120,15 +120,15 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
             var sb = new StringBuilder();
             sb.Append("INSERT INTO dose_logs (dose_id, family_id, patient_id, plan_id, medicine_id, dose_text, ");
             sb.Append("med_name_snapshot, due_date, slot, due_ts, status, is_late, snooze_count, remind_status, ");
-            sb.Append("alert_status, is_corrected, created_at) VALUES ");
+            sb.Append("alert_status, week_key, is_corrected, created_at) VALUES ");
 
             for (var i = 0; i < rows.Count; i++)
             {
                 if (i > 0) sb.Append(',');
-                var b = i * 17;
+                var b = i * 18;
                 sb.Append($"(@p{b}, @p{b + 1}, @p{b + 2}, @p{b + 3}, @p{b + 4}, @p{b + 5}, @p{b + 6}, @p{b + 7}, ");
                 sb.Append($"@p{b + 8}, @p{b + 9}, @p{b + 10}, @p{b + 11}, @p{b + 12}, @p{b + 13}, @p{b + 14}, ");
-                sb.Append($"@p{b + 15}, @p{b + 16})");
+                sb.Append($"@p{b + 15}, @p{b + 16}, @p{b + 17})");
 
                 var r = rows[i];
                 Add(cmd, $"@p{b}", r.DoseId);
@@ -146,8 +146,9 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
                 Add(cmd, $"@p{b + 12}", r.SnoozeCount);
                 Add(cmd, $"@p{b + 13}", r.RemindStatus);
                 Add(cmd, $"@p{b + 14}", r.AlertStatus);
-                Add(cmd, $"@p{b + 15}", r.IsCorrected);
-                Add(cmd, $"@p{b + 16}", r.CreatedAt);
+                Add(cmd, $"@p{b + 15}", r.WeekKey);
+                Add(cmd, $"@p{b + 16}", r.IsCorrected);
+                Add(cmd, $"@p{b + 17}", r.CreatedAt);
             }
 
             // 已存在的行一律不动（绝不覆盖用户打卡），只补确实缺的
@@ -168,6 +169,19 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
             "INSERT INTO ad_events (ad_trace, openid, family_id, product_id, granted, created_at) " +
             "VALUES ({0}, {1}, {2}, {3}, {4}, {5}) ON CONFLICT (ad_trace) DO NOTHING",
             new object[] { row.AdTrace, row.Openid, row.FamilyId, row.ProductId, row.Granted, row.CreatedAt }, ct);
+
+    Task<int> IAppDbContext.InsertPushTaskIgnoreConflictAsync(PushTask row, CancellationToken ct)
+        // 与剂量行同族：AnyAsync + Add 是读-改-写，两个 tick（或两个实例）同时入队必撞主键 →
+        // 1009，而任务其实已经排上了。改成 INSERT … ON CONFLICT DO NOTHING，返回真正新插的行数。
+        => Database.ExecuteSqlRawAsync(
+            "INSERT INTO push_tasks (task_id, shard, openid, tmpl_key, status, priority, payload, " +
+            "retry_count, next_retry_at, created_at) " +
+            "VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6}::jsonb, {7}, {8}, {9}) ON CONFLICT (task_id) DO NOTHING",
+            new object[]
+            {
+                row.TaskId, row.Shard, row.Openid, row.TmplKey, row.Status, row.Priority,
+                row.Payload, row.RetryCount, row.NextRetryAt, row.CreatedAt,
+            }, ct);
 
     private static void Add(DbCommand cmd, string name, object? value)
     {

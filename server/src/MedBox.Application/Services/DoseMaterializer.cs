@@ -3,6 +3,7 @@ using MedBox.Application.Abstractions;
 using MedBox.Domain;
 using MedBox.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace MedBox.Application.Services;
 
@@ -12,7 +13,7 @@ namespace MedBox.Application.Services;
 /// 不用"先查有没有、没有再插"：首页与打卡页同时补齐时会撞主键，异常被中间件映射成 1009，
 /// 用户看到的是"服务异常"而不是正常页面。
 /// </summary>
-public sealed class DoseMaterializer(IAppDbContext db, IClock clock)
+public sealed class DoseMaterializer(IAppDbContext db, IClock clock, ILogger<DoseMaterializer> logger)
 {
     public Task<int> EnsureDayAsync(string familyId, string dateCn, CancellationToken ct = default)
         => EnsureDaysAsync(familyId, [dateCn], ct);
@@ -34,6 +35,14 @@ public sealed class DoseMaterializer(IAppDbContext db, IClock clock)
             .Where(p => p.FamilyId == familyId && p.Status == "active" && string.Compare(p.StartDate, lastDate) <= 0)
             .ToListAsync(ct);
         if (plans.Count == 0) return 0;
+
+        // slots 坏掉时仍然按"无快照"展开（剂量回落药品默认值），但必须留下带 plan_id 的线索：
+        // 原来静默返回空表，现象是"今天药单剂量全变成默认值"，日志里一个字都查不到。
+        foreach (var plan in plans)
+        {
+            if (!TryParseSlots(plan.Slots, out _, out var error))
+                logger.LogWarning("plans.slots 解析失败，按无快照展开 plan_id={PlanId} error={Error}", plan.PlanId, error);
+        }
 
         var meds = await db.Medicines
             .Where(m => m.FamilyId == familyId)
@@ -79,6 +88,8 @@ public sealed class DoseMaterializer(IAppDbContext db, IClock clock)
     /// <summary>
     /// 纯函数：计划 × 时间点 → 待插入的剂量行（不查库、不取时钟，可直接单测）。
     /// dose_id = ${pid}_${date}_${slot}，slot = due_minute(0–1439)。
+    /// week_key 与 due_date 同源推导（东八区 ISO 周）：ix_dose_logs_week (patient_id, week_key)
+    /// 需要它才命中，否则这列永远是 NULL、索引永远是死的。
     /// </summary>
     public static List<DoseLog> BuildRows(
         string familyId,
@@ -89,6 +100,7 @@ public sealed class DoseMaterializer(IAppDbContext db, IClock clock)
     {
         var rows = new List<DoseLog>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        var weekKey = TimeCn.WeekKey(dateCn);
 
         foreach (var plan in plans)
         {
@@ -116,6 +128,7 @@ public sealed class DoseMaterializer(IAppDbContext db, IClock clock)
                     Slot = slot,
                     DueTs = TimeCn.SlotUtcMs(dateCn, slot),
                     Status = DoseStatusWire.Pending,
+                    WeekKey = weekKey,
                     CreatedAt = nowMs,
                 });
             }
@@ -127,25 +140,39 @@ public sealed class DoseMaterializer(IAppDbContext db, IClock clock)
     /// <summary>plans.slots 展开后的一项：展示串 + 派生分钟数。</summary>
     public sealed record PlanSlot(string T, string? D, int Minute);
 
-    public static List<PlanSlot> ParseSlots(string? json)
+    /// <summary>
+    /// 解析 plans.slots，**失败可被调用方看见**：返回 false + error 说明，让调用方带上 plan_id 记日志。
+    /// 空值 / "[]" 是合法输入（没设剂量快照），不算失败。
+    /// </summary>
+    public static bool TryParseSlots(string? json, out List<PlanSlot> slots, out string? error)
     {
-        if (string.IsNullOrWhiteSpace(json)) return [];
+        slots = [];
+        error = null;
+        if (string.IsNullOrWhiteSpace(json)) return true;
+
         try
         {
             using var doc = JsonDocument.Parse(json);
-            var list = new List<PlanSlot>();
             foreach (var el in doc.RootElement.EnumerateArray())
             {
                 var t = el.TryGetProperty("t", out var tv) ? tv.GetString() : null;
                 if (!TimeCn.TryParseHhMm(t, out var minute)) continue;
                 var d = el.TryGetProperty("d", out var dv) ? dv.GetString() : null;
-                list.Add(new PlanSlot(t!, d, minute));
+                slots.Add(new PlanSlot(t!, d, minute));
             }
-            return list;
+            return true;
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
         {
-            return [];
+            // InvalidOperationException：jsonb 里存成 "{}" / "null" 时 EnumerateArray 会抛这个，
+            // 原来只 catch JsonException，这类脏数据会让首页整个变 1009。
+            slots = [];
+            error = ex.Message;
+            return false;
         }
     }
+
+    /// <summary>解析失败按"无快照"返回空表；需要区分失败原因请用 <see cref="TryParseSlots"/>。</summary>
+    public static List<PlanSlot> ParseSlots(string? json)
+        => TryParseSlots(json, out var slots, out _) ? slots : [];
 }

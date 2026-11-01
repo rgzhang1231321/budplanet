@@ -6,6 +6,7 @@
 import { bootstrap, setMode, loadQuota } from '../../../store/user';
 import { get, isElder, on, set } from '../../../store/index';
 import { requestOne, isMainSwitchOn } from '../../../utils/subscribe';
+import { quietHoursText, DEFAULT_QUIET_HOURS } from '../../../utils/ad';
 import { report } from '../../../utils/report';
 
 Page({
@@ -13,6 +14,8 @@ Page({
     elder: false,
     sound: true,
     quiet: true,
+    /** 安静时段文案：只认 config.quietHours（读不到用 utils/ad 里那唯一一份默认值），不在这里写死 */
+    quietText: `${DEFAULT_QUIET_HOURS.start} - ${DEFAULT_QUIET_HOURS.end}`,
     reduceMotion: false,
     modeLabel: '普通版',
     quota: 0,
@@ -39,6 +42,7 @@ Page({
       elder: isElder(),
       sound: s.user.sound,
       quiet: s.user.quiet,
+      quietText: quietHoursText(),
       reduceMotion: s.user.reduceMotion,
       modeLabel: isElder() ? '大字版' : '普通版',
       quota: q,

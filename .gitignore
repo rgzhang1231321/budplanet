@@ -42,6 +42,11 @@ deploy/_daemon.json
 # 本地版部署手册：记真实 IP / 口令用，公开仓库里只留占位符版本。
 deploy/README.local.md
 
+# 最近一次通过健康检查的 API 镜像（api-up.sh 写、失败时自动回滚用）。
+# 纯机器本地状态：不同机器的 .last_good 必然不同，提交了只会互相覆盖、还泄漏内网信息。
+deploy/.last_good
+deploy/.last_good.tmp
+
 # ── 导出/临时 ──
 *.log
 /server/scripts/__pycache__/

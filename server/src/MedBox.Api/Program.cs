@@ -43,7 +43,7 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["Wx:AppSecret"]) && !builder
 }
 
 builder.Services.AddMedBoxInfrastructure(builder.Configuration);
-builder.Services.AddMedBoxApplication();
+builder.Services.AddMedBoxApplication(builder.Configuration);
 
 // ── 日志落库：ILogger → LogQueue（非阻塞）→ DbLogWriter（批量）→ app_logs ──────
 // 放在这里而不是 Infrastructure 里，是因为 AddProvider 需要 provider 实例（Build 之前）。

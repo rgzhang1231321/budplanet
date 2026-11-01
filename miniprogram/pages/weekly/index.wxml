@@ -66,6 +66,6 @@
       <button class="btn btn--sub share__btn" open-type="share">转发到家庭群</button>
     </view>
 
-    <ad-slot adOn="{{adOn}}" unitId="" slot="b" height="{{200}}"></ad-slot>
+    <ad-slot adOn="{{adOn}}" unitId="{{adUnitB}}" slot="b" height="{{200}}"></ad-slot>
   </view>
 </view>

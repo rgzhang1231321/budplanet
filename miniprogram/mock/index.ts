@@ -6,6 +6,26 @@
  * 所以接真后端时只改 `config.USE_MOCK = false`，业务代码零改动。
  *
  * 数据落 storage（key 带版本号），改版本号即重新播种。
+ *
+ * ⚠️⚠️ 以下字段**代码在用、契约表 v1.4 未登记**（待批 4 升 v1.5 时补）。
+ *     生产后端目前确实返回它们，所以线上没坏；但"严格照契约实现"的后来者会返回空，
+ *     届时这几处页面会静默变空 —— 所以不要为了让 mock 与契约对齐就删掉它们（那会让开发环境也坏）。
+ *     前端已有的降级兜底写在括号里，改契约前先看一遍：
+ *   1. `medicine.list` 出参 `uid`      —— 药品按服药人分组用（pages/medicine/index.ts）。
+ *                                        缺失时整份列表会归不到任何 patient 下 → 列表空。
+ *   2. `medicine.list` 出参 `slots`    —— 药品列表/详情的"时间点·剂量"（同文件、medicine-detail）。
+ *                                        已有兜底：空数组退化成只显示 `default_dose`。
+ *   3. `medicine.list` 出参 `cycle_type` —— 药品表单/计划表单回填周期（medicine-form、plan-form）。
+ *                                        已有兜底：`m.cycle_type || 'long_term'`。
+ *   4. `medicine.list` 出参 `note`     —— 备注（表单回填）。
+ *   5. `family.info` 出参 `invite_token` —— 家庭页"复制邀请码"、分享卡 ivt（family、weekly、checkin）。
+ *                                        **且只对 admin 下发**（member/elder 为 null），mock 已同步；
+ *                                        待补登记时要连"仅 admin"这条权限口径一起写进契约。
+ *                                        已有兜底：空串时提示"邀请码还没加载出来"，分享路径不带 ivt。
+ *   6. `checkin.submit` 允许 `taken → missed|skipped` —— 契约 §7 规定这条只能走 `checkin.correct`。
+ *                                        这是 mock 比契约宽，前端实际走 correct，不会命中；
+ *                                        保留是为了本地手动造数据方便，**不要据此认为线上允许**。
+ *   （`notify.quota` 的 `mainSwitch` 已在契约 §二·8 登记，不算漏写。）
  */
 import type {
   AppConfig,
@@ -37,7 +57,8 @@ interface MockMedicine {
   spec: string;
   default_dose: string;
   note: string;
-  active: number;
+  /** 与契约一致用布尔（后端 MedicineItemDto.Active 已收敛为 bool） */
+  active: boolean;
 }
 interface MockPlan {
   planId: string;
@@ -137,11 +158,11 @@ function seed(): MockDB {
       { uid: 'P002', fid, name: '妈妈', alias: '妈妈', self_openid: null },
     ],
     medicines: [
-      { mid: 'M101', fid, uid: 'P001', name: '苯磺酸氨氯地平片', spec: '5mg×7片', default_dose: '1片', note: '早饭后', active: 1 },
-      { mid: 'M102', fid, uid: 'P001', name: '二甲双胍缓释片', spec: '0.5g×30片', default_dose: '1片', note: '随餐', active: 1 },
-      { mid: 'M103', fid, uid: 'P001', name: '阿司匹林肠溶片', spec: '100mg×30片', default_dose: '1片', note: '', active: 1 },
-      { mid: 'M104', fid, uid: 'P002', name: '碳酸钙D3片', spec: '600mg×60片', default_dose: '2片', note: '', active: 1 },
-      { mid: 'M105', fid, uid: 'P002', name: '左甲状腺素钠片', spec: '50μg×100片', default_dose: '半片', note: '空腹', active: 1 },
+      { mid: 'M101', fid, uid: 'P001', name: '苯磺酸氨氯地平片', spec: '5mg×7片', default_dose: '1片', note: '早饭后', active: true },
+      { mid: 'M102', fid, uid: 'P001', name: '二甲双胍缓释片', spec: '0.5g×30片', default_dose: '1片', note: '随餐', active: true },
+      { mid: 'M103', fid, uid: 'P001', name: '阿司匹林肠溶片', spec: '100mg×30片', default_dose: '1片', note: '', active: true },
+      { mid: 'M104', fid, uid: 'P002', name: '碳酸钙D3片', spec: '600mg×60片', default_dose: '2片', note: '', active: true },
+      { mid: 'M105', fid, uid: 'P002', name: '左甲状腺素钠片', spec: '50μg×100片', default_dose: '半片', note: '空腹', active: true },
     ],
     plans: [
       { planId: 'PL101', mid: 'M101', uid: 'P001', slots: [{ t: '08:00', d: '1片', slot_key: 's0800' }], cycle_type: 'long_term' },
@@ -284,10 +305,11 @@ function familyInfo(): FamilyInfo {
   const d = db as MockDB;
   const f = d.families[0];
   const mine = d.patients.filter((p) => p.self_openid === d.openid).map((p) => p.uid);
+  const myRole = (d.members.find((m) => m.openid === d.openid) || { role: 'admin' }).role;
   return {
     fid: f.fid,
     name: f.name,
-    role: (d.members.find((m) => m.openid === d.openid) || { role: 'admin' }).role as any,
+    role: myRole as any,
     mode: modeOf(d.openid),
     selfUid: mine[0] || null,
     selfUids: mine,
@@ -297,7 +319,9 @@ function familyInfo(): FamilyInfo {
     patients: d.patients
       .filter((p) => p.fid === f.fid)
       .map((p) => ({ uid: p.uid, name: p.name, alias: p.alias, selfOpenid: p.self_openid })),
-    invite_token: f.invite_token,
+    // 与真后端同步：invite_token 只给 admin（reset_invite 是 admin 权限，
+    // 把码下发给 member/elder 等于把"拉人进家"的能力给了没有该权限的人）
+    invite_token: myRole === 'admin' ? f.invite_token : '',
   };
 }
 
@@ -496,7 +520,7 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
         spec: p.spec || '',
         default_dose: p.default_dose || '1片',
         note: p.note || '',
-        active: 1,
+        active: true,
       });
       save();
       return ok({ mid });
@@ -513,7 +537,7 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
     }
     case 'medicine.archive': {
       const m = d.medicines.find((x) => x.mid === p.mid);
-      if (m) m.active = 0;
+      if (m) m.active = false;
       d.plans = d.plans.filter((pl) => pl.mid !== p.mid);
       save();
       return ok({ ok: true });

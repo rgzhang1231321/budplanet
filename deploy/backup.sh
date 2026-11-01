@@ -3,6 +3,7 @@
 #
 # 建议加到 crontab：
 #   0 3 * * * cd /opt/medbox && bash deploy/backup.sh >> /var/log/medbox-backup.log 2>&1
+# ⚠️ 这行会无限追加日志，配 cron 的同时必须配 logrotate，做法见 deploy/README.md §5。
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"

@@ -27,6 +27,11 @@ public class DoseLog
     public int? RemindErrcode { get; set; }
     public short AlertStatus { get; set; }
     public long? AlertAt { get; set; }
+    /// <summary>
+    /// 东八区 ISO 周键（"2026-W44"），由 <see cref="DueDate"/> 同源推导，物化时写入
+    /// （<see cref="MedBox.Domain.TimeCn.WeekKey"/>）。ix_dose_logs_week (patient_id, week_key) 靠它命中。
+    /// 注意：本批之前生成的历史行该列为 NULL，按 week_key 查询时要兼容空值。
+    /// </summary>
     public string? WeekKey { get; set; }
     /// <summary>人工改判标记：true 之后任何方向都锁死，且不进完成率。</summary>
     public bool IsCorrected { get; set; }

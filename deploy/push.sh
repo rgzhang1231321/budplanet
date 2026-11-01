@@ -21,12 +21,15 @@ ssh "$HOST" "mkdir -p '$REMOTE_DIR'"
 
 # 只传部署需要的目录；bin/obj 是本机 Windows 产物，传上去不仅没用还会污染构建
 # 特别排除 deploy/.env：服务器上的口令/秘钥绝不能被本地文件覆盖
+# 排除 deploy/.last_good：那是**每台机器各自**的"上次成功镜像"，本地的一份传上去会覆盖
+#   服务器上的正确记录，导致失败时自动回滚到本地见过的 tag（服务器上根本没有这个镜像）。
 tar -czf - -C "$ROOT_DIR" \
   --exclude='server/**/bin' \
   --exclude='server/**/obj' \
   --exclude='server/**/TestResults' \
   --exclude='deploy/.env' \
   --exclude='deploy/.env.bak*' \
+  --exclude='deploy/.last_good' \
   server db deploy \
   | ssh "$HOST" "tar -xzf - -C '$REMOTE_DIR'"
 

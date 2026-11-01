@@ -2,7 +2,8 @@
 # SQL 增量脚本执行器（append-only / 严格递增 / 校验和防篡改）
 # 用法: bash db/apply.sh            应用所有未执行脚本到 medbox
 #       bash db/apply.sh --dry-run  只校验不执行（CI 用）
-# 安全: 目标库硬编码为 medbox；任何指向 ragdb 的企图直接拒绝。
+#       bash db/apply.sh --allow-db <名字>   显式声明非默认库名（默认只允许 medbox）
+# 安全: 目标库默认白名单为 medbox；任何指向 ragdb 的企图直接拒绝。
 # 可变: CONTAINER / PGUSER / DB 可用环境变量覆盖（生产部署走 deploy/migrate.sh）
 set -euo pipefail
 
@@ -10,14 +11,40 @@ CONTAINER="${CONTAINER:-tigerrag-postgres-1}"
 PGUSER="${PGUSER:-tigerrag}"
 DB="${DB:-medbox}"
 DRY_RUN=0
-[[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
+ALLOW_DB=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)  DRY_RUN=1; shift ;;
+    --allow-db)
+      [[ $# -ge 2 && -n "$2" ]] || { echo "FATAL: --allow-db 后面要跟库名" >&2; exit 1; }
+      ALLOW_DB="$2"; shift 2 ;;
+    --allow-db=*) ALLOW_DB="${1#*=}"; shift ;;
+    *) echo "FATAL: 未知参数 $1（支持 --dry-run / --allow-db <名字>）" >&2; exit 1 ;;
+  esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MIG_DIR="$SCRIPT_DIR/migrations"
 
-# ── 防呆：绝不允许对 ragdb 执行 ──────────────────────────────
+# ── 防呆 ①（黑名单）：绝不允许对 ragdb 执行 ──────────────────────
 if [[ "$DB" == *"ragdb"* ]]; then
   echo "FATAL: 拒绝执行，目标库疑似 ragdb。" >&2; exit 1
+fi
+
+# ── 防呆 ②（白名单）：只允许 medbox，其它库名必须显式声明 ────────
+# 为什么必须有这一层：`CREATE TABLE IF NOT EXISTS` 在空库上**静默成功**，
+# 所以 `DB=medbo bash db/apply.sh` 这种拼错会一本正经地跑完全部迁移、账本也建得好好的，
+# 事后才发现数据写进了另一个库（真实数据在 medbox 里，新库只是空表）。
+# 黑名单只能拦已知的坏名字，拦不住拼写错误 → 改成"只放行已知的好名字"。
+if [[ "$DB" != "medbox" && "$DB" != "$ALLOW_DB" ]]; then
+  cat >&2 <<EOF
+FATAL: 目标库 "$DB" 不在白名单内（只允许 medbox）。
+  拼错库名不会报错，但会在一个空库上跑完全量迁移，事后极难发现。
+  确认这确实是你想要的库，就显式声明一次：
+      bash db/apply.sh --allow-db "$DB"
+  生产部署请用 bash deploy/migrate.sh（库名取自 deploy/.env 的 POSTGRES_DB）。
+EOF
+  exit 1
 fi
 
 echo "▶ 目标库: $DB (容器 $CONTAINER)  |  模式: $([ $DRY_RUN -eq 1 ] && echo DRY-RUN || echo APPLY)"

@@ -4,6 +4,7 @@ using MedBox.Application.Services;
 using MedBox.Domain;
 using MedBox.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace MedBox.Application.UseCases;
 
@@ -11,7 +12,7 @@ namespace MedBox.Application.UseCases;
 /// schedule.today：老人端与子女端同一接口，一次给全 today 树（含已过点）。
 /// 老人端在服务端按 selfUids 过滤 —— 不是下发后前端隐藏。
 /// </summary>
-public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMaterializer materializer, IClock clock)
+public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMaterializer materializer, IClock clock, ILogger<TodayHandler> logger)
 {
     public async Task<TodayResultDto> HandleAsync(string fid, string date, string openid, CancellationToken ct = default)
     {
@@ -91,7 +92,8 @@ public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMater
     /// <summary>
     /// 记一条"我看了这个家庭"。只有子女端记（老人端自己看自己的药单，写进来也没有人会读）。
     /// view_id = openid_日期 幂等：一天一条、更新为当天最后一次，避免每次下拉刷新都插一行。
-    /// 写失败**不能**影响 today —— 回执是锦上添花，看板才是主链路。
+    /// 写失败**不能**影响 today —— 回执是锦上添花，看板才是主链路；但要留日志，
+    /// 否则 dose_views 一直空着、看板永远没有"XX 昨天看过"，也查不出是谁拦住的。
     /// </summary>
     private async Task RecordViewAsync(string fid, string openid, string role, CancellationToken ct)
     {
@@ -124,9 +126,10 @@ public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMater
 
             await db.SaveChangesAsync(ct);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // 回执写失败不影响主链路（这里故意吞掉：让它把看板打挂是本末倒置）
+            // 故意不向上抛（让它把看板打挂是本末倒置），但必须留痕
+            logger.LogWarning(ex, "已读回执写入失败，不影响今日药单 fid={Fid} viewId={ViewId}", fid, $"{openid}_{clock.TodayCn}");
         }
     }
 }

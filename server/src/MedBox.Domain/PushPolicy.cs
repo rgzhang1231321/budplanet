@@ -52,6 +52,30 @@ public static class PushPolicy
 
     public const int MaxRetry = 3;
 
+    /// <summary>
+    /// 分片数。改这个值会让**库里已有任务的 shard 与查询口径不一致**，
+    /// 所以它是编译期常量而不是配置项（配置项会出现"入队用新值、消费用旧值"）：
+    /// 真要改，必须同时回填 `UPDATE push_tasks SET shard = …`。
+    /// </summary>
+    public const int ShardCount = 4;
+
+    /// <summary>
+    /// 稳定分片：openid 的 FNV-1a 32 位哈希对分片数取模。
+    /// **不能用 `string.GetHashCode()`** —— 它带进程级随机种子，重启后同一 openid 会换分片，
+    /// 按 shard 过滤的消费组就会漏掉/重复处理老任务；`Math.Abs(int.MinValue)` 还会抛 OverflowException。
+    /// 用无符号取模，天然非负。
+    /// </summary>
+    public static short Shard(string openid)
+    {
+        var hash = 2166136261u;
+        foreach (var b in Encoding.UTF8.GetBytes(openid))
+        {
+            hash ^= b;
+            hash = unchecked(hash * 16777619u);
+        }
+        return (short)(hash % ShardCount);
+    }
+
     /// <summary>任务幂等键：md5(openid + 分钟桶 + tmpl_key)，同一分钟内不重复入队。</summary>
     public static string TaskId(string openid, long minuteBucket, string tmplKey) =>
         Hash($"{openid}|{minuteBucket}|{tmplKey}");

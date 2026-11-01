@@ -63,16 +63,18 @@ public static class TimeCn
     /// <summary>本周一（东八区）。</summary>
     public static string WeekStart(string dateCn)
     {
-        var d = DateTime.ParseExact(dateCn, "yyyy-MM-dd", null);
+        // 一律 InvariantCulture：传 null 会落回服务器 CurrentCulture，
+        // 在非公历区域（如泰历）下 "yyyy-MM-dd" 会解析成别的年份，周键当场错位。
+        var d = DateTime.ParseExact(dateCn, "yyyy-MM-dd", CultureInfo.InvariantCulture);
         var dow = (int)d.DayOfWeek; // 0=周日
         var diff = dow == 0 ? -6 : 1 - dow;
-        return d.AddDays(diff).ToString("yyyy-MM-dd");
+        return d.AddDays(diff).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
     /// <summary>ISO 周键，例如 "2026-W44"。周报与 weekly_stats 都用它做幂等键。</summary>
     public static string WeekKey(string dateCn)
     {
-        var d = DateTime.ParseExact(dateCn, "yyyy-MM-dd", null);
+        var d = DateTime.ParseExact(dateCn, "yyyy-MM-dd", CultureInfo.InvariantCulture);
         var week = System.Globalization.ISOWeek.GetWeekOfYear(d);
         var year = System.Globalization.ISOWeek.GetYear(d);
         return $"{year}-W{week:00}";
