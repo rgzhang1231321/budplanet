@@ -37,9 +37,11 @@ Page({
       canLeave: s.family.members.length > 1,
       // 非管理员没有邀请码（family.info 只对 admin 下发），拼出来的 `invite=` 是空串，
       // 落地页会当成"没有邀请"走普通欢迎页 —— 与其发一张假邀请卡，不如分享普通入口。
+      // 带上 fid：落地页判"你已经在里面了"用的是 fid（比邀请码可靠）—— 邀请码只对
+      // admin 下发，家里其它成员点开这张卡时手里没有码，只能靠 fid 认出"这就是我的家"。
       path:
         isAdmin && s.family.inviteToken
-          ? `/pages/launch/index?invite=${s.family.inviteToken}&role=patient`
+          ? `/pages/launch/index?fid=${s.family.fid}&invite=${s.family.inviteToken}&role=patient`
           : '/pages/launch/index',
       // MISSED 的接收方是家庭管理员（子女），所以只给管理员看这一张卡；
       // 家里还没有服药人时不显示——"谁没吃药"这件事此刻还不存在。

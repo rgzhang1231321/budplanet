@@ -6,7 +6,7 @@
  *   没有 → P00：首屏即弹免责确认（搜一搜/首页/扫码进来的新用户走这条）
  *         例外：已同意免责 + 已有家庭的老用户 → 直接进首页，不再走"开始使用 → 选身份"
  */
-import { bootstrap, bindSelf, agree, loadFamily } from '../../store/user';
+import { bootstrap, bindSelf, agree, loadFamily, createFamily, ensureSelfPatient } from '../../store/user';
 import { get, set } from '../../store/index';
 import { call } from '../../utils/request';
 import { report } from '../../utils/report';
@@ -150,9 +150,25 @@ Page({
 
   async join(role: 'patient' | 'guardian') {
     if (this.data.joining) return;
+    // 既没有邀请码、也不在任何家庭里 → 全新用户：给他建一个自己的家。
+    // 以前这里只 toast 一句"让家人把邀请码发给你"，等于把没有子女帮忙的人挡在门外；
+    // 硬往下走则会 reLaunch 进一个空首页（药单空、加药还会 1005）。
+    //
+    // `family.fid` 为空有两种成因，必须分开处理，否则会把网络问题说成"得先加入家庭"：
+    //   ① 真的不在任何家庭（ready=true 说明 login/loadFamily 都成功了）→ 建家
+    //   ② 登录或 loadFamily 失败（onLoad 里对 bootstrap 是 catch 掉的）—— 他可能有家，
+    //      此时建家也会因为没有登录态而失败，先说清楚是网络问题
+    const s = get();
+    const hasInvite = !!this.data.invite.ivt;
+    if (!hasInvite && !s.family.fid && !s.ready) {
+      wx.showToast({ title: '网络不太好，稍后再试一次', icon: 'none' });
+      return;
+    }
+    const needCreate = !hasInvite && !s.family.fid;
     this.setData({ joining: true });
     try {
-      if (this.data.invite.ivt) {
+      if (needCreate) await createFamily();
+      if (hasInvite) {
         const res: any = await call('family', 'join', {
           // 手动输码时 fid 为空，服务端按邀请码反查家庭
           fid: this.data.invite.fid,
@@ -163,17 +179,19 @@ Page({
         if (res && res.fid) set('family.fid', res.fid);
         await loadFamily();
       }
-      if (role === 'patient') {
-        // 刚刚带着 ivt 的 join 已经在服务端把 role=elder / self_patient_id 绑好了，
-        // 再调一次 bindSelf 等于重复加入；而 invite_token 现在只给 admin，
-        // 非管理员此刻手上是空串 → 第二次 join 必被 1005「邀请码无效」顶回，
-        // 把一次已经成功的加入变成报错页。所以只在"没走 invite join"时才补绑。
-        if (!this.data.invite.ivt) await bindSelf('patient');
+      if (role === 'patient' && !hasInvite) {
+        // 带 ivt 的那次 join 已经在服务端把 role=elder / self_patient_id 绑好了，不走这里。
+        // 自己吃药 + 不是被别人邀请进来的：刚建的家一个服药人都没有，先把自己建成服药人再补绑
+        // self_openid —— 没有 patient 的话 join 找不到绑定目标，会静默失败，老人落在子女版界面。
+        await ensureSelfPatient(get().user.nickname || '我');
+        await bindSelf('patient');
       }
-      report('invite_accepted', { role, ms: 0 });
+      // 建家是 P00→P01 这条自助路径的完成，不是"被邀请加入"，别混进 invite_accepted 的漏斗
+      if (needCreate) report('family_created', { fid: get().family.fid, role });
+      else report('invite_accepted', { role, ms: 0 });
       wx.reLaunch({ url: '/pages/home/index' });
     } catch (e: any) {
-      wx.showToast({ title: (e && e.msg) || '没加入成功，请再试一次', icon: 'none' });
+      wx.showToast({ title: (e && e.msg) || '没弄好，请再试一次', icon: 'none' });
       this.setData({ joining: false });
     }
   },
@@ -196,8 +214,11 @@ Page({
     // 而分享文案说的是"一起盯着爸妈吃药"，对不上。分享普通入口即可。
     return {
       title: '一起盯着爸妈吃药',
+      // 带上 fid：`alreadyJoined` 靠 fid 判"这邀请是不是我已经在的家"。
+      // 不带 fid 就只能回落到比 invite_token，而它只对 admin 下发 —— 家里的 member/elder
+      // 点开这张卡会看到"加入"而不是"你已经在里面了"。
       path: s.family.inviteToken
-        ? `/pages/launch/index?invite=${s.family.inviteToken}&role=patient`
+        ? `/pages/launch/index?fid=${s.family.fid}&invite=${s.family.inviteToken}&role=patient`
         : '/pages/launch/index',
     };
   },

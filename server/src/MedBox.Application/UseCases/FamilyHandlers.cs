@@ -118,12 +118,14 @@ public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock)
         }
 
         fid = family.FamilyId;
-        if (!string.IsNullOrEmpty(family.InviteToken) && !string.Equals(family.InviteToken, ivt, StringComparison.Ordinal))
-            throw new ValidationException("邀请码无效");
 
+        // 先判成员身份再验码：「已经是成员」的人重复 join 是幂等调用（前端 bindSelf 就是这么来的），
+        // 邀请码对成员没有安全收益，只会把一次成功的加入用 1005 顶回。
+        // 查询必须同时限定 family_id 与当前 openid —— 只按 fid 查等于让人凭 fid 混进别人家。
         var now = clock.NowMs;
         var member = await db.FamilyMembers.FirstOrDefaultAsync(m => m.FamilyId == fid && m.Openid == openid, ct);
-        var noop = member is not null;
+        if (!FamilyJoinPolicy.CanJoin(member is not null, family.InviteToken, ivt))
+            throw new ValidationException("邀请码无效");
 
         // patient 只是入参意图，入库角色恒为 admin|member|elder
         var dbRole = roleIntent == "patient" ? "elder" : (member?.Role ?? "member");
