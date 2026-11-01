@@ -1,0 +1,45 @@
+# ── 应用编排：只有 API ───────────────────────────────────────────────
+# 独立 compose project（medbox-api）：up/recreate 只会命中 api 容器，
+# 数据库属于 medbox-infra，永远不会被这个文件的操作带上。
+name: medbox-api
+
+services:
+  api:
+    image: ${API_IMAGE:-medbox-api:latest}
+    container_name: ${API_CONTAINER:-medbox-api}
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5080
+      TZ: Asia/Shanghai
+      # 容器网络内按容器名连库，不走宿主机端口
+      ConnectionStrings__MedBox: "Host=${DB_CONTAINER:-medbox-db};Port=5432;Database=${POSTGRES_DB:-medbox};Username=${POSTGRES_USER:-medbox}"
+      PG__PASSWORD: ${POSTGRES_PASSWORD:?缺少 POSTGRES_PASSWORD}
+      JWT__SECRET: ${JWT__SECRET:?缺少 JWT__SECRET}
+      Wx__AppId: ${WX__APPID:-}
+      Wx__AppSecret: ${WX__SECRET:-}
+      Workers__Enabled: ${WORKERS__ENABLED:-true}
+
+    ports:
+      # 只绑回环，由 Nginx/Caddy 反代上 HTTPS（微信小程序要求 https + 已备案域名）。
+      # 临时自测可把 .env 的 API_BIND 改成 0.0.0.0:5080（不要长期这样）。
+      - "${API_BIND:-127.0.0.1:5080}:5080"
+
+    # 1G 机型：.NET 空跑约 120-150MB，压测再涨；上限给到 420m 留余量
+    mem_limit: ${API_MEM_LIMIT:-420m}
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - medbox
+
+networks:
+  medbox:
+    external: true
+    name: medbox-net

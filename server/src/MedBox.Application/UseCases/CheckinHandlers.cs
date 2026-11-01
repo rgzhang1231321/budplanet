@@ -10,11 +10,11 @@ namespace MedBox.Application.UseCases;
 /// <summary>
 /// checkin.submit：天生批量（1–8 条），幂等键 pid_date_slot，部分成功合法、不整批回滚。
 /// 注意入参没有 fid：家庭从 pid 反查，且必须唯一。
+/// 写入走 <see cref="DoseCasApplier"/>（带状态守卫的 CAS），不再"读实体 → 改字段 → SaveChanges"。
 /// </summary>
-public sealed class SubmitHandler(IAppDbContext db, IMemberGuard guard, IClock clock)
+public sealed class SubmitHandler(IAppDbContext db, IMemberGuard guard, IClock clock, DoseCasApplier cas)
 {
     public const int BatchMax = 8;
-    private const int LateToleranceMin = 15;
 
     public async Task<SubmitResultDto> HandleAsync(SubmitRequest req, string openid, CancellationToken ct = default)
     {
@@ -52,49 +52,19 @@ public sealed class SubmitHandler(IAppDbContext db, IMemberGuard guard, IClock c
                 continue;
             }
 
-            var doseId = DoseId.Build(item.Pid, item.Date, item.Slot);
-            var log = await db.DoseLogs.FirstOrDefaultAsync(d => d.DoseId == doseId && d.FamilyId == fids[0], ct);
-            if (log is null)
+            // CAS 写入：0 行说明状态被并发改过（漏服判定抢先），由 applier 重读真实状态决定结果，
+            // 绝不因为 0 行就静默算成功 —— 那正是"用户点了已服、库里是 missed"的成因
+            var outcome = await cas.ApplyAsync(
+                DoseId.Build(item.Pid, item.Date, item.Slot), fids[0], to, openid, item.SkipReason, ct);
+
+            if (outcome.IsRejected)
             {
-                rejected.Add(Reject(item, 1005, "这一条不存在"));
+                rejected.Add(Reject(item, outcome.RejectCode!.Value, outcome.RejectMsg ?? "状态不允许"));
                 continue;
             }
 
-            if (!DoseStatusWire.TryParse(log.Status, out var from))
-                from = DoseStatus.Pending;
-
-            if (from == to)
-            {
-                applied.Add(Apply(item, to, now, changed: false));
-                continue;
-            }
-
-            if (!DoseTransitions.CanSubmit(from, to, log.IsCorrected))
-            {
-                rejected.Add(Reject(item, 1005, "状态不允许"));
-                continue;
-            }
-
-            log.Status = to.ToWire();
-            if (to == DoseStatus.Taken)
-            {
-                log.TakenAt = now;
-                log.TakenBy = openid;
-                log.IsLate = now - log.DueTs > LateToleranceMin * 60_000;
-                log.SkipReason = null;
-            }
-            else
-            {
-                log.TakenAt = null;
-                log.TakenBy = null;
-                log.IsLate = false;
-                log.SkipReason = item.SkipReason;
-            }
-
-            applied.Add(Apply(item, to, now, changed: true));
+            applied.Add(Apply(item, to, now, outcome.Changed));
         }
-
-        await db.SaveChangesAsync(ct);
 
         return new SubmitResultDto
         {
@@ -138,9 +108,12 @@ public sealed class SubmitHandler(IAppDbContext db, IMemberGuard guard, IClock c
 /// </summary>
 public sealed class SnoozeHandler(IAppDbContext db, IMemberGuard guard, ConfigReader config, IClock clock)
 {
+    /// <summary>契约冻结：`due_ts += 15min`（契约表 §七 snooze 行），不是可调参数。</summary>
+    private const long SnoozeStepMs = 15 * 60_000L;
+
     public async Task<SnoozeResultDto> HandleAsync(string doseId, string openid, CancellationToken ct = default)
     {
-        var log = await db.DoseLogs.FirstOrDefaultAsync(d => d.DoseId == doseId, ct)
+        var log = await db.DoseLogs.AsNoTracking().FirstOrDefaultAsync(d => d.DoseId == doseId, ct)
                   ?? throw new ValidationException("这一条不存在");
 
         var m = await guard.AssertMemberAsync(log.FamilyId, openid, ct);
@@ -155,11 +128,25 @@ public sealed class SnoozeHandler(IAppDbContext db, IMemberGuard guard, ConfigRe
         if (now < slotTs || now > slotTs + cfg.SnoozeDeadlineMin * 60_000)
             throw new ValidationException("这个点快到最后时间了，先记一下");
 
-        log.DueTs += 15 * 60_000;
-        log.SnoozeCount += 1;
-        await db.SaveChangesAsync(ct);
+        var nextDueTs = log.DueTs + SnoozeStepMs;
+        var nextCount = log.SnoozeCount + 1;
 
-        return new SnoozeResultDto { Ok = true, DueTs = log.DueTs, SnoozeCount = log.SnoozeCount };
+        // CAS + 必须把 remind_status 归 0：
+        // 推送入队查询硬性要求 remind_status = 0（PushTaskBuilder.EnqueueDueRemindersAsync），
+        // 第一次提醒发完就是 1；不归零的话延后到点后永远查不到 → 第二次提醒永远不响。
+        var rows = await db.DoseLogs
+            .Where(d => d.DoseId == doseId && d.Status == DoseStatusWire.Pending && d.SnoozeCount == log.SnoozeCount)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(d => d.DueTs, nextDueTs)
+                .SetProperty(d => d.SnoozeCount, nextCount)
+                .SetProperty(d => d.RemindStatus, (short)0)
+                .SetProperty(d => d.RemindAt, (long?)null)
+                .SetProperty(d => d.RemindErrcode, (int?)null), ct);
+
+        // 0 行 = 期间被并发改了（打卡 / 漏服判定抢先），不能假装延后成功
+        if (rows == 0) throw new ValidationException("这条状态刚变了，刷新一下再试");
+
+        return new SnoozeResultDto { Ok = true, DueTs = nextDueTs, SnoozeCount = nextCount };
     }
 }
 

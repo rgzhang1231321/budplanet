@@ -1,0 +1,49 @@
+# ── 边缘层编排：HTTPS 反代（Caddy）──────────────────────────────────────
+# 独立 compose project（medbox-edge），和 db / api 都不在同一个 project 里。
+# 它只做一件事：把 https://<DOMAIN> 反代到容器网络里的 medbox-api:5080。
+#
+# 为什么不放在 api 的 compose 里：
+#   更新 API 会 --force-recreate，如果 Caddy 在同个 project，证书挂载、80/443
+#   监听会被顺带重建 —— 证书签发有频率限制，别拿它冒险。
+name: medbox-edge
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: ${EDGE_CONTAINER:-medbox-caddy}
+    restart: unless-stopped
+
+    environment:
+      DOMAIN: ${DOMAIN:?缺少 DOMAIN，请在 deploy/.env 里设置（如 api.apiyun.net）}
+
+    ports:
+      - "80:80"     # HTTP → HTTPS 跳转
+      - "443:443"   # 小程序必须走 HTTPS
+
+    volumes:
+      # 相对路径以 --project-directory（deploy/）为基准
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # 腾讯云证书（api.apiyun.net_bundle.crt + .key），整个目录只读挂载。
+      # 目录里的 .key 由 .gitignore 挡死（*.key 全局规则），永远不会进仓库。
+      # ⚠️ 挂载目录必须**先存在**：docker 遇到不存在的 bind mount 会建一个空目录，
+      #    Caddy 会报 "no such file / key values mismatch" 很难查 → edge-up.sh 已做前置检查。
+      - ./api.apiyun.net_nginx:/etc/caddy/certs:ro
+      # Caddy 运行时数据挂宿主机，容器重建不丢
+      - ${DATA_ROOT:-/data/medbox}/caddy/data:/data
+      - ${DATA_ROOT:-/data/medbox}/caddy/config:/config
+
+    mem_limit: ${EDGE_MEM_LIMIT:-96m}
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - medbox
+
+networks:
+  medbox:
+    external: true
+    name: medbox-net

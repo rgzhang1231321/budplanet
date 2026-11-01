@@ -1,0 +1,74 @@
+# ── 基础设施编排：只有数据库 ─────────────────────────────────────────
+# 独立 compose project（medbox-infra）+ 固定容器名，和 API 的 project（medbox-api）完全隔离。
+# 这个文件只在**第一次**由 infra-up.sh 使用；已存在容器时脚本只做 start，绝不 up/recreate。
+#
+# 变量来自同目录 .env（docker compose 自动读取）。
+name: medbox-infra
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: ${DB_CONTAINER:-medbox-db}
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-medbox}
+      POSTGRES_USER: ${POSTGRES_USER:-medbox}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?缺少 POSTGRES_PASSWORD，请先执行 setup-host.sh}
+      # 显式指定数据目录：postgres:18 默认改到 /var/lib/postgresql/18/docker，
+      # 这里钉回 /var/lib/postgresql/data，挂载父目录，数据落在 ${DATA_ROOT}/pgdata/data
+      PGDATA: /var/lib/postgresql/data
+      TZ: Asia/Shanghai
+
+    volumes:
+      # 数据目录挂到宿主机磁盘（数据盘挂载点），容器删了数据还在
+      - ${DATA_ROOT:-/data/medbox}/pgdata:/var/lib/postgresql
+
+    ports:
+      # 只绑回环：公网访问不到数据库，安全组也不用开 5432
+      - "127.0.0.1:${PG_PORT:-5432}:5432"
+
+    # 1G 小内存机型专用参数：默认配置（max_connections=100、并行 worker 按 CPU 数）
+    # 在 1G 上会把内存吃穿，这里手动压到保守值。
+    # 注意：改这里需要 infra-up.sh --recreate 才生效（容器级参数）。
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB          # 缓存页，1G 机器够用
+      - -c
+      - effective_cache_size=320MB    # 给优化器的估算，不占实际内存
+      - -c
+      - work_mem=4MB                  # 每个排序/哈希操作上限，小库足够
+      - -c
+      - maintenance_work_mem=48MB     # VACUUM/建索引用
+      - -c
+      - max_connections=40            # 默认 100 太多，每个连接约 2-3MB
+      - -c
+      - max_wal_size=512MB            # 降低 checkpoint 频率
+      - -c
+      - log_min_duration_statement=2000   # 慢于 2s 的 SQL 记日志（配合 app_logs 排查）
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medbox} -d ${POSTGRES_DB:-medbox}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+    # 1G 机器上三方共存（db + api + caddy），给每个容器设上限，避免互相挤爆触发 OOM Killer
+    mem_limit: ${DB_MEM_LIMIT:-420m}
+    shm_size: 128mb
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - medbox
+
+networks:
+  medbox:
+    external: true
+    name: medbox-net

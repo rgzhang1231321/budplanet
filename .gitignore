@@ -15,7 +15,32 @@ appsettings.Local.json
 *.env
 .env
 .env.*
+# 模板必须进仓库，否则新机器不知道要配哪些变量
+!deploy/.env.example
+
+# ── 证书与私钥（禁止进仓库）─────────────────────────────────────────
+# 写法：**先全挡，再白名单放行**。这样新证书、换名字的证书、别人随手丢的
+# 临时私钥全都默认进不来，只有明确放行的那一个公开证书链能提交。
+# *.pem 一律挡死、不给白名单：.pem 经常就是私钥（openssl 导私钥的常见扩展名），赌不起。
+*.key
+*.pem
+*.csr
+*.crt
 *.pfx
+*.p12
+# 公开证书链允许进仓库：不含私钥，部署时 Caddy 要读它（Caddyfile 第 42/48 行引用的就是它）
+# ⚠️ 路径是 api.**apiyun**.net_nginx（目录名多一个 "api." 前缀），照抄时别少打
+!deploy/api.apiyun.net_nginx/api.apiyun.net_bundle.crt
+
+# 一次性远程操作脚本：本地调试工具，不属于交付物，不进仓库。
+# 里面的服务器口令已改为从环境变量 MEDBOX_SSH_PASS 读取，但这个脚本仍不提交。
+deploy/_remote.py
+
+# 临时草稿：内容已并入 deploy/README.md §1（Docker 日志轮转配置），文件本身不交付。
+deploy/_daemon.json
+
+# 本地版部署手册：记真实 IP / 口令用，公开仓库里只留占位符版本。
+deploy/README.local.md
 
 # ── 导出/临时 ──
 *.log

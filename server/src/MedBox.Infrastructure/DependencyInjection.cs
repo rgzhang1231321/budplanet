@@ -34,6 +34,8 @@ public static class DependencyInjection
 
         services.Configure<WxOptions>(config.GetSection("Wx"));
         services.Configure<JwtOptions>(config.GetSection("Jwt"));
+        // access_token 缓存必须单例：typed HttpClient 下面挂实例字段等于没缓存（每次调用都重新取 token）
+        services.AddSingleton<Wx.WxTokenCache>();
         services.AddHttpClient<IWxApiClient, WxApiClient>();
         services.AddSingleton<IJwtIssuer, JwtIssuer>();
         // 导出下载链接签名：复用同一份密钥，但 token 不带 JWT 头（它只是预签名 URL，不是 API 凭证）
@@ -58,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IMemberGuard, MemberGuard>();
         services.AddScoped<ConfigReader>();
         services.AddScoped<DoseMaterializer>();
+        services.AddScoped<DoseCasApplier>();
         services.AddScoped<EntitlementService>();
         services.AddScoped<PushTaskBuilder>();
 

@@ -16,6 +16,27 @@
 const DEV_LAN_HOST = '192.168.3.9'; // 本机 ipconfig 里的 IPv4
 const DEV_PORT = 5080;
 
+/**
+ * 正式环境地址（腾讯云 CVM + 腾讯云 TrustAsia 证书）
+ * 只有「正式版」（envVersion=release）才用，开发版/体验版仍连本地，
+ * 免得改个小样式也要折腾线上。真机想连线上联调，控制台覆盖即可：
+ *   wx.setStorageSync('api_base', 'https://api.apiyun.net')
+ *
+ * 注意：这个域名必须在小程序后台「开发管理 → 服务器域名 → request 合法域名」里登记，
+ * 否则正式版所有请求都会失败（报 url not in domain list）。
+ */
+const PROD_API_BASE = 'https://api.apiyun.net';
+
+/** develop 开发版 / trial 体验版 / release 正式版 */
+function envVersion(): string {
+  try {
+    const info: any = (wx as any).getAccountInfoSync();
+    return (info && info.miniProgram && info.miniProgram.envVersion) || 'develop';
+  } catch (e) {
+    return 'develop';
+  }
+}
+
 // platform 只在启动时取一次（getSystemInfoSync 比 getStorageSync 重）
 let platform = '';
 try {
@@ -35,6 +56,7 @@ export function apiBase(): string {
   } catch (e) {
     /* ignore */
   }
+  if (envVersion() === 'release') return PROD_API_BASE;
   return platform === 'devtools'
     ? `http://127.0.0.1:${DEV_PORT}`
     : `http://${DEV_LAN_HOST}:${DEV_PORT}`;

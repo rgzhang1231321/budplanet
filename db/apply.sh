@@ -3,11 +3,12 @@
 # 用法: bash db/apply.sh            应用所有未执行脚本到 medbox
 #       bash db/apply.sh --dry-run  只校验不执行（CI 用）
 # 安全: 目标库硬编码为 medbox；任何指向 ragdb 的企图直接拒绝。
+# 可变: CONTAINER / PGUSER / DB 可用环境变量覆盖（生产部署走 deploy/migrate.sh）
 set -euo pipefail
 
-CONTAINER="tigerrag-postgres-1"
-PGUSER="tigerrag"
-DB="medbox"
+CONTAINER="${CONTAINER:-tigerrag-postgres-1}"
+PGUSER="${PGUSER:-tigerrag}"
+DB="${DB:-medbox}"
 DRY_RUN=0
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
 

@@ -1,4 +1,8 @@
+using System.Data;
+using System.Data.Common;
+using System.Text;
 using MedBox.Application.Abstractions;
+using MedBox.Domain;
 using MedBox.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,6 +56,104 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
     void IAppDbContext.Add<T>(T entity) => Set<T>().Add(entity);
 
     void IAppDbContext.Remove<T>(T entity) => Set<T>().Remove(entity);
+
+    async Task<DoseSnapshot?> IAppDbContext.GetDoseSnapshotAsync(string doseId, string familyId, CancellationToken ct)
+        => await DoseLogs.AsNoTracking()
+            .Where(d => d.DoseId == doseId && d.FamilyId == familyId)
+            .Select(d => new DoseSnapshot(d.Status, d.IsCorrected, d.DueTs))
+            .FirstOrDefaultAsync(ct);
+
+    Task<int> IAppDbContext.CompareAndSetDoseAsync(DoseCasUpdate u, CancellationToken ct)
+    {
+        var from = u.From.ToWire();
+        var to = u.To.ToWire();
+
+        // 守卫三层：主键 + 家庭 + "当前状态还是读到的那个状态"，再叠 is_corrected=false
+        // （人工改判过就锁死，missed→taken 也只放行系统判的漏服）。
+        var target = DoseLogs.Where(d =>
+            d.DoseId == u.DoseId && d.FamilyId == u.FamilyId && d.Status == from && !d.IsCorrected);
+
+        if (u.To == DoseStatus.Taken)
+        {
+            return target.ExecuteUpdateAsync(s => s
+                .SetProperty(d => d.Status, to)
+                .SetProperty(d => d.TakenAt, (long?)u.NowMs)
+                .SetProperty(d => d.TakenBy, u.OperatorOpenid)
+                .SetProperty(d => d.IsLate, u.IsLate)
+                .SetProperty(d => d.SkipReason, (string?)null), ct);
+        }
+
+        return target.ExecuteUpdateAsync(s => s
+            .SetProperty(d => d.Status, to)
+            .SetProperty(d => d.TakenAt, (long?)null)
+            .SetProperty(d => d.TakenBy, (string?)null)
+            .SetProperty(d => d.IsLate, false)
+            .SetProperty(d => d.SkipReason, u.SkipReason), ct);
+    }
+
+    async Task<int> IAppDbContext.InsertDoseLogsIgnoreConflictAsync(IReadOnlyList<DoseLog> rows, CancellationToken ct)
+    {
+        if (rows.Count == 0) return 0;
+
+        var conn = Database.GetDbConnection();
+        var openedHere = conn.State != ConnectionState.Open;
+        if (openedHere) await Database.OpenConnectionAsync(ct);
+
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            var sb = new StringBuilder();
+            sb.Append("INSERT INTO dose_logs (dose_id, family_id, patient_id, plan_id, medicine_id, dose_text, ");
+            sb.Append("med_name_snapshot, due_date, slot, due_ts, status, is_late, snooze_count, remind_status, ");
+            sb.Append("alert_status, is_corrected, created_at) VALUES ");
+
+            for (var i = 0; i < rows.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                var b = i * 17;
+                sb.Append($"(@p{b}, @p{b + 1}, @p{b + 2}, @p{b + 3}, @p{b + 4}, @p{b + 5}, @p{b + 6}, @p{b + 7}, ");
+                sb.Append($"@p{b + 8}, @p{b + 9}, @p{b + 10}, @p{b + 11}, @p{b + 12}, @p{b + 13}, @p{b + 14}, ");
+                sb.Append($"@p{b + 15}, @p{b + 16})");
+
+                var r = rows[i];
+                Add(cmd, $"@p{b}", r.DoseId);
+                Add(cmd, $"@p{b + 1}", r.FamilyId);
+                Add(cmd, $"@p{b + 2}", r.PatientId);
+                Add(cmd, $"@p{b + 3}", r.PlanId);
+                Add(cmd, $"@p{b + 4}", r.MedicineId);
+                Add(cmd, $"@p{b + 5}", r.DoseText);
+                Add(cmd, $"@p{b + 6}", r.MedNameSnapshot);
+                Add(cmd, $"@p{b + 7}", r.DueDate);
+                Add(cmd, $"@p{b + 8}", r.Slot);
+                Add(cmd, $"@p{b + 9}", r.DueTs);
+                Add(cmd, $"@p{b + 10}", r.Status);
+                Add(cmd, $"@p{b + 11}", r.IsLate);
+                Add(cmd, $"@p{b + 12}", r.SnoozeCount);
+                Add(cmd, $"@p{b + 13}", r.RemindStatus);
+                Add(cmd, $"@p{b + 14}", r.AlertStatus);
+                Add(cmd, $"@p{b + 15}", r.IsCorrected);
+                Add(cmd, $"@p{b + 16}", r.CreatedAt);
+            }
+
+            // 已存在的行一律不动（绝不覆盖用户打卡），只补确实缺的
+            sb.Append(" ON CONFLICT (dose_id) DO NOTHING");
+            cmd.CommandText = sb.ToString();
+            return await cmd.ExecuteNonQueryAsync(ct);
+        }
+        finally
+        {
+            if (openedHere) await Database.CloseConnectionAsync();
+        }
+    }
+
+    private static void Add(DbCommand cmd, string name, object? value)
+    {
+        var p = cmd.CreateParameter();
+        // SQL 里写 @p0，ADO.NET 参数名不带前缀（与 EF 自己生成 raw SQL 的口径一致）
+        p.ParameterName = name.TrimStart('@');
+        p.Value = value ?? DBNull.Value;
+        cmd.Parameters.Add(p);
+    }
 
     protected override void OnModelCreating(ModelBuilder b)
     {

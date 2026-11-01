@@ -197,7 +197,13 @@ Page({
     }
     wx.vibrateShort({ type: 'heavy', fail: () => {} } as any);
     // 子女端保留 3 秒撤销：窗口内暂缓上行，撤销即"没发生过"（契约无 taken→pending）
-    take(list, this.data.elder ? 0 : 3000);
+    take(list, this.data.elder ? 0 : 3000).then((res) => {
+      // 服务端明确拒绝（skipped 终态 / 已人工改判的 missed）：本地不能停留在"已服"，按真实状态重渲染
+      if (!res.offline && !res.ok) {
+        this.build();
+        wx.showToast({ title: '这条没记上，请重新点一次', icon: 'none' });
+      }
+    });
     this.setData({ viewState: 'taken', syncShow: true, syncState: 'sending', canUndo: !this.data.elder });
     this._shareTimer = setTimeout(() => this.setData({ showShare: true }), 1200);
     if (!this.data.elder) {
@@ -206,21 +212,28 @@ Page({
   },
 
   /** 漏服补记：走 checkin.submit(status=taken)，契约 §7 允许 missed(系统判定、未改判)→taken。
-   *  skipped 与已人工改判的 missed 是终态，页面不提供本入口。 */
+   *  skipped 与已人工改判的 missed 是终态，页面不提供本入口。
+   *  绿勾只认服务端确认：被拒或断网都不许显示"已经记下了"。 */
   onMakeup() {
     const r = (this._pendingAll || [])[0];
     if (!r || r.status !== 'missed' || r.is_corrected) {
       wx.showToast({ title: '这条已经不能补记了', icon: 'none' });
       return;
     }
-    take([r], 0);
-    this.setData({
-      viewState: 'taken',
-      syncShow: true,
-      syncState: 'sending',
-      canUndo: false,
-      showShare: true,
-      subText: this.takenSub([r]),
+    take([r], 0).then((res) => {
+      if (res.offline) {
+        // 断网：本机先记下、队列自动重放，顶部挂同步细条，但不算服务端确认成功
+        this.setData({ viewState: 'taken', syncShow: true, syncState: 'error' });
+        wx.showToast({ title: '已记在本机，会自动重试', icon: 'none' });
+        return;
+      }
+      // 以服务端返回的真实 status 渲染（拒绝时 store 已回滚到点击前的原状态）
+      this.build();
+      if (!res.ok) {
+        wx.showToast({ title: '这条没记上，请重新点一次', icon: 'none' });
+        return;
+      }
+      this.setData({ syncShow: false, canUndo: false, showShare: true, subText: this.takenSub([r]) });
     });
   },
 
@@ -233,8 +246,10 @@ Page({
     }
     clearTimeout(this._undoTimer);
     clearTimeout(this._shareTimer);
-    this.setData({ viewState: 'pending', canUndo: false, showShare: false, syncShow: false });
-    wx.showToast({ title: '已撤销，请重新打卡', icon: 'none' });
+    // 回滚到的是点击前的原状态（可能是 missed），所以视图必须重算，不能一律当 pending
+    this.build();
+    this.setData({ canUndo: false, showShare: false, syncShow: false });
+    wx.showToast({ title: '已撤销', icon: 'none' });
   },
 
   onSnooze() {

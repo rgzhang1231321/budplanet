@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MedBox.Application.Abstractions;
 using MedBox.Domain;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -19,22 +20,33 @@ public sealed class WxOptions
 }
 
 /// <summary>
-/// 微信接口客户端：code2session / access_token 缓存 / 订阅消息下发。
-/// 未配 AppSecret → 本地开发模式：登录用固定 openid，推送明确返回"拿不到 token"，绝不假装发成功。
+/// 微信接口客户端：code2session / 订阅消息下发（access_token 走 <see cref="WxTokenCache"/> 单例缓存）。
+/// 未配 AppSecret 只允许在 Development 降级用固定 openid；非开发环境一律拒绝登录 ——
+/// 生产漏配 secret 时若继续降级，所有用户会塌成同一个 openid，能看到别人家的老人和吃药记录。
 /// </summary>
-public sealed class WxApiClient(HttpClient http, IOptions<WxOptions> options, ILogger<WxApiClient> logger) : IWxApiClient
+public sealed class WxApiClient(
+    HttpClient http,
+    IOptions<WxOptions> options,
+    WxTokenCache tokens,
+    IHostEnvironment env,
+    ILogger<WxApiClient> logger) : IWxApiClient
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly WxOptions _opt = options.Value;
-
-    private string? _token;
-    private long _tokenExpiresAtMs;
 
     public async Task<WxSession> Code2SessionAsync(string code, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(_opt.AppSecret))
         {
-            logger.LogWarning("WX__SECRET 未配置，code2session 走本地开发模式（openid={Openid}）", _opt.DevOpenid);
+            // 与 JWT__SECRET 同一口径：只有开发环境允许降级，生产必须拒绝而不是发一个固定身份
+            if (!env.IsDevelopment())
+            {
+                logger.LogError("WX__SECRET 未配置：非开发环境拒绝登录降级（固定 openid 会让所有用户共用一个身份）");
+                throw new InvalidOperationException(
+                    "WX__SECRET 未配置：非开发环境不允许用固定 openid 降级登录");
+            }
+
+            logger.LogWarning("WX__SECRET 未配置，code2session 走本地开发模式（仅开发环境，openid={Openid}）", _opt.DevOpenid);
             return new WxSession(_opt.DevOpenid, null, null);
         }
 
@@ -46,26 +58,8 @@ public sealed class WxApiClient(HttpClient http, IOptions<WxOptions> options, IL
         return new WxSession(resp.Openid, resp.Unionid, resp.SessionKey);
     }
 
-    /// <summary>access_token 有效期 7200s，提前 5 分钟过期；进程内缓存，单实例够用（水平扩展时改 Redis）。</summary>
-    private async Task<string?> GetAccessTokenAsync(CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(_opt.AppSecret)) return null;
-
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        if (!string.IsNullOrEmpty(_token) && now < _tokenExpiresAtMs) return _token;
-
-        var url = $"{_opt.ApiBase}/cgi-bin/token?grant_type=client_credential&appid={_opt.AppId}&secret={_opt.AppSecret}";
-        var resp = await http.GetFromJsonAsync<TokenResp>(url, Json, ct);
-        if (resp is null || string.IsNullOrEmpty(resp.AccessToken))
-        {
-            logger.LogError("获取 access_token 失败：{ErrCode} {ErrMsg}", resp?.ErrCode, resp?.ErrMsg);
-            return null;
-        }
-
-        _token = resp.AccessToken;
-        _tokenExpiresAtMs = now + Math.Max(60, resp.ExpiresIn - 300) * 1000L;
-        return _token;
-    }
+    /// <summary>access_token 由单例 WxTokenCache 统一缓存（提前 5 分钟换新 + 刷新失败沿用旧 token）。</summary>
+    private Task<string?> GetAccessTokenAsync(CancellationToken ct) => tokens.GetAsync(http, ct);
 
     public async Task<WxSendResult> SendSubscribeAsync(string openid, string tmplId, string page, IReadOnlyDictionary<string, string> data, CancellationToken ct = default)
     {
@@ -111,14 +105,6 @@ public sealed class WxApiClient(HttpClient http, IOptions<WxOptions> options, IL
         [JsonPropertyName("openid")] public string? Openid { get; set; }
         [JsonPropertyName("unionid")] public string? Unionid { get; set; }
         [JsonPropertyName("session_key")] public string? SessionKey { get; set; }
-        [JsonPropertyName("errcode")] public int ErrCode { get; set; }
-        [JsonPropertyName("errmsg")] public string? ErrMsg { get; set; }
-    }
-
-    private sealed class TokenResp
-    {
-        [JsonPropertyName("access_token")] public string? AccessToken { get; set; }
-        [JsonPropertyName("expires_in")] public int ExpiresIn { get; set; }
         [JsonPropertyName("errcode")] public int ErrCode { get; set; }
         [JsonPropertyName("errmsg")] public string? ErrMsg { get; set; }
     }

@@ -6,6 +6,7 @@ using MedBox.Infrastructure;
 using MedBox.Infrastructure.Logging;
 using MedBox.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,6 +32,15 @@ builder.Services.Configure<JwtOptions>(o =>
     builder.Configuration.GetSection("Jwt").Bind(o);
     o.Secret = jwtSecret!;
 });
+
+// ── 微信 AppSecret：非开发环境必须配齐 ─────────────────────────
+// 漏配时 WxApiClient 的降级分支会发固定 openid，生产一旦发生就是"所有用户同一个人"
+// （能看到别人家的老人、吃药记录）。所以宁可拒绝启动，也不许带着这个降级跑起来。
+if (string.IsNullOrWhiteSpace(builder.Configuration["Wx:AppSecret"]) && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException(
+        "WX__SECRET 未配置：生产环境必须通过环境变量注入微信 AppSecret（否则登录身份会塌成同一个 openid）");
+}
 
 builder.Services.AddMedBoxInfrastructure(builder.Configuration);
 builder.Services.AddMedBoxApplication();
@@ -84,6 +94,15 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+// 生产在 Caddy 反代后面：不处理转发头的话，日志里所有客户端 IP 都是网关地址，
+// 排查「某个用户报错」时根本分不清人。容器网络里 Caddy 是唯一入口，直接信任。
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.KnownIPNetworks.Clear(); // .NET 10：KnownNetworks 已过时，语义等价
+    o.KnownProxies.Clear();
+});
+
 // 模型绑定失败也要走封套（默认是 400 ProblemDetails，前端会当成网络异常）
 builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(o =>
 {
@@ -99,6 +118,7 @@ builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(o =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();

@@ -40,6 +40,22 @@ cd server && dotnet run --project src/MedBox.Api
 #    真机要同 Wi-Fi，且放行 TCP 5080
 ```
 
+## 部署（腾讯云）
+
+生产环境用 Docker 跑 PostgreSQL 18 + API，数据库与应用**分开编排**：更新 API 不会碰数据库容器。
+完整步骤、HTTPS 反代、备份与回滚见 **[deploy/README.md](deploy/README.md)**。
+
+```bash
+# 服务器首次
+bash deploy/setup-host.sh     # 装 docker / 建目录 / 生成 .env
+bash deploy/infra-up.sh       # 只建数据库（幂等，之后不会重建）
+bash deploy/migrate.sh        # 建表 + 种子数据
+bash deploy/api-up.sh         # 构建并启动 API
+
+# 日常只更新 API（数据库保持原样）
+bash deploy/api-up.sh
+```
+
 ## 验证
 
 ```bash

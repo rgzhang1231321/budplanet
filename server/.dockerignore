@@ -1,0 +1,36 @@
+# 构建上下文只需要源码与工程文件
+**/bin/
+**/obj/
+**/TestResults/
+tests/
+scripts/
+*.user
+*.suo
+.vs/
+Dockerfile
+.dockerignore
+
+# ── 绝不进构建上下文：版本库与密钥 ──────────────────────────────────
+# .git/ 尤其重要：只要它进了上下文，历史里出现过的任何密钥都会被一起打进镜像层，
+# 就算后来的 commit 删掉了也照样能捞出来。（当前私钥没进过任何 commit，这条是兜底。）
+.git/
+.gitignore
+.gitattributes
+
+*.key
+*.pem
+*.crt
+*.csr
+*.pfx
+*.p12
+
+# 本地配置/环境变量：构建镜像只需要代码，不需要任何运行期口令
+.env
+.env.*
+appsettings.Local.json
+
+# 前端依赖与构建产物（万一构建上下文被误指到仓库根，也不会把几百 MB 拖进去）
+node_modules/
+**/node_modules/
+miniprogram_npm/
+**/*.log
