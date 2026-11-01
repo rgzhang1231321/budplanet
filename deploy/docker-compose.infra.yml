@@ -25,13 +25,12 @@ services:
       - ${DATA_ROOT:-/data/medbox}/pgdata:/var/lib/postgresql
 
     ports:
-      # 默认只绑本机（127.0.0.1）：数据库不对公网开放。
-      # 需要本地直连调试时，在 deploy/.env 设 PG_BIND=0.0.0.0 并重建本容器
-      # （bash deploy/infra-up.sh --recreate），用完改回再重建。
-      # 更稳的做法是根本不放开端口，走 SSH 隧道：
-      #   ssh -L 5432:127.0.0.1:5432 ubuntu@<服务器IP>
-      # 然后本地连 127.0.0.1:5432，流量全程走 SSH，不经过公网端口。
-      # 另：不管这里怎么配，腾讯云安全组的 5432 入站都应保持关闭。
+      # 绑定地址由 deploy/.env 的 PG_BIND 决定：
+      #   0.0.0.0     = 对公网开放（当前线上用法：客户本地工具直连云端库）
+      #   127.0.0.1   = 只绑本机，本地要连走 SSH 隧道：ssh -L 5432:127.0.0.1:5432 ubuntu@<服务器IP>
+      # 公网开放期间的两条硬要求：
+      #   1. 腾讯云安全组放行 5432 入站（不放行则容器开了也连不上）
+      #   2. POSTGRES_PASSWORD 必须是强口令（≥12位随机），并定期备份（deploy/backup.sh）
       - "${PG_BIND:-127.0.0.1}:${PG_PORT:-5432}:5432"
 
     # 1G 小内存机型专用参数：默认配置（max_connections=100、并行 worker 按 CPU 数）
