@@ -129,13 +129,15 @@
   line-height: 1.5;
 }
 
-/* 画布：只用于生成图片。放在视口内但透明，避免部分基础库对"移出视口"的画布不触发 toTempFilePath */
+/* 画布：只用于生成图片（兜底路径用节点画布）。
+   必须移出视口 + 1px + 不吃事件：之前 position:fixed 铺满 750x1060px，
+   比屏幕还宽，把页面横向撑开（右侧文字被裁、按钮被挤走），还挡住点击。 */
 .rpt-canvas {
   position: fixed;
-  left: 0;
+  left: -9999px;
   top: 0;
-  width: 750px;
-  height: 1060px;
+  width: 1px;
+  height: 1px;
   opacity: 0;
   pointer-events: none;
   z-index: -1;
