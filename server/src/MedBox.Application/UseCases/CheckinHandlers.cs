@@ -46,7 +46,12 @@ public sealed class SubmitHandler(IAppDbContext db, IMemberGuard guard, IClock c
                 rejected.Add(Reject(item, 1005, "服药人不存在"));
                 continue;
             }
-            if (m.IsElder && !m.SelfUids.Contains(item.Pid))
+            // 判据是 **role**（纯服药人只能记自己的药），不是 IsElder（= 有没有自绑服药人）。
+            // 两者只在"只有老人自己"的家庭里恰好等价；一旦是 role=admin/member 且自己也吃药
+            // （契约 §4.1 点名的常见组合），IsElder 就恒为 true —— schedule.today 已经把全家的
+            // 药下发给这位子女了（按 role 裁），他到这儿给爸妈打卡会吃 1003「只能记自己的药」，
+            // 表现为"看得见、点不动"，且没有任何前端文案能解释。
+            if (m.Role == "elder" && !m.SelfUids.Contains(item.Pid))
             {
                 await guard.AuditForbiddenAsync(fids[0], openid, "checkin.submit", ct);
                 rejected.Add(Reject(item, 1003, "只能记自己的药"));
@@ -118,7 +123,9 @@ public sealed class SnoozeHandler(IAppDbContext db, IMemberGuard guard, ConfigRe
                   ?? throw new ValidationException("这一条不存在");
 
         var m = await guard.AssertMemberAsync(log.FamilyId, openid, ct);
-        if (m.IsElder && !m.SelfUids.Contains(log.PatientId))
+        // 同 checkin.submit：权限判 role。IsElder 会把"自己也吃药的子女"当成纯服药人，
+        // 于是他连替爸妈延后提醒都做不到（能看到、能点，但每次都是 1003）。
+        if (m.Role == "elder" && !m.SelfUids.Contains(log.PatientId))
         {
             await guard.AuditForbiddenAsync(log.FamilyId, openid, "checkin.snooze", ct);
             throw new ForbiddenException();
