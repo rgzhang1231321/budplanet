@@ -159,12 +159,14 @@ public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock, ILogger<Fa
             // 结果是全家人的药名都发到他手机里（他再一打卡还会写进别人那条）。
             // 绑定落在同一次 SaveChanges（本方法末尾 166 行）里，与成员行一起提交：
             // BindSelfAsync 只做 db.Add / 改字段，不自己提交。
-            if (roleIntent == "patient") await BindSelfAsync(fid, uid, openid, member, ct);
+            if (roleIntent == "patient") await BindSelfAsync(fid, uid, openid, member, trustUid: true, ct);
         }
         else if (roleIntent == "patient")
         {
             // 只做"绑定 self"，不改角色。见本类 summary。绑定规则见 BindSelfAsync。
-            await BindSelfAsync(fid, uid, openid, member, ct);
+            // 这条路上 **uid 一律不认**（trustUid:false）：调用方是「我自己吃药」的 bindSelf，
+            // 旧前端在这里传的是 patients[0].uid（=爸爸），认了就把爸爸绑成"我"。
+            await BindSelfAsync(fid, uid, openid, member, trustUid: false, ct);
         }
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Openid == openid, ct);
@@ -178,48 +180,70 @@ public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock, ILogger<Fa
     }
 
     /// <summary>
-    /// 「我本人也吃药」的自绑。**只做两件事**：找"已经绑给我的那条"（幂等复用）→ 没有就新建「我」再绑。
+    /// 「我本人也是服药人」的自绑。三选一：
+    ///   ① 已经有一条绑给我的 → 复用（幂等）
+    ///   ② **首次加入**且邀请人点名了 uid、那条档案还没人绑 → 认领它（这才是"爸爸点邀请码进来看到自己的药"）
+    ///   ③ 其余情况 → 新建一条「我」
     ///
-    /// ⚠️ 本方法**刻意不看 uid**（参数保留：`family.join` 的 uid 是契约冻结入参，不删不改名）。
-    /// 为什么连"uid 有值就绑这一位"都不做：
-    ///   前端要审核 1–7 天，前后端不可能同一秒上线。窗口期内
-    ///   · 旧前端 + 新后端：旧前端仍在传 `uid = patients[0].uid`（=爸爸），若这里接受 uid，
-    ///     爸爸此时 self_openid 恰好是空的，"没被别人绑"这道校验形同虚设 → 又绑回爸爸；
-    ///   · 新前端 + 旧后端：旧后端的 `??` 兜底会抓最早创建的那位 → 同样绑回爸爸。
-    ///   两条路都会让客户今天这个事故原样复发。所以这条分支**根本不看 uid**：
-    ///   不管新前端传 undefined 还是旧前端传爸爸的 pid，结果都一样 —— 绑到自己的档案上，碰不到别人。
+    /// ⚠️ uid 只在 `trustUid=true`（首次加入）时才被采纳，这里的差别是**信息来源不同**：
+    ///   · 首次加入的 uid 来自邀请人生成邀请时的选择（`/pages/launch?…&uid=Pxxx`），
+    ///     语义是"我邀请的这位就是他"，可信；
+    ///   · 已在本家的 uid 来自前端 bindSelf，历史实现拼的是 `patients[0].uid`（=爸爸），
+    ///     语义是"随便挑一位"，**不可信** —— 认了就是 2026-11-02 事故复发（把爸爸绑成子女自己）。
+    ///   发版窗口期旧前端在邀请路径上**根本不传 uid**（launch 的 join 只发 fid/ivt/role），
+    ///   所以"新成员分支才开始认 uid"不会让旧客户端走进坑里。
     ///
-    /// 调用点有两个，都是 `roleIntent='patient'`：① `member is null`（受邀老人第一次加入，
-    /// 2026-11-02 补上——之前这里不绑，他 selfUids 为空就等于不过滤，服务端把全家药都下发）；
-    /// ② 已是成员（「我自己吃药」入口 / 前端 bindSelf 的第二次幂等调用）。两处都只认这一份规则。
+    /// 认领还多一道闸：只认 `self_openid` 为空的无主档案。已被人绑走的一律不抢 ——
+    /// 那说明邀请人选错了（比如把妈妈的档案发给了爸爸），此时宁可给他新建一条，
+    /// 也不动别人已经生效的绑定。
     ///
-    /// 历史事故回顾：老实现 uid 为空时用 `?? OrderBy(CreatedAt).FirstOrDefault()` 兜底，
-    /// 等于把"家里的爸爸"当成"我"。**任何形式的"挑一位来绑"都不许再写回来。**
+    /// 历史事故回顾：老实现在 uid 为空时用 `?? OrderBy(CreatedAt).FirstOrDefault()` 兜底，
+    /// 等于把"家里的爸爸"当成"我"。**任何形式的"没点名就挑一位来绑"都不许再写回来。**
     /// </summary>
-    private async Task BindSelfAsync(string fid, string? uid, string openid, FamilyMember member, CancellationToken ct)
+    /// <param name="trustUid">
+    /// **只在"首次加入"为 true**：邀请链接里的 uid 是邀请人明确点名"这位是他"，可以认领一条无主档案。
+    /// 已在本家（bindSelf / 「我自己吃药」）时必须是 false —— 那条路上的 uid 是旧前端按
+    /// `patients[0]` 拼出来的，认它就是 2026-11-02 事故复发。
+    /// </param>
+    private async Task BindSelfAsync(string fid, string? uid, string openid, FamilyMember member, bool trustUid, CancellationToken ct)
     {
         var target = await db.Patients.FirstOrDefaultAsync(
             p => p.FamilyId == fid && p.SelfOpenid == openid && p.Status == "active", ct);
 
         string outcome;
-        if (target is null)
+        if (target is not null)
         {
-            target = CreateSelfPatient(fid);
-            outcome = "created_new";
+            outcome = "bound_existing";
+        }
+        else if (trustUid && !string.IsNullOrWhiteSpace(uid))
+        {
+            // 受邀进入：认可邀请人点的那一位，但**只认领无主档案**（self_openid 为空）。
+            // 已经被别人绑走的不抢 —— 那说明邀请人选错了，宁可给他新建一条也不动别人的绑定。
+            var claimed = await db.Patients.FirstOrDefaultAsync(
+                p => p.FamilyId == fid && p.PatientId == uid && p.Status == "active", ct);
+            if (claimed is not null && string.IsNullOrEmpty(claimed.SelfOpenid))
+            {
+                target = claimed;
+                outcome = "claimed_invited";
+            }
+            else
+            {
+                target = CreateSelfPatient(fid);
+                outcome = "created_new_uid_taken";
+            }
         }
         else
         {
-            outcome = "bound_existing";
+            target = CreateSelfPatient(fid);
+            outcome = "created_new";
         }
 
         target.SelfOpenid = openid;
         member.SelfPatientId = target.PatientId;
 
-        // uid 只用于观测：发版窗口期能直接从日志看出"还有旧客户端在传 uid"。
-        // 只记"有没有传"，不记值 —— 旧客户端传的是别人的 pid，记进日志等于把别人档案写进日志。
         logger.LogInformation(
-            "family.join 自绑 outcome={Outcome} uid_ignored={UidProvided} openid={Openid} fid={Fid} patient={Pid}",
-            outcome, !string.IsNullOrWhiteSpace(uid), MaskOpenid(openid), fid, target.PatientId);
+            "family.join 自绑 outcome={Outcome} uid_used={UidUsed} openid={Openid} fid={Fid} patient={Pid}",
+            outcome, trustUid && outcome == "claimed_invited", MaskOpenid(openid), fid, target.PatientId);
     }
 
     /// <summary>

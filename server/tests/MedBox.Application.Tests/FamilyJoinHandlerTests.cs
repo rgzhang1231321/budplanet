@@ -168,40 +168,56 @@ public sealed class FamilyJoinHandlerTests
     }
 
     /// <summary>
-    /// ★ 本次修复的主用例（2026-11-02 事故的**老人端同形**缺口）：受邀老人第一次 join
-    /// （roleIntent='patient'）必须在**这一刻**就绑上自己的档案。
+    /// ★ 受邀老人第一次 join（roleIntent='patient'）必须在这一刻绑上自己的档案。
     /// 旧实现的新成员分支只写 family_members、从不碰 patients.self_openid，于是他这一趟
     /// 是「role=elder + selfUids 空」—— 服务端按 role 过滤时手上没有 pid 可用，
     /// 结果就是全家人的药名都下发到他手机上（旧断言甚至把这个缺口写成了"当前口径"）。
     ///
-    /// 同时钉住"不许挑一位来绑"：这里**故意传了爸爸的 pid**（旧前端就是这么传的），
-    /// 家里已有的那位服药人 self_openid 必须前后一字不变。
+    /// 2026-11-02 晚补：只"新建一条我"仍然不够 —— 子女通常**先建「爸爸」档案再加药**，
+    /// 新建出来的空「我」上什么药都没有，爸爸登录后看到的是空药单，家里还多一条重复档案。
+    /// 所以首次加入改成"认领邀请人点名的那条"（uid 来自邀请链接，可信）；见下面两条用例。
     /// </summary>
     [Fact]
-    public async Task 新成员首次带patient意图加入必须绑到自己的档案且不碰家里已有的服药人()
+    public async Task 新成员首次加入时认领邀请人点名的那条档案()
     {
         var family = FamilyWithToken(Token);
-        var dad = UnboundPatient();               // 爸爸：active、无自绑 = 事故现场那条
-        var before = dad.SelfOpenid;              // 改前值（null）
+        var dad = UnboundPatient();               // 子女先建好的「爸爸」档案：有主名字、还没人绑
         var (db, handler, info) = Build(family, null, user: null, dad);
 
+        // 邀请链接带给爸爸的 uid（/pages/launch?…&uid=P0000000001）
         var dto = await handler.HandleAsync(Fid, Token, "patient", dad.PatientId, Openid, info);
 
         // ① 成员行：受邀进来就是 elder —— 这是"新成员初始角色"，不是降级
         db.Received(1).Add(Arg.Is<FamilyMember>(m =>
             m.FamilyId == Fid && m.Openid == Openid && m.Role == "elder" && m.IsPatient));
-        // ② 自绑：新建一条「我」并把自己绑上去（与"我自己吃药"复用同一套规则）
-        db.Received(1).Add(Arg.Is<Patient>(p =>
-            p.FamilyId == Fid && p.Name == "我" && p.Status == "active" && p.SelfOpenid == Openid));
-        // ③ 爸爸一个字不动：不是"碰巧还是 null"，而是改前改后同值
-        dad.SelfOpenid.Should().Be(before);
-        dad.SelfOpenid.Should().NotBe(Openid);
-        // ④ family.info 出口：绑上了 → selfUid 有值、mode 由 selfUids 派生为 elder
-        dto.SelfUids.Should().HaveCount(1);
-        dto.SelfUid.Should().NotBeNullOrEmpty();
-        dto.SelfUid.Should().NotBe(dad.PatientId);
+        // ② **不新建**第二条档案：爸爸那条就是他本人，药还挂在上面，认领即可
+        db.DidNotReceive().Add(Arg.Is<Patient>(p => p.Name == "我"));
+        // ③ 认领落地：这条档案的 self_openid 就是他
+        dad.SelfOpenid.Should().Be(Openid);
+        dto.SelfUids.Should().ContainSingle().Which.Should().Be(dad.PatientId);
+        dto.SelfUid.Should().Be(dad.PatientId);
         dto.Mode.Should().Be("elder");
         dto.Role.Should().Be("elder");
+    }
+
+    /// <summary>
+    /// 认领的闸门：uid 指向的那条已经被别人绑走了（邀请人发错档案 / 妈妈的码发给了爸爸）。
+    /// 此时**绝不抢**，给他新建一条自己的；别人的绑定一个字不动。
+    /// </summary>
+    [Fact]
+    public async Task 新成员点名的那条已被别人绑走时不抢只新建()
+    {
+        var family = FamilyWithToken(Token);
+        var mom = UnboundPatient();
+        mom.SelfOpenid = "openid_mom";            // 已经被妈妈绑走
+        var (db, handler, info) = Build(family, null, user: null, mom);
+
+        var dto = await handler.HandleAsync(Fid, Token, "patient", mom.PatientId, Openid, info);
+
+        mom.SelfOpenid.Should().Be("openid_mom");                       // 别人的绑定不动
+        db.Received(1).Add(Arg.Is<Patient>(p => p.Name == "我" && p.SelfOpenid == Openid));
+        dto.SelfUid.Should().NotBe(mom.PatientId);
+        dto.SelfUids.Should().HaveCount(1);
     }
 
     // ── ⑥ 决策 6 的回归护栏：老成员再 join 不改角色，只绑 self ──
