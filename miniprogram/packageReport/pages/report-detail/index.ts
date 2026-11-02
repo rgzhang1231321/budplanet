@@ -58,6 +58,10 @@ Page({
       const start = week || d.weekStart || '';
       const missDates = (d.missList || []).map((m: any) => m.date);
 
+      // 「这是谁的药」只在家庭有 ≥2 位服药人时才说 —— 与历史页 / 周报**同源同形**，
+      // 三处各算各的会出现"周报写了爸爸、详细报告没写"的口径打架。
+      const needWho = s.family.patients.length >= 2;
+
       // P1-5：洞察全部从本周 missList 聚合，不新增接口。
       // 时段按 slot 分钟数分桶：<11:00 早 / 11:00-17:00 中 / ≥17:00 晚。
       const periodOf = (slot: number) => (slot < 11 * 60 ? '早' : slot < 17 * 60 ? '中' : '晚');
@@ -128,10 +132,12 @@ Page({
           week: weekdayOf(m.date),
           time: `${`${Math.floor(m.slot / 60)}`.padStart(2, '0')}:${`${m.slot % 60}`.padStart(2, '0')}`,
           name: m.medicine_name,
-          patient: m.patient,
+          patient: needWho ? m.patient : '',
           dose: m.dose_text,
-          // 患者名 + 剂量拼成一句：patient 为空时不会留下一个孤零零的「· 1片」
-          who: m.patient ? `${m.patient} · ${m.dose_text || ''}`.trim() : m.dose_text || '',
+          // 患者名 + 剂量拼成一句，**只拼非空的**：
+          // ② 家庭只有 1 位服药人时不说人名（说了是废话）；
+          // ⑤ 任一为空就只显示另一个 —— 原来的三元写法在 dose_text 为空时会留下半个「爸爸 ·」。
+          who: [needWho ? m.patient || '' : '', m.dose_text || ''].filter((x) => !!x).join(' · '),
         })),
         days: start
           ? Array.from({ length: 7 }, (_, i) => {

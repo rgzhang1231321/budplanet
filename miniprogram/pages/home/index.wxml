@@ -126,6 +126,15 @@
       <block wx:else>
         <view wx:if="{{loading}}" class="fresh">正在看看今天的药…</view>
 
+        <!-- 还没绑上自己的服药人：不能说"今天没有药"，老人会以为不用吃药 -->
+        <empty-state
+          wx:elif="{{elderNeedBind}}"
+          icon="user"
+          title="还没绑上你的服药人"
+          desc="让家人帮你绑一下"
+          actionText=""
+        ></empty-state>
+
         <empty-state
           wx:else
           icon="pill"

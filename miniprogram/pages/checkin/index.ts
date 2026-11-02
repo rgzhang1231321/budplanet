@@ -4,7 +4,7 @@
  * 铁律：pending 分支 0 广告 0 弹窗；点击即终态（不等网络）；老人端无返回箭头、无撤销。
  */
 import { bootstrap, refreshToday } from '../../store/user';
-import { get, isElder, isSelf, mode, on, visibleRows } from '../../store/index';
+import { get, isElder, mode, on, pureElderView, visibleRows } from '../../store/index';
 import { flushHeld, skip, snooze, take, undoTake } from '../../store/today';
 import { flush, dirtyToday } from '../../utils/queue';
 import { isAlwaysAccept, isMainSwitchOn } from '../../utils/subscribe';
@@ -17,6 +17,8 @@ Page({
   data: {
     elder: false,
     viewState: 'pending' as 'pending' | 'taken' | 'missed' | 'empty' | 'stale' | 'loading',
+    /** 纯服药人 + 还没绑上自己的服药人：空态说"让家人帮你绑一下"，不能说"今天还没有安排" */
+    needBind: false,
     list: [] as any[],
     folded: false,
     extra: 0,
@@ -104,17 +106,37 @@ Page({
     wx.stopPullDownRefresh();
   },
 
+  /**
+   * 行级编辑权限谓词：**纯服药人只能记自己的药，成员/管理员记全家的。**
+   *
+   * 必须和服务端 `checkin.submit` 的拒绝条件逐字对齐
+   * （`m.Role === 'elder' && !selfUids.Contains(pid)` → 1003「只能记自己的药」）。
+   * 以前这里用 `isSelf()`（= 我在这个家有没有自绑服药人）：
+   * 「子女自己也吃降压药，同时管全家」这类人 isSelf 恒为 true，于是页面上把爸妈的漏服行
+   * 也摆成"可补记"，点下去服务端一律 1003 —— 看得见、点不动，前端还没有一句提示解释。
+   * 判 role 不判"有没有自绑"：后者是渲染维度（mode），拿它当权限用就是 §4.1 那条老坑。
+   */
+  editableFilter(): (r: any) => boolean {
+    const pureElder = pureElderView();
+    const self = get().family.selfUids || [];
+    return (r: any) => !pureElder || self.indexOf(r.pid) >= 0;
+  },
+
   /** 选当前要打的卡：优先 pending（同分钟合并为批量），否则回看最近一条已服 */
   build() {
     const s = get();
     const rows = visibleRows();
+    const canEdit = this.editableFilter();
+    // 纯服药人但 selfUids 为空 → 服务端按 role 裁后只会给空药单（不再下发全家的药）。
+    // 这时的空态必须说"还没绑上"，说"今天还没有安排"会让老人以为真的不用吃药。
+    const needBind = pureElderView() && (s.family.selfUids || []).length === 0;
     if (!rows.length) {
       // 带了 ?dose= 却今天一条都没有：说明这条确实不在了（改计划会生成新 dose_id），
       // 仍然要说"这条已失效"，不能退化成"今天都记好了"让人以为记过了。
       // 数据还在路上时更不能下结论：空 rows + loading 一律先出加载态，
       // 否则首屏会闪一句"今天都记好了"，老人看到就真的不吃了。
       const viewState = this._doseId ? 'stale' : s.today.loading ? 'loading' : 'empty';
-      this.setData({ elder: isElder(), viewState, whoText: this.who() });
+      this.setData({ elder: isElder(), viewState, whoText: this.who(), needBind });
       return;
     }
     let list: any[] = [];
@@ -141,8 +163,8 @@ Page({
     if (!list.length) {
       // 漏服项仍可打卡：系统判 missed 但人确实吃了，是最高频的假阳性（契约允许 missed→taken）
       const pend = rows
-        // 判据是"本人就是服药人"，不是"开着大字版"。
-        .filter((r) => r.status === 'pending' || (isSelf() && r.status === 'missed' && !r.is_corrected))
+        // 判据见 editableFilter()：按 role，不按"我有没有自绑服药人"
+        .filter((r) => r.status === 'pending' || (canEdit(r) && r.status === 'missed' && !r.is_corrected))
         .sort((a, b) => a.slot - b.slot);
       if (pend.length) list = pend.filter((r) => r.slot === pend[0].slot);
       else {
@@ -264,9 +286,10 @@ Page({
   /* ── 打卡 ── */
   onTake() {
     if (this.data.viewState !== 'pending') return; // 只有待打卡视图能打卡（终态锁死防连点）
-    // 与 build() 同源：能不能记这一条的判据是"本人就是服药人"(isSelf)，不是"开着大字版"(elder)
+    // 与 build() 同源（editableFilter）：能不能记这一条判 role，不判"有没有自绑"、也不判大字版
+    const canEdit = this.editableFilter();
     const list = (this._pendingAll || []).filter(
-      (r: any) => r.status === 'pending' || (isSelf() && r.status === 'missed' && !r.is_corrected),
+      (r: any) => r.status === 'pending' || (canEdit(r) && r.status === 'missed' && !r.is_corrected),
     );
     if (!list.length) {
       wx.showToast({ title: '这条已经记过了，不用重复点', icon: 'none' });

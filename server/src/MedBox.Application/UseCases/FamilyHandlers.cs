@@ -152,6 +152,14 @@ public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock, ILogger<Fa
             };
             db.Add(member);
             family.MemberCount += 1;
+
+            // ★ 新成员这一次就必须把 self 绑上（2026-11-02 事故的老人端同形缺口）：
+            // 只写 family_members、不写 patients.self_openid 的话，这位老人这一趟就是
+            // "role=elder + selfUids 空"，服务端按 role 过滤时手上没有任何 pid 可用 ——
+            // 结果是全家人的药名都发到他手机里（他再一打卡还会写进别人那条）。
+            // 绑定落在同一次 SaveChanges（本方法末尾 166 行）里，与成员行一起提交：
+            // BindSelfAsync 只做 db.Add / 改字段，不自己提交。
+            if (roleIntent == "patient") await BindSelfAsync(fid, uid, openid, member, ct);
         }
         else if (roleIntent == "patient")
         {
@@ -181,8 +189,9 @@ public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock, ILogger<Fa
     ///   两条路都会让客户今天这个事故原样复发。所以这条分支**根本不看 uid**：
     ///   不管新前端传 undefined 还是旧前端传爸爸的 pid，结果都一样 —— 绑到自己的档案上，碰不到别人。
     ///
-    /// 忽略 uid 不会误伤合法场景：`roleIntent='patient'` 且"已是成员"这条分支，产品里只有
-    /// 「我自己吃药」一个入口；受邀老人走的是 `member is null` 的新成员分支，不经过这里。
+    /// 调用点有两个，都是 `roleIntent='patient'`：① `member is null`（受邀老人第一次加入，
+    /// 2026-11-02 补上——之前这里不绑，他 selfUids 为空就等于不过滤，服务端把全家药都下发）；
+    /// ② 已是成员（「我自己吃药」入口 / 前端 bindSelf 的第二次幂等调用）。两处都只认这一份规则。
     ///
     /// 历史事故回顾：老实现 uid 为空时用 `?? OrderBy(CreatedAt).FirstOrDefault()` 兜底，
     /// 等于把"家里的爸爸"当成"我"。**任何形式的"挑一位来绑"都不许再写回来。**

@@ -69,6 +69,11 @@
   color: var(--text-3);
   margin-left: var(--sp-2);
 }
+/* 与历史页 `hrow__who` 同一处修：大字版下人名 chip 收到 100rpx，把宽度让给药名。
+   （--fs-caption 在 .p-root.elder 下是 36rpx，160rpx 会吃掉"苯磺酸氨氯地平片"的一半） */
+.p-root.elder .miss-list__who {
+  max-width: 100rpx;
+}
 .miss-none {
   display: block;
   margin-top: var(--sp-2);

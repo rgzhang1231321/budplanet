@@ -33,9 +33,13 @@ public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMater
         await materializer.EnsureDayAsync(fid, date, ct);
 
         var q = db.DoseLogs.Where(d => d.FamilyId == fid && d.DueDate == date);
-        // role=elder 但一个 selfUid 都没有（还没被绑上服药人）时不过滤：否则他打开就是空药单，
-        // 与改动前行为一致，不制造新的"药单丢了"。
-        if (m.Role == "elder" && m.SelfUids.Length > 0) q = q.Where(d => m.SelfUids.Contains(d.PatientId));
+        // ★ 判据只看 role，不看"有没有 selfUid"：role=elder 就是被照护方，他手上没有 pid
+        // 时（selfUids 空）`Contains` 恒 false → 返回空药单，这是**正确的从严**。
+        // 旧写法带 `&& SelfUids.Length > 0` 是为了"别让老人看到空药单"，代价是 self 没绑上时
+        // 不过滤 → 全家药名下发到老人手机（2026-11-02 事故的老人端同形）。根因已在
+        // family.join 的新成员分支补上（进家即绑 self），所以这里不再留那个后门。
+        // 空药单的前端口径：老人端显示「还没绑上你的服药人，让家人帮你绑一下」，不说"没有药"。
+        if (m.Role == "elder") q = q.Where(d => m.SelfUids.Contains(d.PatientId));
 
         var rows = await q.OrderBy(d => d.Slot).ToListAsync(ct);
         var byPatient = rows.GroupBy(r => r.PatientId).ToDictionary(g => g.Key, g => g.OrderBy(x => x.Slot).ToList());
@@ -175,8 +179,8 @@ public sealed class WeekHandler(IAppDbContext db, IMemberGuard guard, DoseMateri
         await materializer.EnsureDaysAsync(fid, dates, ct);
 
         var q = db.DoseLogs.Where(x => x.FamilyId == fid && dates.Contains(x.DueDate));
-        // 同 TodayHandler：数据视角判 role，不判自绑（契约 §4.1）。见 TodayHandler summary。
-        if (m.Role == "elder" && m.SelfUids.Length > 0) q = q.Where(x => m.SelfUids.Contains(x.PatientId));
+        // 同 TodayHandler：数据视角判 role，不判自绑（契约 §4.1），空 selfUids 时返回空而不是放行。
+        if (m.Role == "elder") q = q.Where(x => m.SelfUids.Contains(x.PatientId));
         var rows = await q.ToListAsync(ct);
 
         // 分母 = 计划次数（不含人工改判行）；分子 = 自主完成

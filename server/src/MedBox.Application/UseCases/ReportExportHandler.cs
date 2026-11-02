@@ -29,7 +29,9 @@ public sealed class ReportExportHandler(IAppDbContext db, IMemberGuard guard, Do
         var q = db.DoseLogs.Where(x => x.FamilyId == fid && dates.Contains(x.DueDate));
         // 数据视角判 role（见 TodayHandler summary）：自绑的 admin 导出的报告也必须含全家人，
         // 否则"给医生看的近 30 天报告"里只剩他自己那几行。
-        if (m.Role == "elder" && m.SelfUids.Length > 0) q = q.Where(x => m.SelfUids.Contains(x.PatientId));
+        // 不再带 `&& SelfUids.Length > 0` 前提：role=elder 而 self 还没绑上时必须导出空报告，
+        // 而不是把全家人的记录导进他的手机（见 TodayHandler 同一处注释）。
+        if (m.Role == "elder") q = q.Where(x => m.SelfUids.Contains(x.PatientId));
         var rows = await q.ToListAsync(ct);
 
         var countable = rows.Where(x => !x.IsCorrected).ToList();

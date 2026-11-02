@@ -229,12 +229,17 @@ export function isElder(): boolean {
   return mode() === 'elder';
 }
 
-/** 纯服药人只看「我的今日」；admin/member 看全家。无绑定患者时退化为第一位（演示态） */
+/**
+ * 纯服药人只看「我的今日」；admin/member 看全家。
+ * ⛔ 不许再"没有自绑就退化成第一位服药人"（原来是 `patients.slice(0, 1)`）：
+ * 那是把"家里的第一位服药人"（多半是爸爸）当成"我"显示，2026-11-02 事故的前端同形。
+ * selfUids 为空 = 还没绑上自己的服药人 → 返回空数组，页面用空态说人话，不猜。
+ */
 export function visibleRows(): DoseRow[] {
   const rows = state.today.rows;
   if (seesWholeFamily()) return rows;
-  const self = state.family.selfUids.length ? state.family.selfUids : state.family.patients.slice(0, 1).map((p) => p.uid);
-  if (!self.length) return rows;
+  const self = state.family.selfUids;
+  if (!self.length) return [];
   return rows.filter((r) => self.indexOf(r.pid) >= 0);
 }
 

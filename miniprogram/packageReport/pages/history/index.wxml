@@ -23,11 +23,12 @@
       </view>
     </block>
 
+    <!-- 纯服药人还没绑上自己的服药人：空态要说"让家人帮你绑一下"，而不是"等着打卡" -->
     <empty-state
       wx:elif="{{!loading}}"
-      icon="chart"
-      title="还没有记录"
-      desc="等第一次打卡之后，这里会按天留下痕迹"
+      icon="{{needBind ? 'user' : 'chart'}}"
+      title="{{needBind ? '还没绑上你的服药人' : '还没有记录'}}"
+      desc="{{needBind ? '让家人帮你绑一下' : '等第一次打卡之后，这里会按天留下痕迹'}}"
     ></empty-state>
   </view>
 </view>

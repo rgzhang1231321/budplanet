@@ -163,8 +163,8 @@
   <!-- ── 今天确实没有排药（真空态；"都记好了"是另一件事，不能拿这句顶） ── -->
   <view wx:else class="ck">
     <view class="ck__empty">
-      <text class="ck__empty-t">今天还没有安排</text>
-      <text class="ck__empty-d">还没设今天的药和时间，设好之后到点会提醒</text>
+      <text class="ck__empty-t">{{needBind ? '还没绑上你的服药人' : '今天还没有安排'}}</text>
+      <text class="ck__empty-d">{{needBind ? '让家人帮你绑一下' : '还没设今天的药和时间，设好之后到点会提醒'}}</text>
     </view>
     <view class="ck__actions">
       <primary-button label="返回今日" bind:tap="goHome"></primary-button>

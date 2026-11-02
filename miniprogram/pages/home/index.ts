@@ -6,7 +6,7 @@
  *   · 能不能给自己补记这类权限 = isSelf()（有没有自绑服药人）
  */
 import { bootstrap, refreshToday, switchFamily } from '../../store/user';
-import { get, groups, isElder, on, overview, pureElderView, seesWholeFamily, visibleRows } from '../../store/index';
+import { get, groups, isElder, isSelf, on, overview, pureElderView, seesWholeFamily, visibleRows } from '../../store/index';
 import { correct, skip, take } from '../../store/today';
 import { dateCN, dayStartTs, humanDate, humanGap, diffMinutes, tsToTime } from '../../utils/time';
 import { statusBarHeight } from '../../utils/theme';
@@ -65,6 +65,8 @@ Page({
     recentText: '',
     hasPatients: true,
     hasRows: true,
+    /** 老人端 + 还没绑上自己的服药人：空态要说"让家人帮你绑一下"，不能说"今天没有药" */
+    elderNeedBind: false,
     /** 今日数据还在路上（rows 为空 + loading）：别抢在它到达前说"还没有添加药品" */
     loading: false,
     /** 能不能改记录：契约 §7.8 是 admin/member。role 管权限，mode 只管渲染，两者不要混用 */
@@ -177,6 +179,9 @@ Page({
       recentText: pureElderView() && rv && rv.at ? `${rv.alias}${relativeDay(rv.at)}看过` : '',
       hasPatients: s.family.patients.length > 0,
       hasRows: rows.length > 0,
+      // 纯服药人但一个 selfUid 都没有 = 服务端会返回空药单（不会再下发全家的药）。
+      // 这时空态必须说"还没绑上"，否则老人以为"今天真的不用吃药"。
+      elderNeedBind: pureElderView() && s.family.selfUids.length === 0,
       // 首屏：数据没到时 rows 也是空的，与"真的没排药"必须分开，否则老人会以为今天不用吃药
       loading: s.today.loading && rows.length === 0,
       // 契约 §7.8 + 后端 CheckinHandlers.cs:178 的 AssertMemberAsync(..., "admin", "member")：
@@ -210,9 +215,15 @@ Page({
 
   onRowTap(e: any) {
     const row = e.detail.row;
-    // 纯服药人（role=elder）直接进打卡页：他改不了记录，弹 ActionSheet 只会给一条错误路。
-    // admin/member 走改判菜单 —— 判 role，不判 mode（判 mode 会把"自己也吃药又管全家"的 admin 误送进打卡页）
-    if (pureElderView()) {
+    // ① 纯服药人（role=elder）直接进打卡页：他改不了记录，弹 ActionSheet 只会给一条错误路。
+    // ② 自己也吃药的子女（admin/member + 自绑）点**自己那一行**也进打卡页：
+    //    全项目只有打卡页有「延后 15 分钟」（pages/checkin 的 snooze），不进打卡页他就只能
+    //    干看着自己那条变成漏服，周报完成率被自己拉低。后端本来就放行 —— CheckinHandlers
+    //    允许 pid 落在本人 selfUids 里的 snooze/submit。
+    //    判 role 不判 mode 仍然成立：别人的行（不在 selfUids 里）照旧走代记菜单，
+    //    子女要"替爸爸延后"不是这个入口，也不该有。
+    const myUids = get().family.selfUids;
+    if (pureElderView() || (isSelf() && myUids.indexOf(row.pid) >= 0)) {
       navTo(`/pages/checkin/index?dose=${row.dose_id}`);
       return;
     }
@@ -264,12 +275,17 @@ Page({
           pick === '改为已服' || isProxy ? 'taken' : pick === '改为漏服' ? 'missed' : 'skipped';
         const p = get().family.patients.find((x) => x.uid === row.pid);
         const alias = (p && p.alias) || '家人';
+        // 自己那一行不能出现"代我记的"：这是给自己记，不是替别人记（"我"是服药人别名时会读成
+        // "代我记的"，语义正好反了）。
+        const mine = get().family.selfUids.indexOf(row.pid) >= 0;
         const label = to === 'taken' ? '已服' : to === 'missed' ? '漏服' : '跳过';
         wx.showModal({
-          title: isProxy ? '替他记一次？' : '确认修改',
+          title: isProxy ? (mine ? '记一次已服？' : '替他记一次？') : '确认修改',
           // 代记必须说清「这是替谁记的」：子女不能悄悄替老人刷完成率。
           content: isProxy
-            ? `把 ${row.due_time} 的 ${row.medicine_name} 记为「已服」？这是代 ${alias} 记的，会记入用药史。`
+            ? mine
+              ? `把 ${row.due_time} 的 ${row.medicine_name} 记为「已服」？这会记入你的用药史。`
+              : `把 ${row.due_time} 的 ${row.medicine_name} 记为「已服」？这是代 ${alias} 记的，会记入用药史。`
             : `把 ${row.due_time} 的 ${row.medicine_name} 改成「${label}」？这会记入用药史。`,
           confirmText: isProxy ? '确认已服' : '确认修改',
           success: async (m) => {

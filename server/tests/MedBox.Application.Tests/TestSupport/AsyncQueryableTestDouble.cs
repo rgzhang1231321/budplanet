@@ -24,8 +24,12 @@ namespace MedBox.Application.Tests.TestSupport;
 ///    只会求值**终结**表达式（ToList/FirstOrDefault/Count）。直接把中间表达式丢给它会抛
 ///    "Expression of type IEnumerable&lt;T&gt; cannot be used for return type IQueryable&lt;T&gt;"。
 ///    解法是套一层 <see cref="Enumerable.ToList{T}"/> 把它变成终结表达式。
+/// 5. 必须同时实现 <see cref="IOrderedQueryable{T}"/>（它只是标记接口，没有额外成员）：
+///    <c>Queryable.OrderBy</c> / <c>ThenBy</c> 会把 <c>Provider.CreateQuery</c> 的返回值直接强转成
+///    <c>IOrderedQueryable&lt;T&gt;</c>，不实现就在 `OrderBy(...)` 那一行抛 InvalidCastException ——
+///    而排序在这里已经由求值结果（List）保序，不需要额外做什么。
 /// </summary>
-internal sealed class TestAsyncQueryable<T> : IQueryable<T>, IAsyncEnumerable<T>
+internal sealed class TestAsyncQueryable<T> : IQueryable<T>, IOrderedQueryable<T>, IAsyncEnumerable<T>
 {
     private readonly IQueryable<T> _inner;
 

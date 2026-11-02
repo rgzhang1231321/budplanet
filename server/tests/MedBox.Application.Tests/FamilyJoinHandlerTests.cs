@@ -167,27 +167,41 @@ public sealed class FamilyJoinHandlerTests
         dto.Mode.Should().Be("guardian");
     }
 
-    /// <summary>受邀进来的老人第一次加入就该是 elder —— 这是"新成员初始角色"，不是降级。</summary>
+    /// <summary>
+    /// ★ 本次修复的主用例（2026-11-02 事故的**老人端同形**缺口）：受邀老人第一次 join
+    /// （roleIntent='patient'）必须在**这一刻**就绑上自己的档案。
+    /// 旧实现的新成员分支只写 family_members、从不碰 patients.self_openid，于是他这一趟
+    /// 是「role=elder + selfUids 空」—— 服务端按 role 过滤时手上没有 pid 可用，
+    /// 结果就是全家人的药名都下发到他手机上（旧断言甚至把这个缺口写成了"当前口径"）。
+    ///
+    /// 同时钉住"不许挑一位来绑"：这里**故意传了爸爸的 pid**（旧前端就是这么传的），
+    /// 家里已有的那位服药人 self_openid 必须前后一字不变。
+    /// </summary>
     [Fact]
-    public async Task 新成员roleIntent是patient时初始角色是elder()
+    public async Task 新成员首次带patient意图加入必须绑到自己的档案且不碰家里已有的服药人()
     {
         var family = FamilyWithToken(Token);
-        var (db, handler, info) = Build(family, null, user: null, UnboundPatient());
+        var dad = UnboundPatient();               // 爸爸：active、无自绑 = 事故现场那条
+        var before = dad.SelfOpenid;              // 改前值（null）
+        var (db, handler, info) = Build(family, null, user: null, dad);
 
-        var dto = await handler.HandleAsync(Fid, Token, "patient", PatientId, Openid, info);
+        var dto = await handler.HandleAsync(Fid, Token, "patient", dad.PatientId, Openid, info);
 
+        // ① 成员行：受邀进来就是 elder —— 这是"新成员初始角色"，不是降级
         db.Received(1).Add(Arg.Is<FamilyMember>(m =>
-            m.Role == "elder" &&
-            m.IsPatient == true));
+            m.FamilyId == Fid && m.Openid == Openid && m.Role == "elder" && m.IsPatient));
+        // ② 自绑：新建一条「我」并把自己绑上去（与"我自己吃药"复用同一套规则）
+        db.Received(1).Add(Arg.Is<Patient>(p =>
+            p.FamilyId == Fid && p.Name == "我" && p.Status == "active" && p.SelfOpenid == Openid));
+        // ③ 爸爸一个字不动：不是"碰巧还是 null"，而是改前改后同值
+        dad.SelfOpenid.Should().Be(before);
+        dad.SelfOpenid.Should().NotBe(Openid);
+        // ④ family.info 出口：绑上了 → selfUid 有值、mode 由 selfUids 派生为 elder
+        dto.SelfUids.Should().HaveCount(1);
+        dto.SelfUid.Should().NotBeNullOrEmpty();
+        dto.SelfUid.Should().NotBe(dad.PatientId);
+        dto.Mode.Should().Be("elder");
         dto.Role.Should().Be("elder");
-
-        // ⚠ 这里断言的是**当前实现**的口径，不是我认为它该有的样子：
-        // self_openid 的绑定只长在"老成员"分支上（else if roleIntent == "patient"），
-        // 新成员分支只建 family_members 行，不碰 patients.self_openid。
-        // 后果：一个受邀进来的老人第一次加入时 mode 仍是 guardian（看不到老人端主题），
-        // 要等他下一次带 uid 再 join 一次才会绑上。已在交付说明里记为待确认缺口，本轮不改生产代码。
-        dto.SelfUid.Should().BeNull();
-        dto.Mode.Should().Be("guardian");
     }
 
     // ── ⑥ 决策 6 的回归护栏：老成员再 join 不改角色，只绑 self ──

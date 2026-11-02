@@ -11,6 +11,8 @@ Page({
     isEmpty: false,
     /** 纯服药人视角（role=elder）才叫「我的记录」：只看自己的行，且不展示家庭汇总 */
     pureElder: false,
+    /** 纯服药人 + 还没有绑上自己的服药人：空态要说"让家人帮你绑"，不能说"还没有记录" */
+    needBind: false,
   },
 
   onLoad() {
@@ -30,11 +32,13 @@ Page({
     // 数据视角判 role（契约 §4.1）：admin/member 看全家，role=elder 只回放自己的行（family.selfUids）。
     // 不再用 mode 判 —— "自己也吃药又管全家"的 admin 会被自己的 mode 裁掉爸妈的记录。
     const pureElder = pureElderView();
-    const selfUids = s.family.selfUids.length
-      ? s.family.selfUids
-      : s.family.patients.slice(0, 1).map((p) => p.uid);
+    // ⛔ 不再用 `patients.slice(0, 1)` 兜底：没有自绑就是"还没绑上"，不是"第一位服药人就是我"
+    // （2026-11-02 事故的前端同形：把爸爸的记录显示成"我的"）。
+    const selfUids = s.family.selfUids;
     // 家庭有 ≥2 位服药人时每行标"这是谁的药"；只有 1 位就是废话，纯服药人也不显示（含自己）
     const needWho = !pureElder && s.family.patients.length >= 2;
+    // 空态分两种：真没记录 vs 还没绑上自己的服药人（后者要引导找人绑，不是"等着打卡"）
+    const needBind = pureElder && selfUids.length === 0;
     const aliasOf = (pid: string) => {
       const p = patientOf(pid);
       return (p && (p.alias || p.name)) || '';
@@ -66,6 +70,6 @@ Page({
         /* 单天失败跳过 */
       }
     }
-    this.setData({ groups, loading: false, isEmpty: groups.length === 0, pureElder });
+    this.setData({ groups, loading: false, isEmpty: groups.length === 0, pureElder, needBind });
   },
 });

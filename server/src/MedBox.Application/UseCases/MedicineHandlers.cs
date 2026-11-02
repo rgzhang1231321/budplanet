@@ -14,11 +14,22 @@ public sealed class MedicineListHandler(IAppDbContext db, IMemberGuard guard, IC
         var m = await guard.AssertMemberAsync(fid, openid, ct);
 
         var q = db.Medicines.Where(x => x.FamilyId == fid && x.Status == "active");
-        if (!string.IsNullOrEmpty(uid)) q = q.Where(x => x.PatientId == uid);
         // 纯服药人（role=elder）只拿自己的药，不是下发后前端隐藏。
         // 判 role 不判自绑：自绑的 admin 打开药品列表要能看到全家的药（数据视角按 role，见 TodayHandler summary）。
-        if (m.Role == "elder" && m.SelfUids.Length > 0 && string.IsNullOrEmpty(uid))
-            q = q.Where(x => m.SelfUids.Contains(x.PatientId));
+        if (m.Role == "elder")
+        {
+            // ★ 这里原来有个越权口子：`uid` 只要有值，elder 的过滤整段跳过 —— 老人端把别人的
+            // pid 传上来就能精确取到别人的药单（selfUids 那条过滤被 `&& string.IsNullOrEmpty(uid)`
+            // 一票否决）。现在 uid 只有落在**自己的** selfUids 里才被采纳，其余一律忽略。
+            // 忽略而不是抛 1005：发版窗口期旧前端还在按 patients[0] 传 uid，抛错会把它整页挡死。
+            // selfUids 为空时 Contains 恒 false → 返回空列表，与 today / week / 导出三处同口径。
+            if (!string.IsNullOrEmpty(uid) && m.SelfUids.Contains(uid)) q = q.Where(x => x.PatientId == uid);
+            else q = q.Where(x => m.SelfUids.Contains(x.PatientId));
+        }
+        else if (!string.IsNullOrEmpty(uid))
+        {
+            q = q.Where(x => x.PatientId == uid);
+        }
 
         var meds = await q.OrderBy(x => x.CreatedAt).ToListAsync(ct);
         var mids = meds.Select(x => x.MedicineId).ToList();

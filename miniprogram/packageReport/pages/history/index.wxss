@@ -72,6 +72,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 大字版（.p-root.elder）下人名 chip 收窄到 100rpx：--fs-caption 到了 36–40rpx，
+   160rpx 只够 4 个字，药名被挤得只剩半截（"苯磺酸氨氯地平片"必截断）。
+   普通版保持 160rpx 不动 —— 小字号下这个宽度正好放得下"爸爸/妈妈"这类两字别名。 */
+.p-root.elder .hrow__who {
+  max-width: 100rpx;
+}
 .hrow__dose {
   font-size: var(--fs-caption);
   color: var(--brand-600);

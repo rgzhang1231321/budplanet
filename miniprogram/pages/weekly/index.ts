@@ -17,6 +17,8 @@ Page({
     elder: false,
     /** 纯服药人视角（role=elder）：广告/激励视频一律不给看，详细报告入口也不给 */
     pureElder: false,
+    /** 家庭有 ≥2 位服药人才说"这是谁的药"（与历史页 / 详细报告同一判据） */
+    needWho: false,
     rangeText: '',
     rate: 0,
     delta: '',
@@ -61,6 +63,10 @@ Page({
       const today = dateCN();
       // 数据视角判 role（契约 §4.1）：纯服药人只看自己的药，且不显示"这是谁的药"
       const pureElder = pureElderView();
+      // 「这是谁的药」只在家庭有 ≥2 位服药人时才说，且纯服药人不显示别人信息。
+      // 判据与历史页 / 详细报告**同源同形**（needWho = !pureElder && patients.length >= 2）：
+      // 三处各算各的就会出现"周报写着爸爸、历史只写药名"这种对不上的口径。
+      const needWho = !pureElder && s.family.patients.length >= 2;
       const missDates = (d.missList || []).map((m: any) => m.date);
       const days = Array.from({ length: 7 }, (_, i) => {
         const date = addDays(ws, i);
@@ -74,6 +80,7 @@ Page({
       this.setData({
         elder: isElder(),
         pureElder,
+        needWho,
         week: ws,
         rangeText: `${shortDate(ws)} - ${shortDate(addDays(ws, 6))}`,
         rate: d.rate || 0,
@@ -85,7 +92,7 @@ Page({
           text: `${weekdayOf(m.date)} ${partOfDay(m.slot)} · ${m.medicine_name}`,
           dose: m.dose_text,
           // 家庭有 ≥2 位服药人时才需要说清"是谁的"；纯服药人不显示他人信息（也不显示自己的名字）
-          who: pureElder ? '' : m.patient || '',
+          who: needWho ? m.patient || '' : '',
         })),
         missCount: (d.missList || []).length,
         days,
