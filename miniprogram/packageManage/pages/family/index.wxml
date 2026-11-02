@@ -30,8 +30,23 @@
         <text class="ivt__act">点一下复制</text>
       </view>
 
+      <!-- 邀请谁：分享卡带上 uid，对方首次加入就认领这条档案。
+           只有一位服药人时自动选中（不打扰）；多位时必须点一位 —— 猜错等于把妈妈的档案发给爸爸。 -->
+      <view wx:if="{{inviteChips.length > 1}}" class="who">
+        <text class="who__t">这次邀请谁</text>
+        <view class="who__row">
+          <view
+            wx:for="{{inviteChips}}"
+            wx:key="uid"
+            class="who__chip {{item.uid === inviteUid ? 'who__chip--on' : ''}}"
+            data-uid="{{item.uid}}"
+            bindtap="onPickInvite"
+          >{{item.name}}</view>
+        </view>
+      </view>
+
       <!-- P2-3：微信里转发比复制自然，转发做主按钮、复制降为次级 -->
-      <button class="btn btn--primary share-main" open-type="share">转发给微信好友</button>
+      <button class="btn btn--primary share-main" open-type="share">转发给{{inviteName || '微信好友'}}</button>
 
       <view class="mt-3">
         <button class="btn btn--sub btn--full share-sub" bindtap="onCopyCode">复制邀请码</button>

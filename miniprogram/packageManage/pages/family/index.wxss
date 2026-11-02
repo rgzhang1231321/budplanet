@@ -233,3 +233,31 @@
   color: var(--text-3);
   margin-right: 4rpx;
 }
+
+/* ── 「这次邀请谁」：分享卡带 uid，对方首次加入认领这条档案 ── */
+.who {
+  margin-top: var(--sp-3);
+}
+.who__t {
+  font-size: var(--fs-caption);
+  color: #5c6b7a;
+}
+.who__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.who__chip {
+  padding: 10rpx 26rpx;
+  border-radius: var(--r-full);
+  background: var(--bg-card);
+  border: 1rpx solid var(--line);
+  font-size: var(--fs-body-s);
+  color: #5c6b7a;
+}
+.who__chip--on {
+  background: var(--brand-100);
+  border-color: var(--brand-500);
+  color: var(--brand-600);
+}

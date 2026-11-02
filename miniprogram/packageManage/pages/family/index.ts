@@ -42,6 +42,14 @@ Page({
     pendingInvite: false,
     pendingText: '',
     pendingResend: false,
+    /**
+     * 「这次邀请的是谁」——分享卡上带 `&uid=`，对方首次加入时服务端认领这条档案。
+     * 不带这个参数的话，爸爸点进来只会得到一条新建的空「我」，而药都挂在
+     * 子女先前建的「爸爸」那条上 —— 他看到的就是空药单，家里还多一条重复档案。
+     */
+    inviteChips: [] as any[],
+    inviteUid: '',
+    inviteName: '',
   },
 
   async onShow() {
@@ -61,6 +69,15 @@ Page({
     const inv = inviteState(s.family.fid);
     const stillPending = !!inv && s.family.members.length <= inv.memberCount;
     const waitedDays = inv ? Math.floor((Date.now() - inv.at) / 86400000) : 0;
+    const patients = s.family.patients || [];
+    const inviteChips = patients.map((p: any) => ({ uid: p.uid, name: p.alias || p.name || '家人' }));
+    // 点名规则：家里只有一位服药人 → 自动带（子女一秒都不用多花）；多位 → 不猜，让管理员点一下。
+    // "不猜"这条是硬约束：猜错就是把妈妈的档案发给爸爸，两条绑定全乱。
+    const picked = inviteChips.find((c: any) => c.uid === this.data.inviteUid) || (inviteChips.length === 1 ? inviteChips[0] : null);
+    const invitePath = (uid: string) =>
+      isAdmin && s.family.inviteToken
+        ? `/pages/launch/index?fid=${s.family.fid}&invite=${s.family.inviteToken}&role=patient${uid ? `&uid=${uid}` : ''}`
+        : '/pages/launch/index';
     this.setData({
       name: s.family.name || '我家',
       token: s.family.inviteToken,
@@ -69,14 +86,14 @@ Page({
       pendingText: waitedDays >= 2 ? `邀请已发出 ${waitedDays} 天，还没进来` : '邀请已发出，等家人加入',
       pendingResend: waitedDays >= 2,
       canLeave: s.family.members.length > 1,
+      inviteChips,
+      inviteUid: picked ? picked.uid : '',
+      inviteName: picked ? picked.name : '',
       // 非管理员没有邀请码（family.info 只对 admin 下发），拼出来的 `invite=` 是空串，
       // 落地页会当成"没有邀请"走普通欢迎页 —— 与其发一张假邀请卡，不如分享普通入口。
       // 带上 fid：落地页判"你已经在里面了"用的是 fid（比邀请码可靠）—— 邀请码只对
       // admin 下发，家里其它成员点开这张卡时手里没有码，只能靠 fid 认出"这就是我的家"。
-      path:
-        isAdmin && s.family.inviteToken
-          ? `/pages/launch/index?fid=${s.family.fid}&invite=${s.family.inviteToken}&role=patient`
-          : '/pages/launch/index',
+      path: invitePath(picked ? picked.uid : ''),
       // MISSED 的接收方是家庭管理员（子女），所以只给管理员看这一张卡；
       // 家里还没有服药人时不显示——"谁没吃药"这件事此刻还不存在。
       showMissedCta:
@@ -101,6 +118,24 @@ Page({
         };
       }),
     });
+  },
+
+  /**
+   * 「这次邀请的是谁」：家里有两位以上服药人时必须显式点一位。
+   * 分享卡上的 uid 决定对方首次加入时认领哪条档案 —— 猜错就是把妈妈的档案发给爸爸，
+   * 两条绑定一起乱（所以宁可不发，也不默认选中第一位）。
+   */
+  onPickInvite(e: any) {
+    const uid = e.currentTarget.dataset.uid || '';
+    if (!uid || uid === this.data.inviteUid) return;
+    const chip = (this.data.inviteChips || []).find((c: any) => c.uid === uid);
+    if (!chip) return;
+    const s = get();
+    const path = s.family.inviteToken
+      ? `/pages/launch/index?fid=${s.family.fid}&invite=${s.family.inviteToken}&role=patient&uid=${uid}`
+      : '/pages/launch/index';
+    this.setData({ inviteUid: uid, inviteName: chip.name, path });
+    report('invite_target_pick', {});
   },
 
   /** 复制邀请码（主邀请路径）：家人拿到码后在小程序首页「我有邀请码」里粘贴。

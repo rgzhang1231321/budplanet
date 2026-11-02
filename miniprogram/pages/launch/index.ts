@@ -28,7 +28,13 @@ Page({
     pending: '' as '' | 'join-patient' | 'join-guardian',
     /** 入口来源（搜一搜/扫码/分享卡/checkin/report）：免责类埋点的 from 只认它，不认 step */
     entryFrom: 'search',
-    invite: { fid: '', ivt: '' },
+    /**
+     * uid = 邀请人在家庭页点名的"这位是谁"（`?…&uid=Pxxx`）。
+     * 首次加入时服务端会**认领这条还没人绑的档案**，而不是新建一条空「我」——
+     * 否则子女先建「爸爸」加好药、再邀请他，爸爸登录后看到的是一条没有任何药的新档案。
+     * 手动输码没有这个信息，留空即可（服务端退化成新建）。
+     */
+    invite: { fid: '', ivt: '', uid: '' },
     familyName: '',
     joining: false,
   },
@@ -49,11 +55,12 @@ Page({
       // 只认 URL 带来的 fid：邀请指向哪个家，就展示哪个家。
       // 绝不拿 s.family（我自己当前所在的家）顶替 —— 那会让已在家的人看到"自己的家"被当成邀请。
       const fid = q.fid || '';
+      const uid = q.uid || '';
       const joined = this.alreadyJoined(fid, ivt);
       this.setData({
         step: joined ? 'joined' : 'invite',
         entryFrom: 'invite',
-        invite: { fid, ivt },
+        invite: { fid, ivt, uid },
         // 家名只知道自己的：邀请指向别人家时留空，页面用中性标题兜底，绝不拿自己的家名顶上
         familyName: joined ? s.family.name || '我家' : '',
       });
@@ -114,7 +121,7 @@ Page({
         }
         report('invite_code_manual', {});
         // fid 交给服务端按邀请码反查：拿到码的人本来就不该知道 fid
-        this.setData({ invite: { fid: '', ivt: code } });
+        this.setData({ invite: { fid: '', ivt: code, uid: '' } });
       },
     });
   },
@@ -171,6 +178,9 @@ Page({
           // 手动输码时 fid 为空，服务端按邀请码反查家庭
           fid: this.data.invite.fid,
           ivt: this.data.invite.ivt,
+          // 分享卡带来的「这位是谁」：只有首次加入时服务端才认它（认领那条还没人绑的档案），
+          // 已在家的人走 bindSelf 时同一个字段会被忽略 —— 那边认 uid 就会把爸爸绑成子女自己。
+          uid: this.data.invite.uid || undefined,
           role,
         });
         // 加入成功必须把当前家庭切过去：否则手动输码的人会被 loadFamily 带回"第一个家庭"
