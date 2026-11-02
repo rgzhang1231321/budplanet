@@ -15,6 +15,7 @@ public sealed class PatientController(
     PatientCreateHandler create,
     PatientUpdateHandler update,
     PatientArchiveHandler archive,
+    PatientSetModeHandler setMode,
     IMemberGuard guard) : ControllerBase
 {
     [HttpGet("list")]
@@ -32,4 +33,9 @@ public sealed class PatientController(
     [HttpPost("archive")]
     public async Task<ApiResponse> Archive([FromBody] PatientArchiveRequest req, CancellationToken ct)
         => ApiResponse.Ok(await archive.HandleAsync(req.Fid, User.OpenId(), req.Uid, ct));
+
+    /// <summary>子女给服药人设默认界面（v1.7）：normal / large。</summary>
+    [HttpPost("set_mode")]
+    public async Task<ApiResponse> SetMode([FromBody] PatientSetModeRequest req, CancellationToken ct)
+        => ApiResponse.Ok(await setMode.HandleAsync(req.Fid, User.OpenId(), req.Uid, req.Mode, ct));
 }

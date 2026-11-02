@@ -45,6 +45,7 @@ public sealed class FamilyInfoHandler(IAppDbContext db, IMemberGuard guard, IClo
                 Alias = p.Alias ?? p.Name,
                 Avatar = p.AvatarFileId,
                 SelfOpenid = p.SelfOpenid,
+                DisplayMode = p.DisplayMode,
             }).ToList(),
             // 邀请令牌只给 admin：reset_invite 是 admin 权限，令牌下发到 member/elder
             // 等于把"拉人进家"的能力发给了没有该权限的人

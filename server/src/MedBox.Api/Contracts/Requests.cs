@@ -45,6 +45,14 @@ public sealed class PatientUpdateRequest
     [JsonPropertyName("avatar")] public string? Avatar { get; set; }
 }
 
+/// <summary>patient.set_mode（v1.7）：子女给服药人设默认界面 normal/large。</summary>
+public sealed class PatientSetModeRequest
+{
+    [JsonPropertyName("fid")] public string Fid { get; set; } = "";
+    [JsonPropertyName("uid")] public string Uid { get; set; } = "";
+    [JsonPropertyName("mode")] public string Mode { get; set; } = "normal";
+}
+
 public sealed class PatientArchiveRequest
 {
     [JsonPropertyName("fid")] public string Fid { get; set; } = "";

@@ -281,6 +281,7 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
             e.Property(x => x.SelfOpenid).HasColumnName("self_openid").HasMaxLength(64);
             e.Property(x => x.ChronicTags).HasColumnName("chronic_tags").HasColumnType("text[]");
             e.Property(x => x.Status).HasColumnName("status").HasMaxLength(16);
+            e.Property(x => x.DisplayMode).HasColumnName("display_mode").HasMaxLength(8);
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
         });
 

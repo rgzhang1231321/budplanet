@@ -48,6 +48,8 @@ export interface Patient {
   alias: string;
   avatar?: string;
   selfOpenid?: string | null;
+  /** 默认界面 normal/large（v1.7）；子女可远程设，老人本机手动切换优先 */
+  display_mode?: string;
 }
 
 export interface Member {

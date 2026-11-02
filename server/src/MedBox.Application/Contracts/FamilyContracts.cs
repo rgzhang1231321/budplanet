@@ -35,6 +35,8 @@ public sealed class PatientDto
     [JsonPropertyName("alias")] public string Alias { get; set; } = "";
     [JsonPropertyName("avatar")] public string? Avatar { get; set; }
     [JsonPropertyName("selfOpenid")] public string? SelfOpenid { get; set; }
+    /// <summary>默认界面 normal / large（v1.7）。子女可远程设，老人本机手动切换优先。</summary>
+    [JsonPropertyName("display_mode")] public string DisplayMode { get; set; } = "normal";
 }
 
 public sealed class FamilyListResult

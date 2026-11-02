@@ -81,16 +81,25 @@ Page({
       // 家里还没有服药人时不显示——"谁没吃药"这件事此刻还不存在。
       showMissedCta:
         !this.data.missedLater && isAdmin && (quota.MISSED || 0) <= 0 && (s.family.patients || []).length > 0,
-      members: s.family.members.map((m) => ({
-        openid: m.openid,
-        nick: m.nick,
-        initial: (m.nick || '家').slice(0, 1),
-        role: m.role,
-        roleText: roleMap[m.role] || '成员',
-        isMe: m.openid === s.user.openid,
-        // 只有管理员能改别人的角色；自己那行不给入口（自降会被后端拦，不如别让点了再报错）
-        canManage: isAdmin && m.openid !== s.user.openid,
-      })),
+      members: s.family.members.map((m) => {
+        // 该成员若是「服药人」，找绑定到他的 patient，带上大字版开关状态
+        const bound = (s.family.patients || []).find((p) => p.selfOpenid && p.selfOpenid === m.openid);
+        return {
+          openid: m.openid,
+          nick: m.nick,
+          initial: (m.nick || '家').slice(0, 1),
+          role: m.role,
+          roleText: roleMap[m.role] || '成员',
+          isMe: m.openid === s.user.openid,
+          // 只有管理员能改别人的角色；自己那行不给入口（自降会被后端拦，不如别让点了再报错）
+          canManage: isAdmin && m.openid !== s.user.openid,
+          // v1.7：服药人可设「大字版」默认；只有管理员能改
+          isPatient: m.role === 'elder',
+          patientUid: bound ? bound.uid : '',
+          largeMode: !!bound && bound.display_mode === 'large',
+          canSetMode: isAdmin && !!bound && m.openid !== s.user.openid,
+        };
+      }),
     });
   },
 
@@ -119,6 +128,25 @@ Page({
   onResend() {
     this.onCopyCode();
   },
+
+  /** v1.7：子女给服药人开/关大字版默认（老人本机手动切换优先，这里只改默认值） */  async onToggleLarge(e: any) {
+    const uid = e.currentTarget.dataset.uid;
+    const checked = !!e.detail.value;
+    if (!uid) return;
+    const s = get();
+    try {
+      await call('patient', 'set_mode', { fid: s.family.fid, uid, mode: checked ? 'large' : 'normal' });
+      await loadFamily();
+      this.render();
+      wx.showToast({ title: checked ? '已设为大字版' : '已设为普通版', icon: 'none' });
+    } catch (err: any) {
+      wx.showToast({ title: (err && err.msg) || '设置失败，稍后再试', icon: 'none' });
+      this.render(); // 回滚开关
+    }
+  },
+
+  /** 开关点击不要冒泡到行上的角色菜单 */
+  noop() {},
 
   onReset() {
     if (!this.data.isAdmin) return;

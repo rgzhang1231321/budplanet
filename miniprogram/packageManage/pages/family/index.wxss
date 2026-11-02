@@ -220,3 +220,16 @@
   color: var(--brand-600);
   font-weight: 600;
 }
+
+/* ── v1.7 服药人「大字版」开关 ── */
+.member-mode {
+  display: flex;
+  align-items: center;
+  flex: none;
+  margin-left: var(--sp-2);
+}
+.member-mode__label {
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  margin-right: 4rpx;
+}

@@ -11,5 +11,7 @@ public class Patient
     public string? SelfOpenid { get; set; }
     public string[] ChronicTags { get; set; } = [];
     public string Status { get; set; } = "active";
+    /// <summary>默认界面：normal / large。子女可远程设，老人本机手动切换优先。</summary>
+    public string DisplayMode { get; set; } = "normal";
     public long CreatedAt { get; set; }
 }

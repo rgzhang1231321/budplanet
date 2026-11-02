@@ -187,10 +187,15 @@ export function loadCachedToday() {
 /* ── selectors（两页必须同源，禁止各算各的） ── */
 
 /** 生效模式：mode 管渲染、role 管权限，二者解耦。
- *  默认恒为普通版 —— 大字版只来自用户手动切换（modeOverride），
- *  不再因为"我是服药人"就自动变大字（服务端 family.mode 只表示身份，不决定字号）。 */
+ *  优先级：本机手动切换（modeOverride）> 子女给"我这位服药人"设的默认（patient.display_mode）> 普通版。
+ *  子女/成员（family.mode !== 'elder'）不继承任何服药人的默认字号，否则会被爸妈的 large 带跑。 */
 export function mode(): Mode {
-  return state.user.modeOverride || 'guardian';
+  if (state.user.modeOverride) return state.user.modeOverride;
+  if (state.family.mode === 'elder') {
+    const self = state.family.patients.find((p) => state.family.selfUids.indexOf(p.uid) >= 0);
+    if (self && self.display_mode === 'large') return 'elder';
+  }
+  return 'guardian';
 }
 
 /** 我本人就是这个家的服药人（服务端按 self_openid 派生）。决定数据视角，与字号无关。 */

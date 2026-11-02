@@ -86,6 +86,7 @@ public static class DependencyInjection
         services.AddScoped<PatientCreateHandler>();
         services.AddScoped<PatientUpdateHandler>();
         services.AddScoped<PatientArchiveHandler>();
+        services.AddScoped<PatientSetModeHandler>();
         services.AddScoped<MedicineListHandler>();
         services.AddScoped<CommonMedsHandler>();
         services.AddScoped<MedicineSuggestHandler>();

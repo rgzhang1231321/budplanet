@@ -58,6 +58,7 @@ interface MockPatient {
   name: string;
   alias: string;
   self_openid: string | null;
+  display_mode?: string;
 }
 interface MockMedicine {
   mid: string;
@@ -167,8 +168,8 @@ function seed(): MockDB {
       { fid, openid: 'mock_mom', nick: '妈妈', role: 'elder' },
     ],
     patients: [
-      { uid: 'P001', fid, name: '爸爸', alias: '爸爸', self_openid: null },
-      { uid: 'P002', fid, name: '妈妈', alias: '妈妈', self_openid: null },
+      { uid: 'P001', fid, name: '爸爸', alias: '爸爸', self_openid: null, display_mode: 'normal' },
+      { uid: 'P002', fid, name: '妈妈', alias: '妈妈', self_openid: null, display_mode: 'normal' },
     ],
     medicines: [
       { mid: 'M101', fid, uid: 'P001', name: '苯磺酸氨氯地平片', spec: '5mg×7片', default_dose: '1片', note: '早饭后', active: true },
@@ -334,7 +335,7 @@ function familyInfo(fid?: string): FamilyInfo {
       .map((m) => ({ openid: m.openid, nick: m.nick, role: m.role as any })),
     patients: d.patients
       .filter((p) => p.fid === f.fid)
-      .map((p) => ({ uid: p.uid, name: p.name, alias: p.alias, selfOpenid: p.self_openid })),
+      .map((p) => ({ uid: p.uid, name: p.name, alias: p.alias, selfOpenid: p.self_openid, display_mode: p.display_mode || 'normal' })),
     // 与真后端同步：invite_token 只给 admin（reset_invite 是 admin 权限，
     // 把码下发给 member/elder 等于把"拉人进家"的能力给了没有该权限的人）
     invite_token: myRole === 'admin' ? f.invite_token : '',
@@ -487,6 +488,13 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
       x.alias = p.alias || p.name;
       save();
       return ok({ uid: x.uid });
+    }
+    case 'patient.set_mode': {
+      const x = d.patients.find((i) => i.uid === p.uid);
+      if (!x) return err(1005, '服药人不存在');
+      x.display_mode = p.mode === 'large' ? 'large' : 'normal';
+      save();
+      return ok({ uid: x.uid, display_mode: x.display_mode });
     }
     case 'patient.archive': {
       const i = d.patients.findIndex((x) => x.uid === p.uid);

@@ -54,7 +54,18 @@
       >
         <view class="avatar">{{item.initial}}</view>
         <text class="list__label">{{item.nick}}{{item.isMe ? '（我）' : ''}}</text>
-        <text class="list__value">{{item.roleText}}</text>
+        <!-- v1.7：服药人可由管理员设默认大字版；老人本机手动切换优先 -->
+        <view wx:if="{{item.isPatient && item.canSetMode}}" class="member-mode">
+          <text class="member-mode__label">大字版</text>
+          <switch
+            checked="{{item.largeMode}}"
+            color="#2E6BE6"
+            bindchange="onToggleLarge"
+            catchtap="noop"
+            data-uid="{{item.patientUid}}"
+          />
+        </view>
+        <text wx:else class="list__value">{{item.roleText}}</text>
         <view wx:if="{{item.canManage}}" class="i i-chevron"></view>
       </view>
     </view>

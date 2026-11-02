@@ -22,6 +22,7 @@ public sealed class PatientListHandler(IAppDbContext db, IClock clock)
                 Alias = p.Alias ?? p.Name,
                 Avatar = p.AvatarFileId,
                 SelfOpenid = p.SelfOpenid,
+                DisplayMode = p.DisplayMode,
             }).ToList(),
             server_ts = clock.NowMs,
         };
@@ -54,8 +55,7 @@ public sealed class PatientCreateHandler(IAppDbContext db, IMemberGuard guard, C
     }
 }
 
-public sealed class PatientUpdateHandler(IAppDbContext db, IMemberGuard guard, ContentSecurityChecker security)
-{
+public sealed class PatientUpdateHandler(IAppDbContext db, IMemberGuard guard, ContentSecurityChecker security){
     public async Task<object> HandleAsync(string fid, string openid, string uid, string name, string? alias, string? avatar, CancellationToken ct = default)
     {
         await guard.AssertMemberAsync(fid, openid, ct, "admin", "member");
@@ -104,5 +104,25 @@ public sealed class PatientArchiveHandler(IAppDbContext db, IMemberGuard guard, 
 
         await db.SaveChangesAsync(ct);
         return new { ok = true };
+    }
+}
+
+/// <summary>
+/// patient.set_mode（v1.7）：子女给「服药人」设默认界面（普通/大字）。
+/// 老人本机手动切换（modeOverride）优先，这里只改"没手动切过"时的默认值。
+/// </summary>
+public sealed class PatientSetModeHandler(IAppDbContext db, IMemberGuard guard)
+{
+    public async Task<object> HandleAsync(string fid, string openid, string uid, string mode, CancellationToken ct = default)
+    {
+        await guard.AssertMemberAsync(fid, openid, ct, "admin", "member");
+        var m = (mode ?? "").Trim().ToLowerInvariant();
+        if (m != "normal" && m != "large") throw new ValidationException("mode 只能是 normal 或 large");
+        var p = await db.Patients.FirstOrDefaultAsync(
+                    x => x.FamilyId == fid && x.PatientId == uid && x.Status == "active", ct)
+                ?? throw new ValidationException("服药人不存在");
+        p.DisplayMode = m;
+        await db.SaveChangesAsync(ct);
+        return new { uid = p.PatientId, display_mode = p.DisplayMode };
     }
 }
