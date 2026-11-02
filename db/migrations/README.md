@@ -29,7 +29,26 @@ ls db/migrations/V*.sql | sed -E 's/.*V([0-9]{3}).*/\1/' | sort -n | tail -1
 # 下一个 = 上面结果 + 1，零填充 3 位
 ```
 
-**本目录当前进度**：`V001` → `V002` → `V003`（首个基线三件套）。**下一个可用版本固定为 `V004`**，任何人不得跳到 `V010` / `V100`。
+**本目录当前进度**：`V001` → … → `V012`（见下表）。**下一个可用版本 = `V013`**，任何人不得跳号。
+
+> 2026-11-02 校正：这行此前一直写"当前进度 V001→V003，下一个是 V004"——V004–V012 应用时都没回来更新它。
+> 一个指向旧版本号的 README 比没有更危险：它会让人以为 `V004` 还空着，而执行器其实会拒绝重号。
+> **每次新增迁移脚本，顺手把这行和下表改掉。**
+
+| 版本 | 文件 | 干了什么 |
+|---|---|---|
+| V001 | `V001__baseline_schema.sql` | 19 张业务表（0 外键）+ `schema_migrations` 账本 |
+| V002 | `V002__performance_indexes.sql` | 26 条 `CREATE INDEX`（以脚本实际条数为准，不是文档里的 48） |
+| V003 | `V003__seed_config_and_common_meds.sql` | `app_config` 种子 + 6 个常用药 |
+| V004 | `V004__set_subscribe_template_ids.sql` | 三套订阅消息模板 ID 写入 `app_config` |
+| V005 | `V005__create_app_logs.sql` | 客户端/服务端日志表 `app_logs` |
+| V006 | `V006__fix_app_logs_created_at.sql` | 删 `app_logs.created_at`（时间口径统一走 `ts_ms`） |
+| V007 | `V007__ads_off_by_default.sql` | 广告默认关（`config.adOn=false`），上线前远端开 |
+| V008 | `V008__medicine_usage_stats.sql` | 全平台药名引用计数 `medicine_usage_stats`（只存药名+计数，不存任何家庭维度） |
+| V009 | `V009__plan_pause_until.sql` | `plans.pause_until` + 暂停索引（暂停用药，到期自动恢复） |
+| V010 | `V010__patient_display_mode.sql` | `patients.display_mode`（normal/large，子女给服药人设默认大字版） |
+| V011 | `V011__backfill_family_invite_token.sql` | 回填存量家庭 `invite_token`（PL/pgSQL 逐行 + 撞号重试 + 零残留自检） |
+| V012 | `V012__dose_logs_week_key_index_and_backfill.sql` | `ix_dose_logs_week_key` 部分索引 + 按 `due_date` 同源推导回填 `week_key` |
 
 ## 三、执行账本 `schema_migrations`
 
@@ -63,8 +82,9 @@ docker exec -i tigerrag-postgres-1 psql -U tigerrag -d medbox < db/migrations/V0
 
 ## 五、与 TDD 的关系
 
-- **单元测试**：不连真实库，用 EF Core InMemory / 仓储 mock（见 `docs/后端技术方案.md`）。
-- **集成测试**：Testcontainers 起一次性 `postgres:18-alpine` 容器 → 执行器按序跑本目录全部脚本 → 断言 schema 与约束 → 测试结束容器销毁。**测试库与 `medbox`/`ragdb` 完全隔离**。
+- **单元测试**：不连真实库，mock `IAppDbContext` / `IWxApiClient` / `IClock`（见 `AGENTS.md` §9）。
+  **不用 EF Core InMemory** —— 它不过真实 CHECK 约束与 `ON CONFLICT`，四态迁移与幂等这两类最要紧的规则它一个都测不到。
+- **集成测试**：Testcontainers 起一次性 `postgres:18-alpine` 容器 → 按序执行本目录全部 `V*.sql` → 断言 schema 与约束 → 测试结束容器销毁。**测试库与 `medbox`/`ragdb` 完全隔离**。
 - 生产/本地开发库 `medbox` 的 schema，永远等于"本目录脚本从头跑到尾"的结果，**不靠 EF 自动建、不靠手工点点点**。
 
 ## 六、时间戳约定（沿用契约冻结表，不改）
