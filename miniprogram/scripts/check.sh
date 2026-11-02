@@ -28,7 +28,17 @@ fi
 
 # ── CI-3 showModal 的 confirmText 不得超过 4 个字 ──
 # 微信限制 4 字，超了整个弹窗静默 fail——点了没反应，最难排查。
-OUT=$(grep -rEo "confirmText: '[^']{5,}'" --include="*.ts" $DIRS 2>/dev/null)
+#
+# 必须按**字符数**数，不能按字节数：grep 在 C locale（LANG 为空时 Windows Git Bash 的默认）
+# 下 `[^']{5,}` 按字节匹配，两个汉字 = 6 字节就直接命中，于是 '加入'/'删除' 这种 2 字按钮
+# 全仓误报——检查一直在红，就再也没人看它，真正超限的那天也会被当成噪音划掉。
+# 做法与 locale 无关：先把每个完整 UTF-8 序列折叠成一个 X，折叠后的长度就是字符数。
+OUT=$(grep -rEo "confirmText: '[^']*'" --include="*.ts" $DIRS 2>/dev/null | while IFS= read -r line; do
+  txt="${line#*confirmText: \'}"
+  txt="${txt%\'}"
+  folded=$(printf '%s' "$txt" | sed 's/[\xc0-\xff][\x80-\xbf]*/X/g')
+  if [ "${#folded}" -gt 4 ]; then echo "$line（${#folded} 字）"; fi
+done)
 if [ -n "$OUT" ]; then
   echo "[CI-3] confirmText 超过 4 字（弹窗会静默失败）："
   echo "$OUT"
