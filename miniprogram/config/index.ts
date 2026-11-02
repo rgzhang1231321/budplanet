@@ -129,14 +129,10 @@ export const APP_VERSION = "1.0.0";
 export const CACHE_VERSION = "v1";
 
 /**
- * ⚠️ 上线前必须替换：客服邮箱（客户尚未提供真实邮箱，此处留空）。
- *
- * 为什么留空不写 support@example.com：example.com 是假地址，用户点了复制、发出去的邮件
- * 永远没有回音，比"没有邮箱"更糟（隐私政策 §八 要求联系邮箱是法定必备要素）。
- * 留空时「关于」页只显示微信客服会话入口（button open-type="contact"，不需要邮箱）。
- * 客户给出真实邮箱后填进来，页面会自动多出一行「客服邮箱 + 复制」。
+ * 客服邮箱（2026-11-02 客户提供，已落位）。留空时「关于」页只显示微信客服会话入口；
+ * 填了之后页面会自动多出一行「客服邮箱 + 复制」。隐私政策 §七 联系方式与它保持一致。
  */
-export const SUPPORT_EMAIL = "";
+export const SUPPORT_EMAIL = "1135909556@qq.com";
 
 // 打卡单批上限（契约：超限 1005）
 export const SUBMIT_BATCH_MAX = 8;
