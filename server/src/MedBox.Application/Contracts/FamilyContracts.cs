@@ -26,6 +26,13 @@ public sealed class MemberDto
     [JsonPropertyName("openid")] public string Openid { get; set; } = "";
     [JsonPropertyName("nick")] public string Nick { get; set; } = "";
     [JsonPropertyName("role")] public string Role { get; set; } = "member";
+    /// <summary>
+    /// 家内称呼（v1.9，管理员可改；空则前端回落到 nick）。
+    /// 为什么需要它：小程序早已拿不到微信昵称（getUserProfile 已回收），family.info 里的 nick
+    /// 对绝大多数成员都是 "家人" —— 邀请进来三四个人，管理员在列表里看到四个"家人"，分不清谁是谁。
+    /// 称呼是**这个家里**的叫法（爸爸/姐姐/二叔），与全局昵称无关，所以存在 family_members 上。
+    /// </summary>
+    [JsonPropertyName("label")] public string? Label { get; set; }
 }
 
 public sealed class PatientDto

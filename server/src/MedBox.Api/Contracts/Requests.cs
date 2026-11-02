@@ -79,6 +79,22 @@ public sealed class FamilyFidRequest
     [JsonPropertyName("fid")] public string Fid { get; set; } = "";
 }
 
+/// <summary>family.set_member_name：管理员给家人起家内称呼（label 传空串 = 清掉，回落微信昵称）。</summary>
+public sealed class FamilySetMemberNameRequest
+{
+    [JsonPropertyName("fid")] public string Fid { get; set; } = "";
+    [JsonPropertyName("openid")] public string Openid { get; set; } = "";
+    [JsonPropertyName("label")] public string? Label { get; set; }
+}
+
+/// <summary>family.bind_member：管理员手动绑定「家人 ↔ 服药档案」；uid 传空串 = 解绑。</summary>
+public sealed class FamilyBindMemberRequest
+{
+    [JsonPropertyName("fid")] public string Fid { get; set; } = "";
+    [JsonPropertyName("openid")] public string Openid { get; set; } = "";
+    [JsonPropertyName("uid")] public string? Uid { get; set; }
+}
+
 public sealed class PlanFinishRequest
 {
     [JsonPropertyName("planId")] public string PlanId { get; set; } = "";

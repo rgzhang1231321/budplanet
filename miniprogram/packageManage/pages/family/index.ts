@@ -115,18 +115,28 @@ Page({
       members: s.family.members.map((m) => {
         // 该成员若是「服药人」，找绑定到他的 patient，带上大字版开关状态
         const bound = (s.family.patients || []).find((p) => p.selfOpenid && p.selfOpenid === m.openid);
+        // 家内称呼优先：小程序拿不到微信昵称，`nick` 对绝大多数成员都是"家人"
+        const displayName = (m as any).label || m.nick || '家人';
+        // 副信息必须说清"他是谁 + 他负责哪条药单"，否则一堆「家人」还是分不出来
+        const parts = [roleMap[m.role] || '成员'];
+        if (bound) parts.push(`药单：${bound.alias || bound.name || '未命名'}`);
         return {
           openid: m.openid,
           nick: m.nick,
-          initial: (m.nick || '家').slice(0, 1),
+          label: (m as any).label || '',
+          displayName,
+          initial: displayName.slice(0, 1),
+          subText: parts.join(' · '),
           role: m.role,
           roleText: roleMap[m.role] || '成员',
           isMe: m.openid === s.user.openid,
-          // 只有管理员能改别人的角色；自己那行不给入口（自降会被后端拦，不如别让点了再报错）
-          canManage: isAdmin && m.openid !== s.user.openid,
+          // 改称呼 / 绑定服药人是管理员的事；自己那行也能改（给自己起个"小明"）
+          canManage: isAdmin,
           // v1.7：服药人可设「大字版」默认；只有管理员能改
           isPatient: m.role === 'elder',
           patientUid: bound ? bound.uid : '',
+          boundUid: bound ? bound.uid : '',
+          boundName: bound ? bound.alias || bound.name || '未命名' : '',
           largeMode: !!bound && bound.display_mode === 'large',
           canSetMode: isAdmin && !!bound && m.openid !== s.user.openid,
         };
@@ -262,17 +272,167 @@ Page({
     this.setData({ showMissedCta: false, missedLater: true });
   },
 
-  /** 管理员点别人那行 → 调角色。只做「管理员 / 成员」两档：
-   *  elder 是"加入时选了我要自己吃药"的产物，不该在这里手动来回切 —— 切了会和他绑没绑服药人对不上。
-   *  用 showModal 而不是 showActionSheet：只有一个选项时 ActionSheet 太重，而且这里必须说清"改了会怎样"。 */
+  /**
+   * 管理员点成员那行 → 先选要做什么。
+   * 三件事挤在一个 modal 里说不清，所以用原生 ActionSheet 分派：
+   *   ① 改称呼（家庭成员分不清谁是谁的直接解法）
+   *   ② 绑定服药人（把"这个人"和"这条药单"对起来，也是绑错后的救济口）
+   *   ③ 管理员权限（原有能力，只对别人开放 —— 自降会被后端拦，不如别让点了再报错）
+   */
   onMemberTap(e: any) {
     const openid = e.currentTarget.dataset.openid;
-    const m = this.data.members.find((x: any) => x.openid === openid);
-    if (!m || !m.canManage) return;
+    const m = (this.data.members as any[]).find((x: any) => x.openid === openid);
+    if (!m || !this.data.isAdmin) return;
+
+    const actions: string[] = ['改称呼', m.boundUid ? '改绑服药人' : '绑定服药人'];
+    if (!m.isMe) actions.push(m.role === 'admin' ? '取消管理员' : '设为管理员');
+
+    wx.showActionSheet({
+      itemList: actions,
+      success: (r) => {
+        if (r.tapIndex === 0) this.onRenameMember(m);
+        else if (r.tapIndex === 1) this.onBindMember(m);
+        else this.onSetRole(m);
+      },
+    });
+  },
+
+  /** 改称呼：原生可输入弹窗，一个框足够，别再叠一层自绘对话框 */
+  onRenameMember(m: any) {
+    wx.showModal({
+      title: `怎么称呼${m.isMe ? '你自己' : ' TA'}`,
+      editable: true,
+      placeholderText: '比如：爸爸、姐姐、二叔',
+      content: m.label || '',
+      confirmText: '保存',
+      success: async (r) => {
+        if (!r.confirm) return;
+        const label = (r.content || '').trim();
+        if (label === m.label) return;
+        try {
+          await call('family', 'set_member_name', {
+            fid: get().family.fid,
+            openid: m.openid,
+            label,
+          });
+          await loadFamily();
+          this.render();
+          wx.showToast({ title: label ? `已称呼为${label}` : '已恢复默认称呼', icon: 'none' });
+        } catch (err: any) {
+          // 1005 的具体原因（超长 / 内容不合规）已由 request 层 toast
+        }
+      },
+    });
+  },
+
+  /**
+   * 绑定服药人：把"这个人"和"这条药单"绑在一起。
+   * 语义必须说清 —— 绑定后对方打开小程序看到的是**自己的**药单，不是全家看板。
+   * 已绑给别人的档案不在客户端拦：服务端会 1005 并点名"已经绑给谁了"，
+   * 单一真相源留在后端，前端别自己再判一遍（判错了就是静默覆盖别人的绑定）。
+   */
+  onBindMember(m: any) {
+    // family.info 只下发 active 档案，归档的不会出现在这里
+    const patients = get().family.patients || [];
+    if (!patients.length) {
+      wx.showToast({ title: '还没有服药档案，先去加一位', icon: 'none' });
+      return;
+    }
+    const members = get().family.members || [];
+    const nameOfOpenid = (openid: string) => {
+      const mm: any = members.find((x: any) => x.openid === openid);
+      return mm ? mm.label || mm.nick || '家人' : '家人';
+    };
+    const nameOf = (p: any) => p.alias || p.name || '未命名';
+
+    // 未绑定的排前面：要绑的时候先看到能绑的。
+    // ActionSheet 上限 6 项：已绑定时给「解除绑定」留一格，所以档案最多占 5 格。
+    // 家里有 6 位以上服药人是极端情况，真遇到时"先解绑一条再加"仍能走通。
+    const sorted = [...patients].sort((a: any, b: any) => (a.selfOpenid ? 1 : 0) - (b.selfOpenid ? 1 : 0));
+    const slots = 6 - (m.boundUid ? 1 : 0);
+    const shownPatients = sorted.slice(0, slots);
+    const items = shownPatients.map((p: any) => {
+      if (!p.selfOpenid) return nameOf(p);
+      if (p.selfOpenid === m.openid) return `${nameOf(p)}（当前）`;
+      return `${nameOf(p)}（已绑给${nameOfOpenid(p.selfOpenid)}）`;
+    });
+    if (m.boundUid) items.push('解除绑定');
+
+    wx.showActionSheet({
+      itemList: items,
+      success: (r) => {
+        if (items[r.tapIndex] === '解除绑定') {
+          this.confirmUnbind(m);
+          return;
+        }
+        const patient = shownPatients[r.tapIndex];
+        if (!patient) return;
+        if (patient.selfOpenid === m.openid) {
+          wx.showToast({ title: '已经绑的就是这条', icon: 'none' });
+          return;
+        }
+        this.confirmBind(m, patient);
+      },
+    });
+  },
+
+  confirmBind(m: any, patient: any) {
+    const pname = patient.alias || patient.name || '未命名';
+    wx.showModal({
+      title: `把「${pname}」交给${m.displayName}？`,
+      content: `绑定后这条药单就算${m.displayName}本人在吃，TA 打开小程序看到的是自己的药单，到点提醒也发给 TA。TA 原来绑的档案会自动解除，记录都留着。`,
+      confirmText: '确认绑定',
+      success: async (r) => {
+        if (!r.confirm) return;
+        try {
+          await call('family', 'bind_member', {
+            fid: get().family.fid,
+            openid: m.openid,
+            uid: patient.uid,
+          });
+          await loadFamily();
+          this.render();
+          wx.showToast({ title: '已绑定', icon: 'none' });
+        } catch (err: any) {
+          // 1005「已经绑给 XX 了」由 request 层 toast
+        }
+      },
+    });
+  },
+
+  confirmUnbind(m: any) {
+    wx.showModal({
+      title: `解除${m.displayName}的药单？`,
+      content: '解除后 TA 变回普通家人界面。药单和服药记录都不会删，家里其他人照常看。',
+      confirmText: '解除',
+      confirmColor: '#E0402F',
+      success: async (r) => {
+        if (!r.confirm) return;
+        try {
+          await call('family', 'bind_member', {
+            fid: get().family.fid,
+            openid: m.openid,
+            uid: '',
+          });
+          await loadFamily();
+          this.render();
+          wx.showToast({ title: '已解除绑定', icon: 'none' });
+        } catch (err: any) {
+          /* 原因已由 request 层 toast */
+        }
+      },
+    });
+  },
+
+  /** 角色：只做「管理员 / 成员」两档。
+   *  elder 是"加入时选了我要自己吃药"的产物，不该在这里手动来回切 —— 切了会和他绑没绑服药人对不上。
+   *  用 showModal 而不是 showActionSheet：这里必须说清"改了会怎样"。 */
+  onSetRole(m: any) {
+    if (!m || !m.canManage || m.isMe) return;
 
     const toAdmin = m.role !== 'admin';
     wx.showModal({
-      title: m.nick,
+      title: m.displayName,
       content: toAdmin
         ? '设为管理员后，TA 也能加药、改时间、改漏服记录。'
         : '取消管理员后，TA 只能看药单和催吃药，改不了任何东西。',
@@ -284,7 +444,7 @@ Page({
         try {
           await call('family', 'update_role', {
             fid: get().family.fid,
-            openid,
+            openid: m.openid,
             role: toAdmin ? 'admin' : 'member',
           });
           await loadFamily();

@@ -16,7 +16,9 @@ public sealed class FamilyController(
     FamilyJoinHandler join,
     FamilyUpdateRoleHandler updateRole,
     FamilyLeaveHandler leave,
-    FamilyResetInviteHandler resetInvite) : ControllerBase
+    FamilyResetInviteHandler resetInvite,
+    FamilySetMemberNameHandler setMemberName,
+    FamilyBindMemberHandler bindMember) : ControllerBase
 {
     [HttpGet("info")]
     public async Task<ApiResponse> Info([FromQuery] string fid, CancellationToken ct)
@@ -46,4 +48,14 @@ public sealed class FamilyController(
     [HttpPost("reset_invite")]
     public async Task<ApiResponse> ResetInvite([FromBody] FamilyFidRequest req, CancellationToken ct)
         => ApiResponse.Ok(await resetInvite.HandleAsync(req.Fid, User.OpenId(), ct));
+
+    /// <summary>仅 admin：给成员起家内称呼（小程序拿不到微信昵称，列表里全是"家人"分不清谁是谁）。</summary>
+    [HttpPost("set_member_name")]
+    public async Task<ApiResponse> SetMemberName([FromBody] FamilySetMemberNameRequest req, CancellationToken ct)
+        => ApiResponse.Ok(await setMemberName.HandleAsync(req.Fid, User.OpenId(), req.Openid, req.Label, ct));
+
+    /// <summary>仅 admin：手动绑定「家人 ↔ 服药档案」，uid 空 = 解绑。绑错了一次就能改回来，不必等开发。</summary>
+    [HttpPost("bind_member")]
+    public async Task<ApiResponse> BindMember([FromBody] FamilyBindMemberRequest req, CancellationToken ct)
+        => ApiResponse.Ok(await bindMember.HandleAsync(req.Fid, User.OpenId(), req.Openid, req.Uid, ct));
 }

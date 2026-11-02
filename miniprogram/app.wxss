@@ -413,6 +413,29 @@ button.btn,
   font-size: var(--fs-body);
   color: var(--text-1);
 }
+/* 两行式列表行：主标题 + 副信息（角色 / 绑定了哪条药单）。
+   副信息必须存在，否则"家人 ×4"这种行完全无法区分 —— 见 family 页的称呼功能。 */
+.list__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.list__main .list__label {
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list__sub {
+  margin-top: 2rpx;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .list__value {
   font-size: var(--fs-body);
   color: var(--text-3);

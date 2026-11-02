@@ -38,6 +38,7 @@ public sealed class FamilyInfoHandler(IAppDbContext db, IMemberGuard guard, IClo
                 Openid = x.Openid,
                 Nick = users.FirstOrDefault(u => u.Openid == x.Openid)?.NickName ?? "家人",
                 Role = x.Role,
+                Label = string.IsNullOrWhiteSpace(x.Relation) ? null : x.Relation,
             }).ToList(),
             Patients = patients.Select(p => new PatientDto
             {
@@ -415,3 +416,138 @@ public sealed class FamilyResetInviteHandler(IAppDbContext db, IMemberGuard guar
         return new { ivt = family.InviteToken };
     }
 }
+
+/// <summary>
+/// family.set_member_name：仅 admin，给成员起/改**家内称呼**（存 family_members.relation）。
+///
+/// 为什么必须有这个入口：小程序端早已拿不到微信昵称（getUserProfile 已回收），
+/// family.info 里除自己以外的成员 nick 一律是 "家人" —— 邀请三四个人进来，管理员看到四个"家人"，
+/// 既不知道谁是谁，也没法判断该给谁删权限。称呼是"这个家里的叫法"，不是全局昵称，所以落在家成员行上，
+/// 不影响 users.nickname，也不跨家庭串。
+///
+/// 传空串 = 清掉自定义称呼，前端回落显示微信昵称。
+/// </summary>
+public sealed class FamilySetMemberNameHandler(IAppDbContext db, IMemberGuard guard, ContentSecurityChecker security, IClock clock)
+{
+    /// <summary>称呼长度上限。12 个字足够"孩子他姥姥"这种叫法，再长列表会截断成没信息量的省略号。</summary>
+    public const int MaxLen = 12;
+
+    public async Task<object> HandleAsync(string fid, string openid, string targetOpenid, string? label, CancellationToken ct = default)
+    {
+        await guard.AssertMemberAsync(fid, openid, ct, "admin");
+        if (string.IsNullOrWhiteSpace(targetOpenid)) throw new ValidationException("缺少要改的家人");
+
+        var target = await db.FamilyMembers.FirstOrDefaultAsync(m => m.FamilyId == fid && m.Openid == targetOpenid, ct)
+                     ?? throw new ValidationException("这位家人不在家庭里");
+
+        var text = (label ?? "").Trim();
+        if (text.Length > MaxLen) throw new ValidationException($"称呼最多 {MaxLen} 个字");
+        // 称呼会显示给全家人，是 UGC 文本，入库前过内容安全（与家庭名同一道闸）
+        if (text.Length > 0) await security.EnsureSafeAsync([text], openid, ct);
+
+        var before = target.Relation ?? "";
+        target.Relation = text.Length == 0 ? null : text;
+
+        db.Add(new AuditLog
+        {
+            LogId = Guid.NewGuid().ToString("N"),
+            Openid = openid,
+            FamilyId = fid,
+            Action = "family.set_member_name",
+            ResultCode = 0,
+            Detail = $"{{\"target\":\"{targetOpenid}\",\"from\":\"{before}\",\"to\":\"{text}\"}}",
+            CreatedAt = clock.NowMs,
+        });
+
+        await db.SaveChangesAsync(ct);
+        return new { ok = true };
+    }
+}
+
+/// <summary>
+/// family.bind_member：仅 admin，手动把「某位家人」和「某条服药档案」绑在一起（uid 为空 = 解绑）。
+///
+/// 这是 2026-11-02 事故的**人工救济入口**：那次是爸爸的 self_openid 被错绑成子女的账号，
+/// 只能由我改数据库。有了这个用例，管理员自己在小程序里就能改回来，不必等排期。
+///
+/// 三条硬规则：
+/// ① **不抢别人已经生效的绑定** —— 目标档案已绑在别人身上时直接 1005，提示先解绑。
+///    静默覆盖正是上一轮事故的成因，这个顺序不能为了"少一步"而反过来。
+/// ② **只改绑定，不改 role**（契约 §4.1：role 管权限、mode 管渲染）。管理员把家人绑成药单本人，
+///    不会顺手把他提权或降权 —— 改角色是另一个动作（family.update_role）。
+/// ③ 换绑时先把这位成员**原来那条**的 self_openid 清掉，否则同一个人会同时绑着两条档案，
+///    mode 派生（`SelfUids.Length > 0`）与老人端过滤会各拿一条，界面和数据对不上。
+/// </summary>
+public sealed class FamilyBindMemberHandler(IAppDbContext db, IMemberGuard guard, IClock clock)
+{
+    public async Task<object> HandleAsync(string fid, string openid, string targetOpenid, string? uid, CancellationToken ct = default)
+    {
+        await guard.AssertMemberAsync(fid, openid, ct, "admin");
+        if (string.IsNullOrWhiteSpace(targetOpenid)) throw new ValidationException("缺少要绑定哪位家人");
+
+        var target = await db.FamilyMembers.FirstOrDefaultAsync(m => m.FamilyId == fid && m.Openid == targetOpenid, ct)
+                     ?? throw new ValidationException("这位家人不在家庭里");
+
+        var wanted = (uid ?? "").Trim();
+        var mine = await db.Patients
+            .Where(p => p.FamilyId == fid && p.SelfOpenid == targetOpenid)
+            .ToListAsync(ct);
+
+        string outcome;
+        if (wanted.Length == 0)
+        {
+            foreach (var p in mine) p.SelfOpenid = null;
+            target.SelfPatientId = null;
+            outcome = "unbound";
+        }
+        else
+        {
+            var patient = await db.Patients.FirstOrDefaultAsync(
+                p => p.FamilyId == fid && p.PatientId == wanted && p.Status == "active", ct)
+                ?? throw new ValidationException("这条服药档案不在这个家里（可能已归档）");
+
+            if (!string.IsNullOrEmpty(patient.SelfOpenid) && patient.SelfOpenid != targetOpenid)
+            {
+                var holder = await DisplayNameAsync(fid, patient.SelfOpenid, ct);
+                throw new ValidationException(
+                    $"「{PatientDisplay(patient)}」已经绑给{holder}了，请先把 TA 解绑再绑");
+            }
+
+            foreach (var p in mine) p.SelfOpenid = null;
+            patient.SelfOpenid = targetOpenid;
+            target.SelfPatientId = patient.PatientId;
+            outcome = mine.Any(p => p.PatientId == patient.PatientId) ? "rebound_same" : "bound";
+        }
+
+        db.Add(new AuditLog
+        {
+            LogId = Guid.NewGuid().ToString("N"),
+            Openid = openid,
+            FamilyId = fid,
+            Action = "family.bind_member",
+            ResultCode = 0,
+            Detail = $"{{\"target\":\"{targetOpenid}\",\"uid\":\"{wanted}\",\"outcome\":\"{outcome}\"}}",
+            CreatedAt = clock.NowMs,
+        });
+
+        await db.SaveChangesAsync(ct);
+        return new { ok = true };
+    }
+
+    private static string PatientDisplay(Patient p)
+        => string.IsNullOrWhiteSpace(p.Alias) ? p.Name : p.Alias;
+
+    /// <summary>
+    /// 提示语里要念出"已经绑给谁"：先看家内称呼，再退微信昵称，最后兜"另一位家人"。
+    /// 这里不能只回一句"已被占用" —— 管理员没法据此判断该去解绑哪一位。
+    /// </summary>
+    private async Task<string> DisplayNameAsync(string fid, string openid, CancellationToken ct)
+    {
+        var member = await db.FamilyMembers.FirstOrDefaultAsync(m => m.FamilyId == fid && m.Openid == openid, ct);
+        if (member is not null && !string.IsNullOrWhiteSpace(member.Relation)) return member.Relation!;
+
+        var nick = await db.Users.Where(u => u.Openid == openid).Select(u => u.NickName).FirstOrDefaultAsync(ct);
+        return string.IsNullOrWhiteSpace(nick) ? "另一位家人" : nick!;
+    }
+}
+

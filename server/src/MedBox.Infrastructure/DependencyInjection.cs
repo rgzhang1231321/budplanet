@@ -82,6 +82,8 @@ public static class DependencyInjection
         services.AddScoped<FamilyUpdateRoleHandler>();
         services.AddScoped<FamilyLeaveHandler>();
         services.AddScoped<FamilyResetInviteHandler>();
+        services.AddScoped<FamilySetMemberNameHandler>();
+        services.AddScoped<FamilyBindMemberHandler>();
         services.AddScoped<PatientListHandler>();
         services.AddScoped<PatientCreateHandler>();
         services.AddScoped<PatientUpdateHandler>();

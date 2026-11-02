@@ -58,6 +58,8 @@ export interface Member {
   openid: string;
   nick: string;
   role: Role;
+  /** v1.9：家内称呼（管理员可改）。空则回落到 nick —— 而 nick 现在多半就是"家人" */
+  label?: string | null;
 }
 
 export interface FamilyItem {

@@ -73,9 +73,13 @@
         bindtap="onMemberTap"
       >
         <view class="avatar">{{item.initial}}</view>
-        <text class="list__label">{{item.nick}}{{item.isMe ? '（我）' : ''}}</text>
+        <view class="list__main">
+          <text class="list__label">{{item.displayName}}{{item.isMe ? '（我）' : ''}}</text>
+          <!-- 副信息：角色 + 绑定的药单。小程序拿不到微信昵称，没有这行就是一堆"家人"分不清谁是谁 -->
+          <text class="list__sub">{{item.subText}}</text>
+        </view>
         <!-- v1.7：服药人可由管理员设默认大字版；老人本机手动切换优先 -->
-        <view wx:if="{{item.isPatient && item.canSetMode}}" class="member-mode">
+        <view wx:if="{{item.canSetMode}}" class="member-mode">
           <text class="member-mode__label">大字版</text>
           <switch
             checked="{{item.largeMode}}"
@@ -85,7 +89,6 @@
             data-uid="{{item.patientUid}}"
           />
         </view>
-        <text wx:else class="list__value">{{item.roleText}}</text>
         <view wx:if="{{item.canManage}}" class="i i-chevron"></view>
       </view>
     </view>
