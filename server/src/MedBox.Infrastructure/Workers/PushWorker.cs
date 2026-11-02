@@ -14,6 +14,12 @@ namespace MedBox.Infrastructure.Workers;
 /// PushWorker —— 消费 push_tasks，按 errcode 判决。
 /// 幂等靠"预占"：queued→sending 用带条件的 UPDATE，抢不到说明别人在处理，直接跳过。
 /// 判决：成功扣额度；43101/43004/40003 丢弃；45009 指数退避；其余重试到上限转 failed。
+///
+/// ⚠️ **分片当前未启用**（审计 §13.4.1，2026-11-02 决策 9）：下面的拉取谓词只按
+/// status + next_retry_at 全表扫描，**不按 shard 过滤**，而写入侧 <see cref="PushPolicy.Shard"/>
+/// 已经把任务稳定分配到了 shard。也就是说 shard 这一列今天只写不读，多实例部署时每个实例
+/// 都会拉到同一批任务、靠 queued→sending 的条件 UPDATE 互相竞争（能保证不重发，但没有分片收益）。
+/// 要启用分片必须同时改消费端谓词 + 回填存量 shard + 补漏消费监控，见 <see cref="PushPolicy.ShardCount"/>。
 /// </summary>
 public sealed class PushWorker(
     IServiceScopeFactory scopes,

@@ -56,6 +56,13 @@ public static class PushPolicy
     /// 分片数。改这个值会让**库里已有任务的 shard 与查询口径不一致**，
     /// 所以它是编译期常量而不是配置项（配置项会出现"入队用新值、消费用旧值"）：
     /// 真要改，必须同时回填 `UPDATE push_tasks SET shard = …`。
+    ///
+    /// ⚠️ **分片当前未启用**（审计 §13.4.1，2026-11-02 决策 9"承认未启用，不造半成品"）：
+    /// 写入侧 <see cref="Shard"/> 稳定分配，但消费侧 PushWorker 按全表拉取、
+    /// 查询谓词不带 shard 过滤，所以 shard 这一列今天不参与任何行为。
+    /// 要真正启用必须同时做三件事：① 消费端谓词加 `AND shard IN (…)`（并按实例数分片消费）；
+    /// ② 回填存量行 `UPDATE push_tasks SET shard = …`；③ 补一个"漏消费分片"的监控。
+    /// 只做 ① 会让存量任务永远不被处理。在 ②③ 落地前，不要给消费端加 shard 过滤。
     /// </summary>
     public const int ShardCount = 4;
 
@@ -64,6 +71,8 @@ public static class PushPolicy
     /// **不能用 `string.GetHashCode()`** —— 它带进程级随机种子，重启后同一 openid 会换分片，
     /// 按 shard 过滤的消费组就会漏掉/重复处理老任务；`Math.Abs(int.MinValue)` 还会抛 OverflowException。
     /// 用无符号取模，天然非负。
+    ///
+    /// 见 <see cref="ShardCount"/>：此方法今天只写入列值，消费端不按它过滤。
     /// </summary>
     public static short Shard(string openid)
     {

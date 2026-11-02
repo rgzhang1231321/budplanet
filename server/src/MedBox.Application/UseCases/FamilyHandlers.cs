@@ -101,6 +101,13 @@ public sealed class FamilyCreateHandler(IAppDbContext db, ContentSecurityChecker
 
 public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock)
 {
+    /// <summary>
+    /// family.join —— 只负责"进这个家"，**不改已有成员的角色**。
+    /// 历史上这里顺带把非 admin 成员降级成 elder（<c>roleIntent=='patient'</c> 时），
+    /// 而前端 bindSelf 正好传 'patient'，于是"加入家庭"把一位 member 静默降成了 elder，
+    /// 丢掉 member 权限。加入家庭与改角色是两个语义，改角色只能走 family.update_role。
+    /// 绑定 self（patients.self_openid）仍由本用例完成 —— 那才是 bindSelf 真正需要的东西。
+    /// </summary>
     public async Task<FamilyInfoDto> HandleAsync(string fid, string ivt, string roleIntent, string? uid, string openid, FamilyInfoHandler info, CancellationToken ct = default)
     {
         // 手动输入邀请码的人只知道码、不知道 fid（他本来也不该知道）：
@@ -128,8 +135,9 @@ public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock)
         if (!FamilyJoinPolicy.CanJoin(member is not null, family.InviteToken, ivt))
             throw new ValidationException("邀请码无效");
 
-        // patient 只是入参意图，入库角色恒为 admin|member|elder
-        var dbRole = roleIntent == "patient" ? "elder" : (member?.Role ?? "member");
+        // 角色只在"新成员"这一刻定：受邀进来的老人第一次加入就该是 elder，这不是降级。
+        // 老成员走到这里角色一律不动 —— 要改角色请走 family.update_role。
+        var dbRole = roleIntent == "patient" ? "elder" : "member";
 
         if (member is null)
         {
@@ -144,14 +152,9 @@ public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock)
             db.Add(member);
             family.MemberCount += 1;
         }
-        else if (roleIntent == "patient" && member.Role != "admin")
+        else if (roleIntent == "patient")
         {
-            member.Role = "elder";
-            member.IsPatient = true;
-        }
-
-        if (roleIntent == "patient")
-        {
+            // 只做"绑定 self"，不改角色。见本类 summary。
             var target = await db.Patients.FirstOrDefaultAsync(p => p.FamilyId == fid && p.PatientId == uid, ct)
                          ?? await db.Patients.Where(p => p.FamilyId == fid && p.Status == "active").OrderBy(p => p.CreatedAt).FirstOrDefaultAsync(ct);
             if (target is not null && string.IsNullOrEmpty(target.SelfOpenid))

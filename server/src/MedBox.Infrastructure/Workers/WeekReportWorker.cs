@@ -74,12 +74,14 @@ public sealed class WeekReportWorker(
         var weekKey = TimeCn.WeekKey(weekStart);
         if (_archivedWeek == weekKey) return 0;
 
-        var dates = TimeCn.WeekDates(weekStart).ToList();
-
         // 聚合下推到 SQL：GROUP BY family_id, patient_id 只回 5 个计数。
         // 原来是把整周全库明细读进内存再 GroupBy —— 用户一多就是几百万行进进程，周报当晚先把内存打满。
+        // 按 week_key 过滤而不是 due_date IN (7 天)：week_key 与 due_date 同源推导
+        // （TimeCn.WeekKeyTests 逐日断言了"一周七天共用一个 week_key"），两种口径等价。
+        // 换成 week_key 才能用上 V012 的 ix_dose_logs_week_key；原来的
+        // dates.Contains(d.DueDate) 会生成 7 个常量的 IN 列表，只能走 ix_dose_logs_due_date。
         var aggregates = await db.DoseLogs
-            .Where(d => dates.Contains(d.DueDate))
+            .Where(d => d.WeekKey == weekKey)
             .GroupBy(d => new { d.FamilyId, d.PatientId })
             .Select(g => new
             {

@@ -6,6 +6,7 @@ namespace MedBox.Application.Contracts;
 public sealed class SubmitRequest
 {
     [JsonPropertyName("items")] public List<SubmitItem> Items { get; set; } = [];
+    /// <summary>预留，未启用；幂等由逐条 CAS 保证（字段冻结，不要改名或改类型）。</summary>
     [JsonPropertyName("idemKey")] public string? IdemKey { get; set; }
 }
 
