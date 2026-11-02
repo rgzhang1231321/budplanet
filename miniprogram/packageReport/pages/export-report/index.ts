@@ -67,6 +67,14 @@ Page({
   onSaveImage() {
     if (this.data.saving || this.data.loadError) return;
     this.setData({ saving: true });
+    // 兜底：部分基础库/模拟器里 canvas 回调不触发，不能让按钮永久卡在「生成中」
+    clearTimeout(this._saveGuard);
+    this._saveGuard = setTimeout(() => {
+      if (this.data.saving) {
+        this.setData({ saving: false });
+        wx.showToast({ title: '生成图片超时，请重试', icon: 'none' });
+      }
+    }, 6000);
     const that = this;
     const q = wx.createSelectorQuery();
     q.select('#reportCanvas')
@@ -74,7 +82,12 @@ Page({
       .exec((res) => {
         try {
           const canvas = (res[0] && res[0].node) as any;
-          if (!canvas) throw new Error('canvas not ready');
+          if (!canvas) {
+            clearTimeout(this._saveGuard);
+            this.setData({ saving: false });
+            wx.showToast({ title: '生成图片失败，请重试', icon: 'none' });
+            return;
+          }
           const ctx = canvas.getContext('2d');
           const dpr = (wx.getWindowInfo ? wx.getWindowInfo().pixelRatio : 2) || 2;
           const W = 750;
@@ -86,6 +99,7 @@ Page({
           wx.canvasToTempFilePath({
             canvas,
             success: (r) => {
+              clearTimeout(this._saveGuard);
               wx.saveImageToPhotosAlbum({
                 filePath: r.tempFilePath,
                 success: () => {
@@ -106,11 +120,13 @@ Page({
               });
             },
             fail: () => {
+              clearTimeout(this._saveGuard);
               that.setData({ saving: false });
               wx.showToast({ title: '生成图片失败，稍后再试', icon: 'none' });
             },
           });
         } catch (err) {
+          clearTimeout(this._saveGuard);
           that.setData({ saving: false });
           wx.showToast({ title: '生成图片失败，稍后再试', icon: 'none' });
         }

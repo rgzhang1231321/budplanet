@@ -129,11 +129,14 @@
   line-height: 1.5;
 }
 
-/* 离屏画布：只用于生成图片，不显示在页面上 */
+/* 画布：只用于生成图片。放在视口内但透明，避免部分基础库对"移出视口"的画布不触发 toTempFilePath */
 .rpt-canvas {
   position: fixed;
-  left: -9999px;
+  left: 0;
   top: 0;
   width: 750px;
   height: 1060px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
 }
