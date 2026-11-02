@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>替你记着吃药 · 体验补全原型</title>
+<!--
+  ============================================================================
+  替你记着吃药 · 体验补全原型（2026-11-02）
+  ----------------------------------------------------------------------------
+  ⚠ 这是原型，不是生产代码。
+     · 所有数据为示意，不含任何真实用户信息，不可直接接入业务逻辑。
+     · 单文件、零外部依赖：不引 CDN、不引字体、不引图片；图标全部为内联 SVG。
+     · 手机屏内严格模拟微信小程序浅色设计语言；屏外为深色外壳（适配深色 IDE）。
+
+  配色来源：docs/UI-设计规范.md §3.1 色板、§3.2 字号阶梯
+     --brand-500 #2E6BE6 / --brand-100 #EAF1FE
+     --text-1 #1A1F26 / --text-2 #5C6B7A / --text-3 #8A94A0
+     --bg-page #F4F6F8 / --bg-card #FFFFFF / --line #E8EDF2
+     已服 #12A150 · 待服 空心圆 #A9B4C0 · 漏服 #E0402F + #FFF4F2 · 跳过 #E3E8ED
+     警示（非错误态）#FF8A3D，文字档 #C25E17
+  审查依据：docs/页面流程与功能审查-2026-11-02.md 第三、四、六节
+  ============================================================================
+-->
+<style>
+/* ============================================================
+   0. 重置与设计令牌
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  /* 品牌 */
+  --brand:#2E6BE6; --brand-600:#1E4FBF; --brand-100:#EAF1FE;
+  /* 文字 */
+  --text-1:#1A1F26; --text-2:#5C6B7A; --text-3:#8A94A0;
+  /* 面 */
+  --bg-page:#F4F6F8; --card:#FFFFFF; --line:#E8EDF2;
+  /* 四态 */
+  --taken:#12A150; --taken-ink:#0B7F38; --taken-bg:#F0FAF4;
+  --pending:#A9B4C0;
+  --missed:#E0402F; --missed-ink:#C22C1B; --missed-bg:#FFF4F2;
+  --skipped:#E3E8ED; --skipped-ink:#7A8492;
+  /* 警示（琥珀，非错误） */
+  --warn:#FF8A3D; --warn-ink:#C25E17; --warn-bg:#FFF7F0;
+  /* 形 */
+  --r-card:12px; --r-elder:16px;
+  --shadow:0 2px 12px rgba(17,34,51,.06);
+  --shadow-elder:0 4px 20px rgba(17,34,51,.10), inset 0 0 0 1px #E8EDF2;
+  /* 外壳 */
+  --shell:#0E1116; --shell-line:#22282F; --shell-text:#E6EAEF; --shell-dim:#8A94A0;
+}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--shell); color:var(--shell-text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,p,figure,figcaption{margin:0}
+b,strong{font-weight:700}
+
+/* ============================================================
+   1. 页面外壳（深色）
+   ============================================================ */
+.wrap{max-width:1440px; margin:0 auto; padding:56px 40px 96px}
+
+.hd{padding-bottom:36px; border-bottom:1px solid var(--shell-line)}
+.eyebrow{
+  font-size:11.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:#6B7684; font-weight:600; margin-bottom:14px;
+}
+.hd h1{
+  font-size:34px; line-height:1.25; font-weight:700; letter-spacing:-.01em;
+  color:#FFFFFF; margin-bottom:12px;
+}
+.hd .sub{font-size:13px; color:var(--shell-dim); font-variant-numeric:tabular-nums}
+.legend{display:flex; gap:22px; margin-top:18px; font-size:12px; color:#98A2AE}
+.legend span{display:inline-flex; align-items:center; gap:7px}
+.dot{width:9px; height:9px; border-radius:50%; display:inline-block}
+.dot.new{background:var(--taken)}
+.dot.rework{background:var(--warn)}
+.dot.same{background:#5A6470; box-shadow:inset 0 0 0 1.5px #8A94A0}
+
+/* ============================================================
+   2. 流程对照
+   ============================================================ */
+.flow{padding:38px 0 10px; border-bottom:1px solid var(--shell-line); margin-bottom:52px}
+.flow-hd{
+  font-size:12px; letter-spacing:.12em; color:#6B7684; font-weight:600;
+  text-transform:uppercase; margin-bottom:22px;
+}
+.flow-row{display:flex; align-items:center; gap:14px; margin-bottom:18px}
+.flow-row:last-child{margin-bottom:6px}
+.flow-tag{
+  flex:0 0 52px; font-size:11.5px; color:#6B7684; text-align:right;
+  letter-spacing:.04em;
+}
+.flow-row.done .flow-tag{color:#8A94A0}
+.flow-track{display:flex; align-items:center}
+.node{
+  width:124px; height:38px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:12.5px; font-weight:500; color:#C6CED8;
+  background:#171C22; border:1px solid #2A313A;
+  white-space:nowrap;
+}
+.flow-row.done .node{background:#151A20; color:#E6EAEF; border-color:#39424D}
+.flow-row.done .node.acc{background:rgba(46,107,230,.14); border-color:rgba(46,107,230,.55); color:#9FC0F8}
+.node.brk{
+  width:124px; height:auto; padding:5px 6px; flex-direction:column; gap:1px;
+  border:1px dashed rgba(224,64,47,.75); background:rgba(224,64,47,.10);
+  color:#F07C6E; font-size:11.5px; line-height:1.3;
+}
+.node.brk i{font-style:normal; font-size:9.5px; color:#E0402F; letter-spacing:.02em}
+.arw{width:20px; text-align:center; color:#414A55; font-size:13px; user-select:none}
+.flow-row.done .arw{color:#5A6672}
+
+/* ============================================================
+   3. 屏阵
+   ============================================================ */
+.board{
+  display:grid; grid-template-columns:repeat(auto-fit,375px);
+  gap:64px 40px; justify-content:center; align-items:start;
+}
+.unit{display:flex; flex-direction:column; width:375px}
+.unit.wide{width:790px; grid-column:span 2}
+
+/* 手机框 */
+.phone{
+  position:relative; width:375px; height:812px; flex:0 0 auto;
+  background:var(--bg-page); border-radius:40px; border:1px solid #2A3038;
+  overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 24px 60px -24px rgba(0,0,0,.7);
+}
+.phone.elder{background:#FFFFFF}
+
+/* 状态栏 44px */
+.sb{
+  flex:0 0 44px; height:44px; display:flex; align-items:center;
+  justify-content:space-between; padding:0 22px 0 26px;
+  font-size:14px; font-weight:600; color:var(--text-1);
+  font-variant-numeric:tabular-nums; letter-spacing:.01em;
+}
+.sb svg{display:block}
+
+/* 导航栏 */
+.nav{
+  flex:0 0 48px; height:48px; display:flex; align-items:center;
+  justify-content:space-between; padding:0 12px; background:transparent;
+}
+.nav.solid{background:var(--card); border-bottom:1px solid var(--line)}
+.nav-c{flex:1; text-align:center; min-width:0}
+.nav-t{font-size:16px; font-weight:600; color:var(--text-1); line-height:1.15;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.nav-s{font-size:10.5px; color:var(--text-3); margin-top:2px; font-variant-numeric:tabular-nums}
+.nav-l2{min-width:0}
+.nav-l2 .nav-t{display:flex; align-items:center; gap:3px}
+.nav-ic{width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+  color:var(--text-1); flex:0 0 24px}
+.nav-plus{width:26px; height:26px; border-radius:50%; background:var(--card);
+  display:flex; align-items:center; justify-content:center; color:var(--text-1);
+  box-shadow:var(--shadow)}
+
+/* 内容区 */
+.content{
+  flex:1 1 auto; min-height:0; overflow:hidden;
+  padding:10px 12px 0; display:flex; flex-direction:column; gap:8px;
+}
+.content.flush{padding:0}
+
+/* tabBar 83px */
+.tabbar{
+  flex:0 0 83px; height:83px; background:var(--card); border-top:1px solid var(--line);
+  display:flex; padding:8px 0 0;
+}
+.tab{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; color:#9AA5B1}
+.tab.on{color:var(--brand)}
+.tab span{font-size:10px; font-weight:500; line-height:1}
+
+/* ============================================================
+   4. 共用组件
+   ============================================================ */
+.card{background:var(--card); border-radius:var(--r-card); box-shadow:var(--shadow)}
+
+/* 状态徽标：颜色 + 形状 + 文字 三重编码 */
+.st{
+  display:inline-flex; align-items:center; gap:3px; height:18px; padding:0 6px;
+  border-radius:9px; font-size:10.5px; font-weight:600; line-height:1; white-space:nowrap;
+}
+.st i{font-style:normal; font-size:9px; line-height:1}
+.st-taken{background:var(--taken); color:#fff}
+.st-pend{background:#fff; border:1px solid var(--pending); color:#4A5969; font-weight:500; padding:0 5px}
+.st-miss{background:var(--missed); color:#fff}
+.st-skip{background:var(--skipped); color:var(--skipped-ink)}
+.rg{width:7px; height:7px; border:1.4px solid var(--pending); border-radius:50%; display:inline-block; flex:0 0 7px}
+.st.big{height:24px; font-size:13px; border-radius:12px; padding:0 10px; gap:5px}
+.st.big .rg{width:9px; height:9px; border-width:1.8px; flex:0 0 9px}
+.st.big i{font-size:11px}
+
+/* 标签 chip（饭后 / 爸 / 长期用药） */
+.tag{
+  display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
+  background:#F4F6F8; color:var(--text-2); font-size:10px; font-weight:500; white-space:nowrap;
+}
+.tag.blue{background:var(--brand-100); color:var(--brand-600)}
+
+/* 按钮 */
+.btn{
+  display:flex; align-items:center; justify-content:center; width:100%;
+  border:none; border-radius:10px; font-family:inherit; font-size:14px; font-weight:600;
+  height:44px; cursor:default; letter-spacing:.01em;
+}
+.btn.primary{background:var(--brand); color:#fff}
+.btn.ghost{background:#fff; color:var(--text-1); box-shadow:inset 0 0 0 1px #D6DEE7}
+.btn.ghost-blue{background:#fff; color:var(--brand-600); box-shadow:inset 0 0 0 1px var(--brand)}
+.btn-xs{
+  display:inline-flex; align-items:center; justify-content:center; height:24px;
+  padding:0 9px; border-radius:12px; border:none; font-family:inherit;
+  font-size:10.5px; font-weight:600; white-space:nowrap; flex:0 0 auto;
+}
+.btn-xs.ghost{background:#fff; color:var(--text-2); box-shadow:inset 0 0 0 1px #D6DEE7}
+.btn-xs.solid{background:var(--brand); color:#fff}
+.btn-xs.blue{background:var(--brand-100); color:var(--brand-600); height:22px; padding:0 8px}
+.btn-xs.line{background:#fff; color:var(--brand-600); box-shadow:inset 0 0 0 1px rgba(46,107,230,.45)}
+.btn-xs.warn{background:#fff; color:var(--warn-ink); box-shadow:inset 0 0 0 1px rgba(255,138,61,.55)}
+
+/* 细分割 */
+.hr{height:1px; background:var(--line)}
+
+/* 小字 */
+.micro{font-size:10.5px; color:var(--text-3); line-height:1.5}
+.micro.c{text-align:center}
+
+/* ============================================================
+   5. 屏 1 · 首页（子女端）
+   ============================================================ */
+.amber{
+  display:flex; align-items:center; gap:7px; height:34px; flex:0 0 34px;
+  background:var(--warn-bg); border-radius:8px; padding:0 8px 0 9px;
+  box-shadow:inset 3px 0 0 var(--warn);
+}
+.amber-t{font-size:10.5px; color:#7A4A18; flex:1 1 auto; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1}
+.amber-a{font-size:10.5px; font-weight:700; color:var(--warn-ink); white-space:nowrap; flex:0 0 auto}
+.amber-x{font-size:13px; color:#B08A63; line-height:1; flex:0 0 auto; padding-left:2px}
+
+.ov{padding:10px 12px; flex:0 0 auto}
+.ov-top{display:flex; align-items:flex-end; justify-content:space-between}
+.ov-num{display:flex; align-items:baseline; gap:4px}
+.ov-num b{font-size:24px; font-weight:700; line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+.ov-num .of{font-size:13px; font-weight:600; color:var(--text-2); font-variant-numeric:tabular-nums}
+.ov-num .lb{font-size:11px; color:var(--text-3); margin-left:2px}
+.ov-pct{font-size:21px; font-weight:700; color:var(--brand); line-height:1; font-variant-numeric:tabular-nums}
+.ov-pct span{font-size:11px; font-weight:600; margin-left:1px}
+.bar{height:5px; border-radius:3px; background:var(--brand-100); overflow:hidden; margin:8px 0 7px}
+.bar i{display:block; height:100%; border-radius:3px; background:var(--brand)}
+.ov-bot{display:flex; align-items:center; justify-content:space-between; font-size:10.5px; line-height:1}
+.ov-bot .who{color:var(--text-2); font-variant-numeric:tabular-nums}
+.ov-warn{color:var(--missed); font-weight:600}
+
+.missed{
+  display:flex; align-items:center; gap:7px; height:44px; flex:0 0 44px;
+  background:var(--missed-bg); border-radius:8px; padding:0 8px 0 10px;
+  box-shadow:inset 3px 0 0 var(--missed);
+}
+.missed-t{font-size:11px; color:#3A1B16; flex:1 1 auto; min-width:0; line-height:1.25}
+.missed-btns{display:flex; gap:5px; flex:0 0 auto}
+
+/* 设置清单 */
+.cl{padding:10px 12px 9px; flex:0 0 auto}
+.cl-hd{display:flex; align-items:center; justify-content:space-between; margin-bottom:5px}
+.cl-hd span:first-child{font-size:13px; font-weight:600; color:var(--text-1)}
+.cl-cnt{font-size:10.5px; color:var(--text-3); font-variant-numeric:tabular-nums}
+.cl-row{display:flex; align-items:center; gap:8px; height:24px}
+.cl-row .mk{
+  width:14px; height:14px; flex:0 0 14px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:9px; font-weight:700; line-height:1;
+}
+.cl-row.done .mk{background:#E7F6ED; color:var(--taken-ink)}
+.cl-row.done .tx{font-size:12px; color:#9AA5B1; text-decoration:line-through}
+.cl-row.now .mk{box-shadow:inset 0 0 0 1.2px var(--text-1); color:var(--text-1); background:#fff}
+.cl-row.now .tx{font-size:12px; font-weight:700; color:var(--text-1)}
+.cl-row .tx{flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.cl-ft{font-size:10px; color:var(--text-3); margin-top:5px; line-height:1.4}
+
+/* 服药人分组 */
+.grp{padding:9px 12px 7px; flex:0 0 auto}
+.grp-hd{display:flex; align-items:baseline; gap:6px; height:19px}
+.grp-nm{font-size:13px; font-weight:600; color:var(--text-1)}
+.grp-ct{font-size:10.5px; color:var(--text-3); font-variant-numeric:tabular-nums}
+.drow{display:flex; align-items:center; gap:7px; height:38px}
+.drow + .drow{border-top:1px solid var(--line)}
+.d-t{font-size:11px; color:var(--text-2); flex:0 0 33px; font-variant-numeric:tabular-nums}
+.d-n{font-size:12.5px; color:var(--text-1); flex:1 1 auto; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.d-d{font-size:10.5px; color:var(--text-3); flex:0 0 auto; font-variant-numeric:tabular-nums}
+
+/* 屏 3 背景压暗 */
+.mask{position:absolute; inset:0; background:rgba(0,0,0,.45)}
+.bsheet{
+  position:absolute; left:0; right:0; bottom:0; background:#fff;
+  border-radius:20px 20px 0 0; padding:8px 20px 22px;
+  box-shadow:0 -8px 32px rgba(17,34,51,.18);
+}
+.grab{width:36px; height:4px; border-radius:2px; background:#E1E6EC; margin:0 auto 12px}
+.bsheet h3{margin:0 0 12px; font-size:17px; font-weight:700; color:var(--text-1); letter-spacing:-.01em}
+.bs-card{
+  background:#F4F6F8; border-radius:10px; padding:10px 12px; margin-bottom:12px;
+  display:flex; align-items:center; gap:10px;
+}
+.bs-time{font-size:16px; font-weight:700; color:var(--text-1); font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.bs-med{flex:1 1 auto; min-width:0}
+.bs-med b{display:block; font-size:13.5px; font-weight:600; color:var(--text-1); line-height:1.3}
+.bs-note{font-size:11.5px; color:var(--text-2); line-height:1.65; margin-bottom:14px}
+.bs-note b{color:var(--text-1); font-weight:600}
+.bs-fine{font-size:10px; color:var(--text-3); line-height:1.5; margin-top:11px; text-align:center}
+.bsheet .btn + .btn{margin-top:8px}
+.bsheet .btn.ghost{height:42px; font-size:13.5px}
+
+/* ============================================================
+   6. 屏 2 · 提醒额度
+   ============================================================ */
+.q-hero{padding:18px 16px 16px; text-align:center; flex:0 0 auto}
+.q-num{display:flex; align-items:baseline; justify-content:center; gap:4px}
+.q-num b{font-size:68px; font-weight:700; line-height:.95; letter-spacing:-.04em;
+  color:var(--warn-ink); font-variant-numeric:tabular-nums}
+.q-cap{font-size:13.5px; color:var(--text-1); font-weight:600; margin-top:10px}
+.q-sub{font-size:11px; color:var(--text-3); margin-top:3px}
+
+.q-explain{background:var(--brand-100); border-radius:10px; padding:12px 13px; flex:0 0 auto}
+.q-explain p{font-size:12px; color:#1B3E7C; line-height:1.55}
+.q-explain .fine{font-size:10.5px; color:#4A6699; margin-top:5px}
+
+.q-list{background:#fff; border-radius:12px; box-shadow:var(--shadow); padding:2px 12px; flex:0 0 auto}
+.q-row{display:flex; align-items:center; gap:10px; height:62px}
+.q-row + .q-row{border-top:1px solid var(--line)}
+.q-ic{
+  width:30px; height:30px; flex:0 0 30px; border-radius:9px; background:var(--brand-100);
+  display:flex; align-items:center; justify-content:center; color:var(--brand);
+}
+.q-tx{flex:1 1 auto; min-width:0}
+.q-tx b{display:block; font-size:13px; font-weight:600; color:var(--text-1); line-height:1.3}
+.q-tx span{display:block; font-size:10.5px; color:var(--text-3); margin-top:2px}
+.q-right{display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex:0 0 auto}
+.q-state{font-size:11px; font-weight:600; font-variant-numeric:tabular-nums}
+.q-state.warn{color:var(--warn-ink)}
+.q-state.red{color:var(--missed)}
+.q-state.gray{color:var(--text-3)}
+
+.q-foot{flex:0 0 auto; margin-top:2px}
+.q-foot .micro{margin-top:7px; font-size:10px; line-height:1.45}
+
+/* ============================================================
+   7. 屏 4 · 老人端打卡
+   ============================================================ */
+.e-c{padding:16px 20px 22px; background:#fff; gap:0}
+.e-sum{font-size:20px; color:#0F1620; line-height:1.85; font-weight:500; letter-spacing:-.01em}
+.e-sum b{font-size:38px; font-weight:700; line-height:1; margin:0 2px; letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums}
+
+.e-card{
+  position:relative; background:#fff; border-radius:var(--r-elder);
+  box-shadow:var(--shadow-elder); padding:20px; margin-top:18px;
+}
+.e-when{font-size:14px; color:#414D5A; font-weight:500; font-variant-numeric:tabular-nums}
+.e-name{font-size:38px; font-weight:700; line-height:1.22; color:#0F1620; margin-top:6px; letter-spacing:-.02em}
+.e-dose{font-size:22px; font-weight:600; color:var(--brand-600); margin-top:4px; line-height:1.3}
+.e-card .tag{height:22px; font-size:12px; padding:0 7px; border-radius:5px; margin-top:10px}
+.e-card .st{position:absolute; top:18px; right:18px}
+
+.e-mid{text-align:center; margin-top:26px}
+.e-mid-1{font-size:20px; color:#0F1620; font-weight:600}
+.e-mid-2{font-size:20px; color:var(--warn-ink); font-weight:600; margin-top:4px;
+  font-variant-numeric:tabular-nums}
+
+.e-btn{
+  display:flex; align-items:center; justify-content:center; width:100%; border:none;
+  border-radius:var(--r-elder); font-family:inherit; font-weight:600; letter-spacing:.02em;
+}
+.e-btn.off{height:80px; background:#EFF2F6; color:#9AA5B1; font-size:24px}
+.e-btn.main{height:80px; background:var(--brand); color:#fff; font-size:24px;
+  box-shadow:0 8px 22px rgba(46,107,230,.28)}
+.e-btn.sec{height:56px; background:#fff; color:#0F1620; font-size:18px;
+  box-shadow:inset 0 0 0 1.5px #C7CFD8; margin-top:12px}
+.e-link{text-align:center; font-size:18px; color:var(--brand); font-weight:600; margin-top:16px}
+.e-next{font-size:16px; color:#414D5A; text-align:center; margin-top:auto; padding-top:18px;
+  font-variant-numeric:tabular-nums}
+.e-who{font-size:16px; color:#414D5A; text-align:center; margin-top:6px}
+.e-stack{display:flex; flex-direction:column; flex:1 1 auto; min-height:0; margin-top:auto}
+
+/* ============================================================
+   8. 屏 5 · 药品详情
+   ============================================================ */
+.m-head{display:flex; align-items:flex-start; gap:11px; padding:4px 2px 0; flex:0 0 auto}
+.m-ic{
+  width:46px; height:46px; flex:0 0 46px; border-radius:50%; background:var(--brand-100);
+  display:flex; align-items:center; justify-content:center; color:var(--brand);
+}
+.m-hd-tx{flex:1 1 auto; min-width:0; padding-top:1px}
+.m-hd-tx b{display:block; font-size:17px; font-weight:700; color:var(--text-1);
+  line-height:1.28; letter-spacing:-.01em}
+.m-spec{font-size:11.5px; color:var(--text-3); margin-top:3px; font-variant-numeric:tabular-nums}
+.m-tags{display:flex; gap:5px; margin-top:6px}
+
+.m-state{
+  display:flex; align-items:center; gap:7px; height:34px; flex:0 0 34px;
+  background:var(--taken-bg); border-radius:8px; padding:0 11px;
+  font-size:11.5px; color:var(--taken-ink); font-weight:600;
+}
+.m-state .dotm{width:6px; height:6px; border-radius:50%; background:var(--taken); flex:0 0 6px}
+.m-state em{font-style:normal; font-weight:500; color:#3E7C5B; font-variant-numeric:tabular-nums}
+
+.m-list{background:#fff; border-radius:12px; box-shadow:var(--shadow); padding:0 12px; flex:0 0 auto}
+.m-row{display:flex; align-items:center; justify-content:space-between; gap:12px; height:42px}
+.m-row + .m-row{border-top:1px solid var(--line)}
+.m-row dt{font-size:12px; color:var(--text-2); flex:0 0 auto}
+.m-row dd{margin:0; font-size:12.5px; color:var(--text-1); text-align:right;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
+.m-stock{padding:11px 12px 10px; flex:0 0 auto}
+.m-stock-top{display:flex; align-items:baseline; justify-content:space-between}
+.m-stock-top b{font-size:15px; font-weight:700; color:var(--text-1); letter-spacing:-.01em;
+  font-variant-numeric:tabular-nums}
+.m-stock-top span{font-size:12px; color:var(--warn-ink); font-weight:600; font-variant-numeric:tabular-nums}
+.m-stock .bar{margin:9px 0 7px; height:4px; background:#F0F2F5}
+.m-stock .bar i{background:var(--warn)}
+
+.m-actions{flex:0 0 auto; margin-top:2px}
+.m-actions .btn + .btn{margin-top:8px}
+.m-actions .btn.ghost{height:42px; font-size:13.5px}
+.m-del{text-align:center; font-size:12.5px; font-weight:600; color:var(--missed); padding:6px 0 2px}
+
+/* 屏 5 叠层 sheet */
+.m-mask{position:absolute; inset:0; background:rgba(17,34,51,.16)}
+.mini-sheet{
+  position:absolute; left:12px; right:12px; bottom:12px; background:rgba(255,255,255,.97);
+  border-radius:20px; padding:14px 16px 16px; box-shadow:0 -10px 40px rgba(17,34,51,.22);
+}
+.mini-sheet .grab{margin-bottom:11px}
+.mini-sheet h3{margin:0 0 11px; font-size:15px; font-weight:700; color:var(--text-1)}
+.chips{display:flex; gap:7px; margin-bottom:11px}
+.chip{
+  flex:1; height:32px; display:flex; align-items:center; justify-content:center;
+  border-radius:8px; background:#F4F6F8; color:var(--text-2); font-size:12px; font-weight:500;
+  white-space:nowrap;
+}
+.chip.on{background:var(--brand-100); color:var(--brand-600); font-weight:600;
+  box-shadow:inset 0 0 0 1.2px var(--brand)}
+.mini-sheet p{font-size:11px; color:var(--text-2); line-height:1.55; margin-bottom:13px}
+.mini-sheet .btn{height:44px; font-size:14px; border-radius:12px}
+
+/* ============================================================
+   9. 屏 6 · 家庭组
+   ============================================================ */
+.f-invite{
+  border-radius:12px; padding:14px 14px 13px; flex:0 0 auto;
+  background:linear-gradient(168deg,#EAF1FE 0%,#F5F9FF 62%,#FFFFFF 100%);
+  box-shadow:inset 0 0 0 1px rgba(46,107,230,.12);
+}
+.f-eye{font-size:10px; color:#5A7BA8; font-weight:600; letter-spacing:.03em}
+.f-title{font-size:18px; font-weight:700; color:#0B2B66; margin-top:5px; letter-spacing:-.01em}
+.f-desc{font-size:11.5px; color:#3E5C86; margin-top:4px; line-height:1.5}
+.f-sample{
+  display:flex; align-items:center; gap:6px; margin-top:10px; padding:6px 8px;
+  background:rgba(255,255,255,.85); border-radius:7px;
+  font-size:10.5px; color:var(--text-2); font-variant-numeric:tabular-nums;
+}
+.f-sample b{font-weight:600; color:var(--text-1)}
+.f-sample .ok{margin-left:auto; color:var(--taken-ink); font-weight:700; font-size:10.5px}
+
+.f-code{
+  border:1.5px dashed #C3D3EA; border-radius:12px; background:#fff;
+  padding:13px 12px 11px; text-align:center; flex:0 0 auto;
+}
+.f-code b{display:block; font-size:19px; font-weight:700; letter-spacing:.10em;
+  color:var(--text-1); font-variant-numeric:tabular-nums}
+.f-code span{display:block; font-size:10.5px; color:var(--brand-600); font-weight:600; margin-top:5px}
+
+.f-btns{display:flex; flex-direction:column; gap:8px; flex:0 0 auto}
+.f-btns .btn.ghost{height:42px; font-size:13.5px}
+
+.f-sec{display:flex; align-items:baseline; gap:6px; padding:2px 2px 0; flex:0 0 auto}
+.f-sec b{font-size:12.5px; font-weight:600; color:var(--text-1)}
+.f-sec span{font-size:10.5px; color:var(--text-3)}
+.f-mem{background:#fff; border-radius:12px; box-shadow:var(--shadow); padding:0 12px; flex:0 0 auto}
+.f-mrow{display:flex; align-items:center; gap:9px; height:44px}
+.f-mrow + .f-mrow{border-top:1px solid var(--line)}
+.f-av{
+  width:26px; height:26px; flex:0 0 26px; border-radius:50%; background:var(--brand-100);
+  color:var(--brand-600); font-size:11px; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+}
+.f-av.g{background:#E7F6ED; color:var(--taken-ink)}
+.f-mn{flex:1 1 auto; font-size:12.5px; color:var(--text-1); font-weight:500}
+.f-mr{font-size:10.5px; color:var(--text-3)}
+
+.f-wait{
+  display:flex; align-items:center; gap:9px; padding:10px 12px; flex:0 0 auto;
+  border:1.5px dashed #D5DCE4; border-radius:12px; background:#F8FAFB;
+}
+.f-wait .f-av{background:#EDF0F4; color:#9AA5B1}
+.f-wait .f-mn{color:var(--text-1); font-weight:600}
+.f-wait .f-msub{display:block; font-size:10.5px; color:var(--text-3); font-weight:400; margin-top:1px}
+.f-foot{flex:0 0 auto; margin-top:2px}
+
+/* ============================================================
+   10. 屏 7 · 周报详情
+   ============================================================ */
+.r-top{display:flex; align-items:flex-start; justify-content:space-between; padding:2px 2px 0; flex:0 0 auto}
+.r-big{display:flex; align-items:baseline; gap:6px}
+.r-big b{font-size:36px; font-weight:700; line-height:1; letter-spacing:-.03em; color:var(--text-1);
+  font-variant-numeric:tabular-nums}
+.r-lb{font-size:10.5px; color:var(--text-3); margin-top:5px}
+.r-right{text-align:right; padding-top:2px}
+.r-right .n{font-size:12.5px; font-weight:600; color:var(--missed-ink); font-variant-numeric:tabular-nums}
+.r-right .m{font-size:10px; color:var(--text-3); margin-top:3px; font-variant-numeric:tabular-nums}
+
+.r-week{display:flex; gap:4px; flex:0 0 auto}
+.r-day{
+  flex:1; background:#fff; border-radius:9px; box-shadow:var(--shadow);
+  padding:7px 0 6px; text-align:center;
+}
+.r-day span{display:block; font-size:9.5px; color:var(--text-3); line-height:1}
+.r-day b{display:block; font-size:13px; line-height:1; margin-top:6px; font-weight:700}
+.r-day .y{color:var(--taken)}
+.r-day .n{color:var(--missed)}
+.r-day .d{color:#C7CFD8}
+
+.r-card{padding:11px 12px 10px; flex:0 0 auto}
+.r-card h4{margin:0 0 9px; font-size:13px; font-weight:600; color:var(--text-1)}
+.r-bar{display:flex; align-items:center; gap:8px; height:22px}
+.r-bar .k{font-size:10.5px; color:var(--text-2); flex:0 0 58px; font-variant-numeric:tabular-nums}
+.r-bar .track{flex:1 1 auto; height:8px; border-radius:4px; background:#F0F3F6; overflow:hidden}
+.r-bar .track i{display:block; height:100%; border-radius:4px; background:#B9CBE4}
+.r-bar .track i.hot{background:var(--missed)}
+.r-bar .v{font-size:10.5px; color:var(--text-3); flex:0 0 40px; text-align:right;
+  font-variant-numeric:tabular-nums}
+.r-card .micro{margin-top:7px; font-size:10px}
+
+.r-med{display:flex; align-items:center; justify-content:space-between; height:24px}
+.r-med + .r-med{border-top:1px solid #F2F5F8}
+.r-med .nm{font-size:12px; color:var(--text-1)}
+.r-med .ct{font-size:11.5px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--text-3)}
+.r-med .ct.hot{color:var(--missed)}
+
+.r-detail{background:#fff; border-radius:12px; box-shadow:var(--shadow); padding:9px 12px 8px; flex:0 0 auto}
+.r-dh{font-size:12.5px; font-weight:600; color:var(--text-1); margin-bottom:5px}
+.r-drow{display:flex; align-items:center; gap:7px; height:26px}
+.r-drow + .r-drow{border-top:1px solid #F2F5F8}
+.r-drow .dt{font-size:10.5px; color:var(--text-2); flex:0 0 auto; font-variant-numeric:tabular-nums}
+.r-drow .nm{font-size:11.5px; color:var(--text-1); flex:1 1 auto; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.r-drow .who{font-size:10px; color:var(--text-3)}
+
+/* ============================================================
+   11. 屏 8 · 复诊报告
+   ============================================================ */
+.paper{
+  background:#fff; border-radius:4px; box-shadow:0 4px 20px rgba(17,34,51,.10), 0 0 0 1px #EDF0F3;
+  aspect-ratio:210/297; padding:20px; display:flex; flex-direction:column;
+  justify-content:space-between; flex:0 0 auto;
+}
+.p-eye{font-size:9px; color:var(--text-3); letter-spacing:.06em}
+.p-title{font-size:14.5px; font-weight:700; color:var(--text-1); margin-top:5px; letter-spacing:-.01em}
+.p-range{font-size:9.5px; color:var(--text-2); margin-top:3px; font-variant-numeric:tabular-nums}
+.p-stats{display:flex; gap:6px; margin-top:11px}
+.p-stat{flex:1; background:#F7F9FB; border-radius:5px; padding:8px 6px; text-align:center}
+.p-stat b{display:block; font-size:15px; font-weight:700; color:var(--text-1); line-height:1.1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.p-stat span{display:block; font-size:8.5px; color:var(--text-3); margin-top:3px}
+.p-table{width:100%; border-collapse:collapse; margin-top:2px}
+.p-table th{
+  font-size:8.5px; color:var(--text-3); font-weight:600; text-align:left;
+  padding:0 0 5px; border-bottom:1px solid var(--line);
+}
+.p-table th:last-child,.p-table td:last-child{text-align:right}
+.p-table td{
+  font-size:9.5px; color:var(--text-1); padding:6px 0; border-bottom:1px solid #F2F5F8;
+  vertical-align:middle;
+}
+.p-table td.mid{color:var(--text-2); font-size:9px; font-variant-numeric:tabular-nums}
+.p-table td.num{font-variant-numeric:tabular-nums; font-weight:600}
+.p-foot{font-size:8.5px; color:var(--text-3); line-height:1.6; padding-top:8px;
+  border-top:1px solid var(--line)}
+
+/* ============================================================
+   12. 屏下方说明块
+   ============================================================ */
+.cap{padding:16px 2px 0; width:375px}
+.unit.wide .cap{width:790px}
+.cap h2{font-size:15px; font-weight:600; color:#FFFFFF; letter-spacing:.01em; display:flex; align-items:center; gap:8px}
+.cap h2 .badge{
+  font-size:10px; font-weight:600; padding:2px 6px; border-radius:4px;
+  letter-spacing:.02em;
+}
+.badge.new{background:rgba(18,161,80,.16); color:#4ED18B}
+.badge.rework{background:rgba(255,138,61,.16); color:#FFAE6E}
+.badge.same{background:rgba(138,148,160,.16); color:#A6AFBA}
+.cap p{font-size:12.5px; color:#8A94A0; line-height:1.62; margin-top:7px}
+.cap code{
+  display:inline-block; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:11px; color:#7E8B99; background:#171C22; border:1px solid #252C34;
+  border-radius:4px; padding:2px 6px; margin-top:9px;
+}
+
+/* 双屏（屏 4） */
+.pair{display:flex; gap:40px}
+.pair-item{display:flex; flex-direction:column}
+.pair-label{
+  font-size:11px; color:#8A94A0; letter-spacing:.08em; font-weight:600;
+  margin-bottom:10px; text-transform:uppercase;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===================== 标题区 ===================== -->
+  <header class="hd">
+    <p class="eyebrow">小药盒 · 微信小程序 · 体验补全</p>
+    <h1>替你记着吃药 · 体验补全原型</h1>
+    <p class="sub">2026-11-02 ｜ 8 屏 ｜ 对应审查报告：docs/页面流程与功能审查-2026-11-02.md</p>
+    <div class="legend">
+      <span><i class="dot new"></i>新增</span>
+      <span><i class="dot rework"></i>改造</span>
+      <span><i class="dot same"></i>不变</span>
+    </div>
+  </header>
+
+  <!-- ===================== 流程对照 ===================== -->
+  <section class="flow">
+    <div class="flow-hd">流程对照</div>
+
+    <div class="flow-row">
+      <span class="flow-tag">现状</span>
+      <div class="flow-track">
+        <div class="node">设置完成</div>
+        <div class="arw">→</div>
+        <div class="node">加药</div>
+        <div class="arw">→</div>
+        <div class="node brk"><span>（断）</span><i>没有邀请入口</i></div>
+        <div class="arw">→</div>
+        <div class="node">首页空等</div>
+      </div>
+    </div>
+
+    <div class="flow-row done">
+      <span class="flow-tag">补全后</span>
+      <div class="flow-track">
+        <div class="node">设置完成</div>
+        <div class="arw">→</div>
+        <div class="node">加药</div>
+        <div class="arw">→</div>
+        <div class="node acc">设置清单</div>
+        <div class="arw">→</div>
+        <div class="node acc">邀请家人</div>
+        <div class="arw">→</div>
+        <div class="node acc">家人加入</div>
+        <div class="arw">→</div>
+        <div class="node acc">每日打卡</div>
+      </div>
+    </div>
+  </section>
+
+  <main class="board">
+
+    <!-- ============================================================
+         屏 1 · 首页（子女端）
+         ============================================================ -->
+    <figure class="unit">
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <svg width="46" height="12" viewBox="0 0 46 12" fill="none" aria-hidden="true">
+            <rect x="0" y="7" width="3" height="5" rx="1" fill="#1A1F26"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#1A1F26"/>
+            <rect x="10" y="3" width="3" height="9" rx="1" fill="#1A1F26"/>
+            <rect x="15" y="1" width="3" height="11" rx="1" fill="#1A1F26"/>
+            <path d="M21.5 5.4c1.8-1.8 4.7-1.8 6.5 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M23.4 7.8c1.1-1.1 2.7-1.1 3.7 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <circle cx="25.2" cy="10.1" r="1" fill="#1A1F26"/>
+            <rect x="30.5" y="2.5" width="11" height="7" rx="2" stroke="#1A1F26" stroke-width="1"/>
+            <rect x="32" y="4" width="8" height="4" rx="1" fill="#1A1F26"/>
+            <path d="M43.2 5.2v1.6" stroke="#1A1F26" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <div class="nav">
+          <div class="nav-l2">
+            <div class="nav-t">张家
+              <svg width="10" height="7" viewBox="0 0 10 7" fill="none" aria-hidden="true">
+                <path d="M1 1.5 5 5.5 9 1.5" stroke="#5C6B7A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="nav-s">今天 11月2日 周日</div>
+          </div>
+          <div class="nav-plus">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M7 1.5v11M1.5 7h11" stroke="#1A1F26" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="content">
+          <!-- 琥珀额度条 -->
+          <div class="amber">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 2.2c-2.2 0-3.9 1.7-3.9 3.9v2.2L2.8 10.6c-.2.3 0 .7.4.7h9.6c.4 0 .6-.4.4-.7l-1.3-2.3V6.1C11.9 3.9 10.2 2.2 8 2.2Z" stroke="#C25E17" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M6.4 13.1a1.7 1.7 0 0 0 3.2 0" stroke="#C25E17" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            <span class="amber-t">提醒额度用完了，明天起收不到到点提醒</span>
+            <span class="amber-a">去补充 ›</span>
+            <span class="amber-x">×</span>
+          </div>
+
+          <!-- 总览 -->
+          <div class="card ov">
+            <div class="ov-top">
+              <div class="ov-num"><b>4</b><span class="of">/ 6</span><span class="lb">已服用</span></div>
+              <div class="ov-pct">67<span>%</span></div>
+            </div>
+            <div class="bar"><i style="width:67%"></i></div>
+            <div class="ov-bot">
+              <span class="who">爸 2/3 · 妈 2/3</span>
+              <span class="ov-warn">⚠ 1 次漏服</span>
+            </div>
+          </div>
+
+          <!-- 漏服条 -->
+          <div class="missed">
+            <span class="missed-t">爸今天 08:00 的降压药还没吃</span>
+            <span class="missed-btns">
+              <button class="btn-xs ghost" type="button">已联系</button>
+              <button class="btn-xs solid" type="button">去提醒</button>
+            </span>
+          </div>
+
+          <!-- 设置清单 -->
+          <div class="card cl">
+            <div class="cl-hd"><span>还差一步就能开始</span><span class="cl-cnt">3 / 4</span></div>
+            <div class="cl-row done"><i class="mk">✓</i><span class="tx">添加服药人</span></div>
+            <div class="cl-row done"><i class="mk">✓</i><span class="tx">添加第一个药</span></div>
+            <div class="cl-row now"><i class="mk">3</i><span class="tx">把邀请码发给家人</span><button class="btn-xs blue" type="button">去邀请</button></div>
+            <div class="cl-ft">家人加入后，你就能看到他们今天吃没吃</div>
+          </div>
+
+          <!-- 爸 -->
+          <div class="card grp">
+            <div class="grp-hd"><span class="grp-nm">爸</span><span class="grp-ct">2/3</span></div>
+            <div class="drow">
+              <span class="d-t">08:00</span><span class="d-n">降压药</span><span class="d-d">1 片</span>
+              <span class="st st-taken"><i>✓</i>已服</span>
+            </div>
+            <div class="drow">
+              <span class="d-t">12:30</span><span class="d-n">二甲双胍</span><span class="d-d">1 片</span>
+              <span class="tag">饭后</span>
+              <span class="st st-pend"><i class="rg"></i>待服</span>
+            </div>
+            <div class="drow">
+              <span class="d-t">19:00</span><span class="d-n">阿司匹林</span><span class="d-d">1 片</span>
+              <span class="st st-pend"><i class="rg"></i>待服</span>
+            </div>
+          </div>
+
+          <!-- 妈 -->
+          <div class="card grp">
+            <div class="grp-hd"><span class="grp-nm">妈</span><span class="grp-ct">2/3</span></div>
+            <div class="drow">
+              <span class="d-t">08:00</span><span class="d-n">钙片</span><span class="d-d">1 片</span>
+              <span class="st st-taken"><i>✓</i>已服</span>
+            </div>
+            <div class="drow">
+              <span class="d-t">12:30</span><span class="d-n">维生素 D</span><span class="d-d">1 片</span>
+              <span class="st st-pend"><i class="rg"></i>待服</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab on">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3.2" y="4.8" width="17.6" height="15.4" rx="3.2" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M3.2 9.4h17.6M8 3.2v3.2M16 3.2v3.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M8 13.4h3.2M8 16.6h6.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <span>今日</span>
+          </div>
+          <div class="tab">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="2.6" y="8.4" width="18.8" height="7.2" rx="3.6" transform="rotate(-45 12 12)" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M9.2 9.2 14.8 14.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <span>药品</span>
+          </div>
+          <div class="tab">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 20V13.2M10 20V6.4M16 20v-9.4M21 20V3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span>周报</span>
+          </div>
+          <div class="tab">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="8.2" r="3.8" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M4.6 20.4c0-3.6 3.3-5.8 7.4-5.8s7.4 2.2 7.4 5.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <span>我的</span>
+          </div>
+        </div>
+      </div>
+
+      <figcaption class="cap">
+        <h2>屏 1 · 首页（子女端）改造 <span class="badge rework">改造</span></h2>
+        <p>额度耗尽、设置断点、漏服告警无出口、多家庭无切换——四个断点都在首屏给出路，而不是藏在「我的」里三步深。</p>
+        <code>对应改动：pages/home/index.ts · index.wxml</code>
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================
+         屏 2 · 提醒额度
+         ============================================================ -->
+    <figure class="unit">
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <svg width="46" height="12" viewBox="0 0 46 12" fill="none" aria-hidden="true">
+            <rect x="0" y="7" width="3" height="5" rx="1" fill="#1A1F26"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#1A1F26"/>
+            <rect x="10" y="3" width="3" height="9" rx="1" fill="#1A1F26"/>
+            <rect x="15" y="1" width="3" height="11" rx="1" fill="#1A1F26"/>
+            <path d="M21.5 5.4c1.8-1.8 4.7-1.8 6.5 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M23.4 7.8c1.1-1.1 2.7-1.1 3.7 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <circle cx="25.2" cy="10.1" r="1" fill="#1A1F26"/>
+            <rect x="30.5" y="2.5" width="11" height="7" rx="2" stroke="#1A1F26" stroke-width="1"/>
+            <rect x="32" y="4" width="8" height="4" rx="1" fill="#1A1F26"/>
+            <path d="M43.2 5.2v1.6" stroke="#1A1F26" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <div class="nav">
+          <div class="nav-ic">
+            <svg width="11" height="18" viewBox="0 0 12 19" fill="none" aria-hidden="true">
+              <path d="M10 1.6 2 9.5l8 7.9" stroke="#1A1F26" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="nav-c"><div class="nav-t">提醒额度</div></div>
+          <div class="nav-ic"></div>
+        </div>
+
+        <div class="content">
+          <div class="card q-hero">
+            <div class="q-num"><b>1</b></div>
+            <div class="q-cap">次 · 还能提醒 1 次</div>
+            <div class="q-sub">用完就收不到了</div>
+          </div>
+
+          <div class="q-explain">
+            <p>微信规定：每条提醒都要你点一次同意。点一次 = 一条。</p>
+            <p class="fine">不是我们想限制你，是规则如此。</p>
+          </div>
+
+          <div class="q-list">
+            <div class="q-row">
+              <div class="q-ic">
+                <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <circle cx="9" cy="9.6" r="6.4" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M9 6.2v3.6l2.4 1.5M6.4 2.2 9 4.2l2.6-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="q-tx"><b>到点提醒</b><span>每天 3 次，约 3 条/天</span></div>
+              <div class="q-right">
+                <span class="q-state warn">剩 1 次</span>
+                <button class="btn-xs warn" type="button">去补充</button>
+              </div>
+            </div>
+
+            <div class="q-row">
+              <div class="q-ic">
+                <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M9 2.6 16 15.2H2L9 2.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                  <path d="M9 7.2v3.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  <circle cx="9" cy="12.8" r=".9" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="q-tx"><b>漏服提醒</b><span>超时 60 分钟告诉你</span></div>
+              <div class="q-right">
+                <span class="q-state red">已用完</span>
+                <button class="btn-xs warn" type="button">去补充</button>
+              </div>
+            </div>
+
+            <div class="q-row">
+              <div class="q-ic">
+                <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <rect x="2.6" y="4" width="12.8" height="11.4" rx="2.2" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M2.6 7.6h12.8M6.4 2.4v3M11.6 2.4v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="q-tx"><b>每周周报</b><span>每周日一份</span></div>
+              <div class="q-right">
+                <span class="q-state gray">剩 3 次</span>
+                <button class="btn-xs ghost" type="button">去补充</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="q-foot">
+            <button class="btn primary" type="button">一次补 3 条</button>
+            <p class="micro c">会连续弹 3 次微信确认框</p>
+            <p class="micro c" style="margin-top:14px;color:#9AA5B1">不点同意也能用小程序，只是收不到微信提醒。</p>
+          </div>
+        </div>
+      </div>
+
+      <figcaption class="cap">
+        <h2>屏 2 · 提醒额度 <span class="badge new">新增</span></h2>
+        <p>把「为什么收不到提醒」从静默失效变成可解释、可补充：额度归零是规则，不是故障，所以用琥珀不用红。</p>
+        <code>对应改动：新增 packageSettings/pages/quota</code>
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================
+         屏 3 · 代打卡确认（底部弹层）
+         ============================================================ -->
+    <figure class="unit">
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <svg width="46" height="12" viewBox="0 0 46 12" fill="none" aria-hidden="true">
+            <rect x="0" y="7" width="3" height="5" rx="1" fill="#1A1F26"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#1A1F26"/>
+            <rect x="10" y="3" width="3" height="9" rx="1" fill="#1A1F26"/>
+            <rect x="15" y="1" width="3" height="11" rx="1" fill="#1A1F26"/>
+            <path d="M21.5 5.4c1.8-1.8 4.7-1.8 6.5 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M23.4 7.8c1.1-1.1 2.7-1.1 3.7 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <circle cx="25.2" cy="10.1" r="1" fill="#1A1F26"/>
+            <rect x="30.5" y="2.5" width="11" height="7" rx="2" stroke="#1A1F26" stroke-width="1"/>
+            <rect x="32" y="4" width="8" height="4" rx="1" fill="#1A1F26"/>
+            <path d="M43.2 5.2v1.6" stroke="#1A1F26" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <div class="nav">
+          <div class="nav-l2">
+            <div class="nav-t">张家
+              <svg width="10" height="7" viewBox="0 0 10 7" fill="none" aria-hidden="true">
+                <path d="M1 1.5 5 5.5 9 1.5" stroke="#5C6B7A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="nav-s">今天 11月2日 周日</div>
+          </div>
+          <div class="nav-plus">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M7 1.5v11M1.5 7h11" stroke="#1A1F26" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="card ov">
+            <div class="ov-top">
+              <div class="ov-num"><b>4</b><span class="of">/ 6</span><span class="lb">已服用</span></div>
+              <div class="ov-pct">67<span>%</span></div>
+            </div>
+            <div class="bar"><i style="width:67%"></i></div>
+            <div class="ov-bot">
+              <span class="who">爸 2/3 · 妈 2/3</span>
+              <span class="ov-warn">⚠ 1 次漏服</span>
+            </div>
+          </div>
+
+          <div class="card grp">
+            <div class="grp-hd"><span class="grp-nm">爸</span><span class="grp-ct">2/3</span></div>
+            <div class="drow">
+              <span class="d-t">08:00</span><span class="d-n">降压药</span><span class="d-d">1 片</span>
+              <span class="st st-taken"><i>✓</i>已服</span>
+            </div>
+            <div class="drow">
+              <span class="d-t">12:30</span><span class="d-n">二甲双胍</span><span class="d-d">1 片</span>
+              <span class="tag">饭后</span>
+              <span class="st st-pend"><i class="rg"></i>待服</span>
+            </div>
+            <div class="drow">
+              <span class="d-t">19:00</span><span class="d-n">阿司匹林</span><span class="d-d">1 片</span>
+              <span class="st st-pend"><i class="rg"></i>待服</span>
+            </div>
+          </div>
+
+          <div class="card grp">
+            <div class="grp-hd"><span class="grp-nm">妈</span><span class="grp-ct">2/3</span></div>
+            <div class="drow">
+              <span class="d-t">08:00</span><span class="d-n">钙片</span><span class="d-d">1 片</span>
+              <span class="st st-taken"><i>✓</i>已服</span>
+            </div>
+            <div class="drow">
+              <span class="d-t">12:30</span><span class="d-n">维生素 D</span><span class="d-d">1 片</span>
+              <span class="st st-pend"><i class="rg"></i>待服</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabbar">
+          <div class="tab on">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3.2" y="4.8" width="17.6" height="15.4" rx="3.2" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M3.2 9.4h17.6M8 3.2v3.2M16 3.2v3.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M8 13.4h3.2M8 16.6h6.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <span>今日</span>
+          </div>
+          <div class="tab">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="2.6" y="8.4" width="18.8" height="7.2" rx="3.6" transform="rotate(-45 12 12)" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M9.2 9.2 14.8 14.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <span>药品</span>
+          </div>
+          <div class="tab">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 20V13.2M10 20V6.4M16 20v-9.4M21 20V3.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span>周报</span>
+          </div>
+          <div class="tab">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="8.2" r="3.8" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M4.6 20.4c0-3.6 3.3-5.8 7.4-5.8s7.4 2.2 7.4 5.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <span>我的</span>
+          </div>
+        </div>
+
+        <div class="mask"></div>
+
+        <div class="bsheet">
+          <div class="grab"></div>
+          <h3>替爸爸记一次？</h3>
+          <div class="bs-card">
+            <span class="bs-time">12:30</span>
+            <span class="bs-med"><b>二甲双胍 1 片</b></span>
+            <span class="tag">饭后</span>
+          </div>
+          <p class="bs-note">这条会记成「已服」，并标注「<b>家人代记</b>」。<br>爸那边打开就能看到。</p>
+          <button class="btn primary" type="button">确认，他吃过了</button>
+          <button class="btn ghost" type="button">取消</button>
+          <p class="bs-fine">别替没吃的人点 —— 记录会进周报，也会影响完成率。</p>
+        </div>
+      </div>
+
+      <figcaption class="cap">
+        <h2>屏 3 · 代打卡确认 <span class="badge new">新增</span></h2>
+        <p>老人说「我吃了」但不会点按钮时，子女有路可走；二次确认里写明「家人代记」并留痕，避免把完成率刷成假的。</p>
+        <code>对应改动：pages/home/index.ts（onMenu）</code>
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================
+         屏 4 · 打卡页（老人端）· 双屏
+         ============================================================ -->
+    <figure class="unit wide">
+      <div class="pair">
+
+        <!-- 4A 未到点 -->
+        <div class="pair-item">
+          <div class="pair-label">4A · 未到点</div>
+          <div class="phone elder">
+            <div class="sb">
+              <span>9:41</span>
+              <svg width="46" height="12" viewBox="0 0 46 12" fill="none" aria-hidden="true">
+                <rect x="0" y="7" width="3" height="5" rx="1" fill="#1A1F26"/>
+                <rect x="5" y="5" width="3" height="7" rx="1" fill="#1A1F26"/>
+                <rect x="10" y="3" width="3" height="9" rx="1" fill="#1A1F26"/>
+                <rect x="15" y="1" width="3" height="11" rx="1" fill="#1A1F26"/>
+                <path d="M21.5 5.4c1.8-1.8 4.7-1.8 6.5 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M23.4 7.8c1.1-1.1 2.7-1.1 3.7 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+                <circle cx="25.2" cy="10.1" r="1" fill="#1A1F26"/>
+                <rect x="30.5" y="2.5" width="11" height="7" rx="2" stroke="#1A1F26" stroke-width="1"/>
+                <rect x="32" y="4" width="8" height="4" rx="1" fill="#1A1F26"/>
+                <path d="M43.2 5.2v1.6" stroke="#1A1F26" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <div class="content e-c">
+              <div class="e-sum">今天 <b>3</b> 次，已吃 <b>2</b> 次</div>
+
+              <div class="e-card">
+                <span class="st st-pend big"><i class="rg"></i>待服</span>
+                <div class="e-when">早上 08:00</div>
+                <div class="e-name">降压药</div>
+                <div class="e-dose">1 片</div>
+                <div class="tag">饭后</div>
+              </div>
+
+              <div class="e-mid">
+                <div class="e-mid-1">还没到点</div>
+                <div class="e-mid-2">还有 1 小时 40 分</div>
+              </div>
+
+              <div class="e-stack">
+                <button class="e-btn off" type="button">还没到点</button>
+                <div class="e-link">我提前吃了</div>
+                <div class="e-next">下一次 12:30 · 二甲双胍</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4B 到点 -->
+        <div class="pair-item">
+          <div class="pair-label">4B · 到点</div>
+          <div class="phone elder">
+            <div class="sb">
+              <span>9:41</span>
+              <svg width="46" height="12" viewBox="0 0 46 12" fill="none" aria-hidden="true">
+                <rect x="0" y="7" width="3" height="5" rx="1" fill="#1A1F26"/>
+                <rect x="5" y="5" width="3" height="7" rx="1" fill="#1A1F26"/>
+                <rect x="10" y="3" width="3" height="9" rx="1" fill="#1A1F26"/>
+                <rect x="15" y="1" width="3" height="11" rx="1" fill="#1A1F26"/>
+                <path d="M21.5 5.4c1.8-1.8 4.7-1.8 6.5 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M23.4 7.8c1.1-1.1 2.7-1.1 3.7 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+                <circle cx="25.2" cy="10.1" r="1" fill="#1A1F26"/>
+                <rect x="30.5" y="2.5" width="11" height="7" rx="2" stroke="#1A1F26" stroke-width="1"/>
+                <rect x="32" y="4" width="8" height="4" rx="1" fill="#1A1F26"/>
+                <path d="M43.2 5.2v1.6" stroke="#1A1F26" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <div class="content e-c">
+              <div class="e-sum">今天 <b>3</b> 次，已吃 <b>2</b> 次</div>
+
+              <div class="e-card">
+                <span class="st st-pend big"><i class="rg"></i>待服</span>
+                <div class="e-when">中午 12:30</div>
+                <div class="e-name">二甲双胍</div>
+                <div class="e-dose">1 片</div>
+                <div class="tag">饭后</div>
+              </div>
+
+              <div class="e-stack">
+                <button class="e-btn main" type="button">我已服用</button>
+                <button class="e-btn sec" type="button">稍后提醒 · 15 分钟</button>
+                <div class="e-next">下一次 19:00 · 阿司匹林</div>
+                <div class="e-who">爸 · 张家</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <figcaption class="cap">
+        <h2>屏 4 · 打卡页（老人端）<span class="badge rework">改造</span></h2>
+        <p>提前打开不再被渲染成「该吃药了」——用「还没到点 + 还有多久」把主按钮降级；顶部一行汇总回答老人最常问的「我早上吃了没」。</p>
+        <code>对应改动：pages/checkin/index.ts · index.wxml</code>
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================
+         屏 5 · 药品详情（暂停 + 余量）
+         ============================================================ -->
+    <figure class="unit">
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <svg width="46" height="12" viewBox="0 0 46 12" fill="none" aria-hidden="true">
+            <rect x="0" y="7" width="3" height="5" rx="1" fill="#1A1F26"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#1A1F26"/>
+            <rect x="10" y="3" width="3" height="9" rx="1" fill="#1A1F26"/>
+            <rect x="15" y="1" width="3" height="11" rx="1" fill="#1A1F26"/>
+            <path d="M21.5 5.4c1.8-1.8 4.7-1.8 6.5 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M23.4 7.8c1.1-1.1 2.7-1.1 3.7 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <circle cx="25.2" cy="10.1" r="1" fill="#1A1F26"/>
+            <rect x="30.5" y="2.5" width="11" height="7" rx="2" stroke="#1A1F26" stroke-width="1"/>
+            <rect x="32" y="4" width="8" height="4" rx="1" fill="#1A1F26"/>
+            <path d="M43.2 5.2v1.6" stroke="#1A1F26" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <div class="nav">
+          <div class="nav-ic">
+            <svg width="11" height="18" viewBox="0 0 12 19" fill="none" aria-hidden="true">
+              <path d="M10 1.6 2 9.5l8 7.9" stroke="#1A1F26" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="nav-c"><div class="nav-t">药品详情</div></div>
+          <div class="nav-ic"></div>
+        </div>
+
+        <div class="content">
+          <div class="m-head">
+            <div class="m-ic">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="2.4" y="8.6" width="19.2" height="6.8" rx="3.4" transform="rotate(-45 12 12)" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M9 9 15 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="m-hd-tx">
+              <b>苯磺酸氨氯地平片</b>
+              <div class="m-spec">5mg×7片</div>
+              <div class="m-tags"><span class="tag">爸</span><span class="tag">长期用药</span></div>
+            </div>
+          </div>
+
+          <div class="m-state"><i class="dotm"></i>正在服用<em>· 下次 08:00</em></div>
+
+          <dl class="m-list">
+            <div class="m-row"><dt>默认剂量</dt><dd>1 片</dd></div>
+            <div class="m-row"><dt>每天怎么吃</dt><dd>08:00 1 片 · 20:00 半片</dd></div>
+            <div class="m-row"><dt>什么时候吃</dt><dd>饭后</dd></div>
+            <div class="m-row"><dt>备注</dt><dd>不要掰开</dd></div>
+          </dl>
+
+          <div class="card m-stock">
+            <div class="m-stock-top"><b>还剩 12 片</b><span>约 6 天</span></div>
+            <div class="bar"><i style="width:24%"></i></div>
+            <p class="micro">按现在的吃法估算</p>
+          </div>
+
+          <div class="m-actions">
+            <button class="btn primary" type="button">编辑药品</button>
+            <button class="btn ghost" type="button">暂停用药</button>
+            <div class="m-del">删除这个药</div>
+          </div>
+        </div>
+
+        <div class="m-mask"></div>
+
+        <div class="mini-sheet">
+          <div class="grab"></div>
+          <h3>暂停到什么时候？</h3>
+          <div class="chips">
+            <span class="chip">3 天</span>
+            <span class="chip">7 天</span>
+            <span class="chip on">14 天</span>
+            <span class="chip">自定义</span>
+          </div>
+          <p>暂停期间不提醒，也不计入完成率；到期自动恢复。</p>
+          <button class="btn primary" type="button">暂停到 8月20日</button>
+        </div>
+      </div>
+
+      <figcaption class="cap">
+        <h2>屏 5 · 药品详情（暂停 + 余量） <span class="badge new">新增</span></h2>
+        <p>医生让停两周不必删药：暂停不计入完成率、到期自动恢复；余量按当前吃法估算，快吃完时才有理由回来。</p>
+        <code>对应改动：packageManage/pages/medicine-detail/index.ts</code>
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================
+         屏 6 · 家庭组（待加入）
+         ============================================================ -->
+    <figure class="unit">
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <svg width="46" height="12" viewBox="0 0 46 12" fill="none" aria-hidden="true">
+            <rect x="0" y="7" width="3" height="5" rx="1" fill="#1A1F26"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#1A1F26"/>
+            <rect x="10" y="3" width="3" height="9" rx="1" fill="#1A1F26"/>
+            <rect x="15" y="1" width="3" height="11" rx="1" fill="#1A1F26"/>
+            <path d="M21.5 5.4c1.8-1.8 4.7-1.8 6.5 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M23.4 7.8c1.1-1.1 2.7-1.1 3.7 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <circle cx="25.2" cy="10.1" r="1" fill="#1A1F26"/>
+            <rect x="30.5" y="2.5" width="11" height="7" rx="2" stroke="#1A1F26" stroke-width="1"/>
+            <rect x="32" y="4" width="8" height="4" rx="1" fill="#1A1F26"/>
+            <path d="M43.2 5.2v1.6" stroke="#1A1F26" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <div class="nav">
+          <div class="nav-ic">
+            <svg width="11" height="18" viewBox="0 0 12 19" fill="none" aria-hidden="true">
+              <path d="M10 1.6 2 9.5l8 7.9" stroke="#1A1F26" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="nav-c"><div class="nav-t">家庭组</div></div>
+          <div class="nav-ic"></div>
+        </div>
+
+        <div class="content">
+          <div class="f-invite">
+            <div class="f-eye">小药盒 · 家庭用药提醒</div>
+            <div class="f-title">一起盯着爸妈吃药</div>
+            <div class="f-desc">不用注册，填一次邀请码就加入</div>
+            <div class="f-sample">
+              <span>08:00</span><b>降压药</b><span>1 片</span>
+              <span class="ok">✓已服</span>
+            </div>
+          </div>
+
+          <div class="f-code">
+            <b>IVT1A2B3C4D</b>
+            <span>点一下复制</span>
+          </div>
+
+          <div class="f-btns">
+            <button class="btn primary" type="button">转发给微信好友</button>
+            <button class="btn ghost" type="button">复制邀请码</button>
+          </div>
+
+          <div class="f-sec"><b>已加入（2 人）</b></div>
+          <div class="f-mem">
+            <div class="f-mrow">
+              <span class="f-av">我</span>
+              <span class="f-mn">我</span>
+              <span class="f-mr">管理员</span>
+            </div>
+            <div class="f-mrow">
+              <span class="f-av g">妹</span>
+              <span class="f-mn">妹妹</span>
+              <span class="f-mr">成员</span>
+            </div>
+          </div>
+
+          <div class="f-wait">
+            <span class="f-av">爸</span>
+            <span class="f-mn">爸爸<span class="f-msub">邀请已发出 2 天，还没进来</span></span>
+            <button class="btn-xs line" type="button">再发一次</button>
+          </div>
+
+          <div class="f-foot">
+            <p class="micro">家里谁没吃药，你都能看见。记录只在这个家庭组内可见。</p>
+          </div>
+        </div>
+      </div>
+
+      <figcaption class="cap">
+        <h2>屏 6 · 家庭组（待加入） <span class="badge new">新增</span></h2>
+        <p>邀请发出后不再是黑洞：谁还没进来、发出几天了、要不要再发一次——漏斗最贵的一步终于有反馈。</p>
+        <code>对应改动：packageManage/pages/family/index.ts</code>
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================
+         屏 7 · 周报详情（洞察）
+         ============================================================ -->
+    <figure class="unit">
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <svg width="46" height="12" viewBox="0 0 46 12" fill="none" aria-hidden="true">
+            <rect x="0" y="7" width="3" height="5" rx="1" fill="#1A1F26"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#1A1F26"/>
+            <rect x="10" y="3" width="3" height="9" rx="1" fill="#1A1F26"/>
+            <rect x="15" y="1" width="3" height="11" rx="1" fill="#1A1F26"/>
+            <path d="M21.5 5.4c1.8-1.8 4.7-1.8 6.5 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M23.4 7.8c1.1-1.1 2.7-1.1 3.7 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <circle cx="25.2" cy="10.1" r="1" fill="#1A1F26"/>
+            <rect x="30.5" y="2.5" width="11" height="7" rx="2" stroke="#1A1F26" stroke-width="1"/>
+            <rect x="32" y="4" width="8" height="4" rx="1" fill="#1A1F26"/>
+            <path d="M43.2 5.2v1.6" stroke="#1A1F26" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <div class="nav">
+          <div class="nav-ic">
+            <svg width="11" height="18" viewBox="0 0 12 19" fill="none" aria-hidden="true">
+              <path d="M10 1.6 2 9.5l8 7.9" stroke="#1A1F26" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="nav-c">
+            <div class="nav-t">详细报告</div>
+            <div class="nav-s">10.27 - 11.02</div>
+          </div>
+          <div class="nav-ic"></div>
+        </div>
+
+        <div class="content">
+          <div class="r-top">
+            <div>
+              <div class="r-big"><b>78%</b></div>
+              <div class="r-lb">本周完成率</div>
+            </div>
+            <div class="r-right">
+              <div class="n">漏服 3 次</div>
+              <div class="m">手动修改 1 次（不计入）</div>
+            </div>
+          </div>
+
+          <div class="r-week">
+            <div class="r-day"><span>一</span><b class="y">✓</b></div>
+            <div class="r-day"><span>二</span><b class="y">✓</b></div>
+            <div class="r-day"><span>三</span><b class="n">✗</b></div>
+            <div class="r-day"><span>四</span><b class="y">✓</b></div>
+            <div class="r-day"><span>五</span><b class="y">✓</b></div>
+            <div class="r-day"><span>六</span><b class="n">✗</b></div>
+            <div class="r-day"><span>日</span><b class="d">·</b></div>
+          </div>
+
+          <div class="card r-card">
+            <h4>最容易漏的是晚上</h4>
+            <div class="r-bar">
+              <span class="k">早上 08:00</span>
+              <span class="track"><i style="width:14%"></i></span>
+              <span class="v">2 / 14</span>
+            </div>
+            <div class="r-bar">
+              <span class="k">中午 12:30</span>
+              <span class="track"><i style="width:7%"></i></span>
+              <span class="v">1 / 14</span>
+            </div>
+            <div class="r-bar">
+              <span class="k">晚上 19:00</span>
+              <span class="track"><i class="hot" style="width:29%"></i></span>
+              <span class="v">4 / 14</span>
+            </div>
+            <p class="micro">晚上这条比上周多漏了 2 次</p>
+          </div>
+
+          <div class="card r-card">
+            <h4>哪种药最容易漏</h4>
+            <div class="r-med"><span class="nm">阿司匹林</span><span class="ct hot">3 次</span></div>
+            <div class="r-med"><span class="nm">二甲双胍</span><span class="ct">0 次</span></div>
+            <div class="r-med"><span class="nm">降压药</span><span class="ct">0 次</span></div>
+          </div>
+
+          <div class="r-detail">
+            <div class="r-dh">漏服明细</div>
+            <div class="r-drow">
+              <span class="dt">10月29日 周三 19:00</span>
+              <span class="nm">阿司匹林 1片</span>
+              <span class="who">爸</span>
+              <span class="st st-miss"><i>！</i>漏服</span>
+            </div>
+            <div class="r-drow">
+              <span class="dt">10月31日 周六 19:00</span>
+              <span class="nm">阿司匹林 1片</span>
+              <span class="who">爸</span>
+              <span class="st st-miss"><i>！</i>漏服</span>
+            </div>
+          </div>
+
+          <button class="btn primary" type="button" style="flex:0 0 auto;margin-top:2px">导出近 30 天报告</button>
+          <p class="micro" style="flex:0 0 auto;padding-bottom:10px">完成率只统计系统判定 + 本人打卡；管理员修改单列，不进分子分母。</p>
+        </div>
+      </div>
+
+      <figcaption class="cap">
+        <h2>屏 7 · 周报详情（洞察） <span class="badge rework">改造</span></h2>
+        <p>看 15 秒视频换来的不该只是一张日历：回答「哪种药、哪个时段最容易漏」，才撑得住激励视频的价值。</p>
+        <code>对应改动：packageReport/pages/report-detail/index.ts</code>
+      </figcaption>
+    </figure>
+
+    <!-- ============================================================
+         屏 8 · 复诊报告预览
+         ============================================================ -->
+    <figure class="unit">
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <svg width="46" height="12" viewBox="0 0 46 12" fill="none" aria-hidden="true">
+            <rect x="0" y="7" width="3" height="5" rx="1" fill="#1A1F26"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#1A1F26"/>
+            <rect x="10" y="3" width="3" height="9" rx="1" fill="#1A1F26"/>
+            <rect x="15" y="1" width="3" height="11" rx="1" fill="#1A1F26"/>
+            <path d="M21.5 5.4c1.8-1.8 4.7-1.8 6.5 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M23.4 7.8c1.1-1.1 2.7-1.1 3.7 0" stroke="#1A1F26" stroke-width="1.4" stroke-linecap="round"/>
+            <circle cx="25.2" cy="10.1" r="1" fill="#1A1F26"/>
+            <rect x="30.5" y="2.5" width="11" height="7" rx="2" stroke="#1A1F26" stroke-width="1"/>
+            <rect x="32" y="4" width="8" height="4" rx="1" fill="#1A1F26"/>
+            <path d="M43.2 5.2v1.6" stroke="#1A1F26" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <div class="nav">
+          <div class="nav-ic">
+            <svg width="11" height="18" viewBox="0 0 12 19" fill="none" aria-hidden="true">
+              <path d="M10 1.6 2 9.5l8 7.9" stroke="#1A1F26" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="nav-c"><div class="nav-t">用药报告</div></div>
+          <div class="nav-ic"></div>
+        </div>
+
+        <div class="content">
+          <div class="paper">
+            <div>
+              <div class="p-eye">替你记着吃药 · 用药记录</div>
+              <div class="p-title">张建国 · 近 30 天用药记录</div>
+              <div class="p-range">2026.10.03 - 2026.11.02</div>
+              <div class="p-stats">
+                <div class="p-stat"><b>81%</b><span>完成率</span></div>
+                <div class="p-stat"><b>7</b><span>漏服次数</span></div>
+                <div class="p-stat"><b>4</b><span>在服药品</span></div>
+              </div>
+            </div>
+
+            <table class="p-table">
+              <thead>
+                <tr><th>药品</th><th>用法</th><th>完成率</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>苯磺酸氨氯地平片</td><td class="mid">08:00 1片</td><td class="num">96%</td></tr>
+                <tr><td>二甲双胍</td><td class="mid">12:30 1片</td><td class="num">88%</td></tr>
+                <tr><td>阿司匹林</td><td class="mid">19:00 1片</td><td class="num">62%</td></tr>
+                <tr><td>阿托伐他汀</td><td class="mid">20:00 半片</td><td class="num">91%</td></tr>
+              </tbody>
+            </table>
+
+            <div class="p-foot">
+              本报告由用户自行记录生成，不含任何诊断或用药建议。<br>
+              数据范围：2026.10.03 - 2026.11.02
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;flex:0 0 auto;padding-bottom:8px">
+            <button class="btn primary" type="button">保存为图片</button>
+            <button class="btn ghost" type="button" style="height:42px;font-size:13.5px">转发给家人</button>
+          </div>
+          <p class="micro" style="flex:0 0 auto;padding-bottom:10px">报告不含诊断建议，仅供复诊时向医生说明服药情况。</p>
+        </div>
+      </div>
+
+      <figcaption class="cap">
+        <h2>屏 8 · 复诊报告预览 <span class="badge new">新增</span></h2>
+        <p>导出的是能递给医生的 A4 单页，不是 JSON 数据包：一屏看完成率、漏服次数、在服药品与每种药的用法。</p>
+        <code>对应改动：新增 packageReport/pages/export-report</code>
+      </figcaption>
+    </figure>
+
+  </main>
+</div>
+</body>
+</html>
