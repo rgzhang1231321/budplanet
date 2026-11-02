@@ -44,8 +44,8 @@
     <view wx:if="{{!isSelf}}" class="d-card" bindtap="onOpenDetail">
       <view class="d-card__icon"><view class="i i-video i--lg"></view></view>
       <view class="d-card__text">
-        <text class="d-card__title">看 15 秒视频，查看详细报告</text>
-        <text class="d-card__desc">含每次漏服的具体时间与趋势</text>
+        <text class="d-card__title">看 15 秒视频，看详细分析</text>
+        <text class="d-card__desc">按时段、按药看漏服分布与趋势</text>
       </view>
       <view class="i i-chevron"></view>
     </view>

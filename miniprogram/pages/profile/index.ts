@@ -3,6 +3,7 @@ import { bootstrap, resetSession, setMode, switchFamily } from '../../store/user
 import { get, isElder, on } from '../../store/index';
 import { call } from '../../utils/request';
 import { unlockByAd, PRODUCT } from '../../utils/ad';
+import { navTo } from '../../utils/nav';
 import { APP_VERSION } from '../../config/index';
 
 Page({
@@ -117,7 +118,7 @@ Page({
   },
 
   go(e: any) {
-    wx.navigateTo({ url: e.currentTarget.dataset.url });
+    navTo(e.currentTarget.dataset.url);
   },
 
   onExport() {

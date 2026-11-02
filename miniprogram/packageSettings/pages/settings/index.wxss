@@ -44,3 +44,13 @@
 .ebar {
   margin: var(--sp-5) calc(-1 * var(--pad-page)) 0;
 }
+
+/* ── P2-4 额度解释副标题 ── */
+.gs-note {
+  display: block;
+  margin-top: var(--sp-2);
+  padding: 0 var(--sp-1);
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  line-height: 1.5;
+}

@@ -4,6 +4,7 @@ import { get, isElder } from '../../../store/index';
 import { call, get as apiGet } from '../../../utils/request';
 import { showC } from '../../../utils/ad';
 import { addDays, dateCN } from '../../../utils/time';
+import { navTo } from '../../../utils/nav';
 
 Page({
   data: {
@@ -56,7 +57,7 @@ Page({
       wx.showToast({ title: '让子女在手机上修改', icon: 'none' });
       return;
     }
-    wx.navigateTo({ url: `/packageManage/pages/medicine-form/index?mid=${this.data.mid}` });
+    navTo(`/packageManage/pages/medicine-form/index?mid=${this.data.mid}`);
   },
 
   onPlan() {
@@ -64,7 +65,7 @@ Page({
       wx.showToast({ title: '让子女在手机上修改', icon: 'none' });
       return;
     }
-    wx.navigateTo({ url: `/packageManage/pages/plan-form/index?mid=${this.data.mid}` });
+    navTo(`/packageManage/pages/plan-form/index?mid=${this.data.mid}`);
   },
 
   /* ── P1-1 暂停用药 ── */

@@ -65,6 +65,8 @@
         <view class="i i-chevron"></view>
       </view>
     </view>
+    <!-- P2-4：解释"为什么是 1 次" -->
+    <text class="gs-note">微信规定：每条提醒都要你点一次同意，点一次 = 一条。</text>
 
     <text class="gs">显示</text>
     <view class="list">

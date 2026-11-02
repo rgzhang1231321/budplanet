@@ -427,3 +427,11 @@
   font-size: var(--fs-caption);
   color: var(--text-2);
 }
+
+/* ── P2-2 成功页「下一次 HH:MM」 ── */
+.ok__next {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}

@@ -10,6 +10,7 @@ import { dateCN, dayStartTs, humanDate, humanGap, diffMinutes, tsToTime } from '
 import { statusBarHeight } from '../../utils/theme';
 import { AD_UNITS } from '../../config/index';
 import { report } from '../../utils/report';
+import { navTo } from '../../utils/nav';
 
 /** P0-5：「已联系」是本地痕迹，不改服务端状态 —— 联系过不等于吃了。按 dose_id 记到当天。 */
 const ACK_KEY = 'missed_ack_v1';
@@ -203,7 +204,7 @@ Page({
     const row = e.detail.row;
     // 服药人（即使开着普通版）直接进打卡页：他改不了记录，弹 ActionSheet 只会给一条错误路
     if (isSelf()) {
-      wx.navigateTo({ url: `/pages/checkin/index?dose=${row.dose_id}` });
+      navTo(`/pages/checkin/index?dose=${row.dose_id}`);
       return;
     }
     this.openActionSheet(row);
@@ -298,7 +299,7 @@ Page({
     const pend = visibleRows()
       .filter((r) => r.status === 'pending')
       .sort((a, b) => a.slot - b.slot)[0];
-    wx.navigateTo({ url: pend ? `/pages/checkin/index?dose=${pend.dose_id}` : '/pages/checkin/index' });
+    navTo(pend ? `/pages/checkin/index?dose=${pend.dose_id}` : '/pages/checkin/index');
   },
 
   /** P0-5：标记「已联系」——本地当天有效，只把红条降级为灰字，不改服务端状态 */
@@ -317,7 +318,7 @@ Page({
 
   /** P0-2：去补充提醒额度 */
   onQuotaGo() {
-    wx.navigateTo({ url: '/packageSettings/pages/quota/index' });
+    navTo('/packageSettings/pages/quota/index');
   },
 
   /** P0-2：当天关闭额度细条（24h 内不再出现） */
@@ -332,7 +333,7 @@ Page({
 
   /** P0-3：设置清单 → 邀请家人（复用家庭组页，那里有邀请码与转发） */
   onInvite() {
-    wx.navigateTo({ url: '/packageManage/pages/family/index' });
+    navTo('/packageManage/pages/family/index');
   },
 
   /** P0-3：关闭设置清单，3 天后重新出现 */
@@ -347,7 +348,7 @@ Page({
 
   onMissedBar() {
     const row = visibleRows().find((r) => r.status === 'missed');
-    if (row) wx.navigateTo({ url: `/pages/checkin/index?dose=${row.dose_id}` });
+    if (row) navTo(`/pages/checkin/index?dose=${row.dose_id}`);
   },
 
   /** P1-3：切换家庭（标题下拉）。只有 >1 个家时才给入口。 */
@@ -372,15 +373,15 @@ Page({
   },
 
   onAdd() {
-    wx.navigateTo({ url: '/packageManage/pages/medicine-form/index' });
+    navTo('/packageManage/pages/medicine-form/index');
   },
 
   onSettings() {
-    wx.navigateTo({ url: '/packageSettings/pages/settings/index' });
+    navTo('/packageSettings/pages/settings/index');
   },
 
   onAddPatient() {
-    wx.navigateTo({ url: '/packageManage/pages/patient/index' });
+    navTo('/packageManage/pages/patient/index');
   },
 
   onEmptyAdd() {

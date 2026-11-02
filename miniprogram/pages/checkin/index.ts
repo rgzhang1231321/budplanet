@@ -11,6 +11,7 @@ import { isAlwaysAccept, isMainSwitchOn } from '../../utils/subscribe';
 import { countdown, humanGap, diffMinutes, partOfDay } from '../../utils/time';
 import { AD_UNITS } from '../../config/index';
 import { report } from '../../utils/report';
+import { navTo } from '../../utils/nav';
 
 Page({
   data: {
@@ -362,6 +363,22 @@ Page({
   onSkip() {
     const r = (this._pendingAll || [])[0];
     if (!r) return;
+    // P2-8：老人端「今天不吃」收进二次确认 —— 与"老人端不让人做选择"的原则一致
+    if (this.data.elder) {
+      wx.showModal({
+        title: '今天这次不吃了？',
+        content: '记下之后，今天这次就不会再提醒。',
+        confirmText: '不吃',
+        success: (m) => {
+          if (m.confirm) this.doSkip(r);
+        },
+      });
+      return;
+    }
+    this.doSkip(r);
+  },
+
+  doSkip(r: any) {
     wx.showActionSheet({
       itemList: ['已吃过', '不舒服', '医生让停', '其他'],
       success: (res) => {
@@ -408,7 +425,7 @@ Page({
   },
 
   onSettings() {
-    wx.navigateTo({ url: '/packageSettings/pages/settings/index' });
+    navTo('/packageSettings/pages/settings/index');
   },
 
   onShareAppMessage() {

@@ -13,7 +13,8 @@
     <view class="quota-card">
       <view class="quota-card__left">
         <text class="quota-card__num">{{limit + credits}}<text class="quota-card__of"> 个名额</text></text>
-        <text class="quota-card__label">已解锁 {{credits}} 个额外药品</text>
+        <!-- P2-7：拆开写，用户才知道 3 个是免费的 -->
+        <text class="quota-card__label">免费 {{limit}} 个 · 已解锁 {{credits}} 个</text>
       </view>
       <view class="quota-card__btn" bindtap="onUnlockMore">
         <text>再加 1 个</text>

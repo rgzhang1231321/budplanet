@@ -135,3 +135,16 @@
   padding: 2rpx 10rpx;
   flex: none;
 }
+
+/* ── P2-1 行右侧「下次 HH:MM」 ── */
+.mrow__right {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.mrow__next {
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  margin-right: var(--sp-2);
+  font-variant-numeric: tabular-nums;
+}

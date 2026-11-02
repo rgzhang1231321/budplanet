@@ -32,7 +32,10 @@
                   <text wx:for="{{med.times}}" wx:for-item="sl" wx:key="t" class="chip">{{sl.t ? sl.t + ' · ' : ''}}{{sl.d}}</text>
                 </view>
               </view>
-              <view class="i i-chevron"></view>
+              <view class="mrow__right">
+                <text wx:if="{{med.nextText}}" class="mrow__next">{{med.nextText}}</text>
+                <view class="i i-chevron"></view>
+              </view>
             </view>
           </block>
         </view>

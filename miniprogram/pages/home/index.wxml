@@ -130,7 +130,7 @@
           wx:else
           icon="pill"
           title="今天还没有药"
-          desc="让家人帮你加一个吧"
+          desc="把手机给家人，让他帮你加"
           actionText=""
         ></empty-state>
       </block>

@@ -30,10 +30,11 @@
         <text class="ivt__act">点一下复制</text>
       </view>
 
-      <button class="btn btn--primary share-main" bindtap="onCopyCode">复制邀请码</button>
+      <!-- P2-3：微信里转发比复制自然，转发做主按钮、复制降为次级 -->
+      <button class="btn btn--primary share-main" open-type="share">转发给微信好友</button>
 
       <view class="mt-3">
-        <button class="btn btn--sub btn--full share-sub" open-type="share">也可以转发给微信好友</button>
+        <button class="btn btn--sub btn--full share-sub" bindtap="onCopyCode">复制邀请码</button>
       </view>
 
       <view class="copy" bindtap="onReset">

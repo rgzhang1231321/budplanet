@@ -8,6 +8,7 @@ import { get, isElder, on, set } from '../../../store/index';
 import { requestOne, isMainSwitchOn } from '../../../utils/subscribe';
 import { quietHoursText, DEFAULT_QUIET_HOURS } from '../../../utils/ad';
 import { report } from '../../../utils/report';
+import { navTo } from '../../../utils/nav';
 
 Page({
   data: {
@@ -112,7 +113,7 @@ Page({
   },
 
   go(e: any) {
-    wx.navigateTo({ url: e.currentTarget.dataset.url });
+    navTo(e.currentTarget.dataset.url);
   },
 
   onCall() {

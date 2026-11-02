@@ -3,6 +3,8 @@ import { bootstrap, refreshToday } from '../../store/user';
 import { get, isElder, on } from '../../store/index';
 import { get as apiGet } from '../../utils/request';
 import { statusBarHeight } from '../../utils/theme';
+import { timeToMinute } from '../../utils/time';
+import { navTo } from '../../utils/nav';
 import { AD_UNITS } from '../../config/index';
 
 Page({
@@ -44,23 +46,34 @@ Page({
     try {
       const d: any = await apiGet('medicine', 'list', { fid: s.family.fid }, { silent });
       const items = d.items || [];
+      const nowMin = (() => {
+        const d = new Date();
+        return d.getHours() * 60 + d.getMinutes();
+      })();
       const groups = s.family.patients
         .map((p) => {
           const list = items
             .filter((m: any) => m.uid === p.uid)
-            .map((m: any) => ({
-              mid: m.mid,
-              name: m.name,
-              spec: m.spec,
-              // slots 未登记在契约表里（见 mock 顶部清单）：缺失时退化成只显示默认剂量，
-              // 不要显示成"这个药没有吃药时间"。
-              times: (m.slots && m.slots.length ? m.slots : [{ t: '', d: m.default_dose }]).map((sl: any) => ({
-                t: sl.t,
-                d: sl.d || m.default_dose,
-              })),
-              // P1-1：暂停中的药在列表里明示，避免用户以为"怎么不提醒了"
-              paused: m.plan_status === 'paused',
-            }));
+            .map((m: any) => {
+              const times = (m.slots && m.slots.length ? m.slots : [{ t: '', d: m.default_dose }]).map(
+                (sl: any) => ({ t: sl.t, d: sl.d || m.default_dose }),
+              );
+              const paused = m.plan_status === 'paused';
+              // P2-1：每行右侧显示「下次 HH:MM」——不然只能看到几个时间点，不知道下一顿几点
+              const mins = times
+                .map((sl: any) => (sl.t ? timeToMinute(sl.t) : -1))
+                .filter((x: number) => x >= 0)
+                .sort((a: number, b: number) => a - b);
+              let nextText = '';
+              if (!paused && mins.length) {
+                const next = mins.find((x: number) => x > nowMin);
+                const useMin = next !== undefined ? next : mins[0];
+                const hh = `${Math.floor(useMin / 60)}`.padStart(2, '0');
+                const mm = `${useMin % 60}`.padStart(2, '0');
+                nextText = `${next !== undefined ? '下次' : '明天'} ${hh}:${mm}`;
+              }
+              return { mid: m.mid, name: m.name, spec: m.spec, times, paused, nextText };
+            });
           return { uid: p.uid, alias: p.alias, initial: (p.alias || '家').slice(0, 1), list };
         })
         .filter((g: any) => g.list.length);
@@ -93,13 +106,13 @@ Page({
       return;
     }
     if (!s.family.patients.length) {
-      wx.navigateTo({ url: '/packageManage/pages/patient/index' });
+      navTo('/packageManage/pages/patient/index');
       return;
     }
-    wx.navigateTo({ url: '/packageManage/pages/medicine-form/index' });
+    navTo('/packageManage/pages/medicine-form/index');
   },
 
   onOpen(e: any) {
-    wx.navigateTo({ url: `/packageManage/pages/medicine-detail/index?mid=${e.currentTarget.dataset.mid}` });
+    navTo(`/packageManage/pages/medicine-detail/index?mid=${e.currentTarget.dataset.mid}`);
   },
 });

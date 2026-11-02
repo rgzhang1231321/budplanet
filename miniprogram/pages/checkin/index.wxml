@@ -96,6 +96,7 @@
     </view>
     <text class="ok__title">已经记下了</text>
     <text class="ok__sub">{{subText}}</text>
+    <text wx:if="{{nextText}}" class="ok__next">{{nextText}}</text>
     <text wx:if="{{quotaHint}}" class="ok__quota">{{quotaHint}}</text>
 
     <view class="ok__stack"><member-avatar-stack members="{{members}}"></member-avatar-stack></view>
