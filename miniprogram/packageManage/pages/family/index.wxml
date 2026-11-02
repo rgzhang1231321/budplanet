@@ -45,8 +45,13 @@
         </view>
       </view>
 
-      <!-- P2-3：微信里转发比复制自然，转发做主按钮、复制降为次级 -->
-      <button class="btn btn--primary share-main" open-type="share">转发给{{inviteName || '微信好友'}}</button>
+      <!-- P2-3：微信里转发比复制自然，转发做主按钮、复制降为次级。
+           多位可认领却没点人时**不能给 open-type="share"**：微信拦不住这次点击，
+           不点人直接转发 = 路径里没有 uid = 爸爸点进来又新建一条空档案（本入口复发）。
+           所以这一档只渲染普通 button，点了给一句 toast 把人引回去点 chips。
+           零候选（全都绑好了）不在此列：那时没有可认领的人，正常新建就是对的。 -->
+      <button wx:if="{{needPick}}" class="btn btn--primary share-main" bindtap="onPickHint">先选这次邀请谁</button>
+      <button wx:else class="btn btn--primary share-main" open-type="share">转发给{{inviteName || '微信好友'}}</button>
 
       <view class="mt-3">
         <button class="btn btn--sub btn--full share-sub" bindtap="onCopyCode">复制邀请码</button>

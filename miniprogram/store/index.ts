@@ -247,6 +247,20 @@ export function patientOf(pid: string): Patient | undefined {
   return state.family.patients.find((p) => p.uid === pid);
 }
 
+/**
+ * 分享卡自动带上的「这位是谁」：返回**唯一一条还没被绑定的服药人 uid**。
+ * 恰好 1 条 → 返回它；0 条或 ≥2 条 → 返回 ''（不猜 —— 猜错就是把妈妈的档案发给爸爸，
+ * 两条绑定一起乱）。服务端只认领 self_openid 为空的那条，所以已绑定的不能算候选。
+ *
+ * 用在"顺手分享"的入口（打卡报平安 / 周报 / 落地页转发）：分享者本来没打算邀请谁，
+ * 弹一个"这是邀请谁"很怪；自动带唯一候选能覆盖最常见的家庭（家里只有一位老人还没进来），
+ * 多位时退回现状（不带 uid = 对方正常新建，与改动前一致）。
+ */
+export function inviteUidForShare(): string {
+  const unbound = (state.family.patients || []).filter((p) => !p.selfOpenid);
+  return unbound.length === 1 ? unbound[0].uid : '';
+}
+
 export interface Overview {
   taken: number;
   total: number;

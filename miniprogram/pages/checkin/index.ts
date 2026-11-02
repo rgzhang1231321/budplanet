@@ -4,7 +4,7 @@
  * 铁律：pending 分支 0 广告 0 弹窗；点击即终态（不等网络）；老人端无返回箭头、无撤销。
  */
 import { bootstrap, refreshToday } from '../../store/user';
-import { get, isElder, mode, on, pureElderView, visibleRows } from '../../store/index';
+import { get, inviteUidForShare, isElder, mode, on, pureElderView, visibleRows } from '../../store/index';
 import { flushHeld, skip, snooze, take, undoTake } from '../../store/today';
 import { flush, dirtyToday } from '../../utils/queue';
 import { isAlwaysAccept, isMainSwitchOn } from '../../utils/subscribe';
@@ -462,10 +462,14 @@ Page({
     // invite_token 只对 admin 下发：拿不到码时不要拼 `ivt=`（空串会让落地页落到普通欢迎页，
     // 用户以为是邀请卡、点进去却发现要重新开始）。宁可分享成普通入口。
     const ivt = s.family.inviteToken;
+    // 顺手分享也要认人：家里恰好剩一位没绑的服药人时，卡上自动带他的 uid，
+    // 他点进来就直接认领自己那条档案（药单不是空的）。多位/零位不猜 —— 见 store.inviteUidForShare。
+    // 只有带邀请码时才拼：没码的卡是普通入口，带 uid 过去也没有可认领的邀请。
+    const uid = ivt ? inviteUidForShare() : '';
     return {
       title: `${alias}今天按时吃药了`,
       path: ivt
-        ? `/pages/launch/index?from=checkin&fid=${s.family.fid}&ivt=${ivt}`
+        ? `/pages/launch/index?from=checkin&fid=${s.family.fid}&ivt=${ivt}${uid ? `&uid=${uid}` : ''}`
         : '/pages/launch/index?from=checkin',
       success: () => report('share_click', { channel: 'wechat', from: 'checkin' }),
     };

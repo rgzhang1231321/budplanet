@@ -13,7 +13,7 @@
  * 合规红线（首屏必须可直达《隐私政策》《用户协议》）不随 P00 一起消失。
  */
 import { bootstrap, bindSelf, agree, loadFamily, createFamily, ensureSelfPatient } from '../../store/user';
-import { get, set } from '../../store/index';
+import { get, inviteUidForShare, set } from '../../store/index';
 import { call } from '../../utils/request';
 import { report } from '../../utils/report';
 import { statusBarHeight } from '../../utils/theme';
@@ -232,13 +232,16 @@ Page({
     const s = get();
     // 非管理员拿不到邀请码：不拼空的 `invite=`，否则落地页会退化成普通欢迎页，
     // 而分享文案说的是"一起盯着爸妈吃药"，对不上。分享普通入口即可。
+    // 落地页右上角顺手转发：同样自动带「唯一那位还没绑的服药人」，让家人点进来认领自己那条档案。
+    // 多位/零位不猜；没有邀请码的卡是普通入口，不拼 uid。
+    const uid = s.family.inviteToken ? inviteUidForShare() : '';
     return {
       title: '一起盯着爸妈吃药',
       // 带上 fid：`alreadyJoined` 靠 fid 判"这邀请是不是我已经在的家"。
       // 不带 fid 就只能回落到比 invite_token，而它只对 admin 下发 —— 家里的 member/elder
       // 点开这张卡会看到"加入"而不是"你已经在里面了"。
       path: s.family.inviteToken
-        ? `/pages/launch/index?fid=${s.family.fid}&invite=${s.family.inviteToken}&role=patient`
+        ? `/pages/launch/index?fid=${s.family.fid}&invite=${s.family.inviteToken}&role=patient${uid ? `&uid=${uid}` : ''}`
         : '/pages/launch/index',
     };
   },

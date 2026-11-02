@@ -240,7 +240,7 @@
 }
 .who__t {
   font-size: var(--fs-caption);
-  color: #5c6b7a;
+  color: var(--text-2);
 }
 .who__row {
   display: flex;
@@ -250,11 +250,14 @@
 }
 .who__chip {
   padding: 10rpx 26rpx;
+  min-height: 72rpx;
+  display: flex;
+  align-items: center;
   border-radius: var(--r-full);
   background: var(--bg-card);
-  border: 1rpx solid var(--line);
+  border: 2rpx solid var(--line);
   font-size: var(--fs-body-s);
-  color: #5c6b7a;
+  color: var(--text-2);
 }
 .who__chip--on {
   background: var(--brand-100);

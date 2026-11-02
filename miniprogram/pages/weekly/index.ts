@@ -4,7 +4,7 @@
  * familyCount 是家庭集体计数（"咱家这周 21 次"），不是个人连续天数。
  */
 import { bootstrap } from '../../store/user';
-import { get, isElder, pureElderView } from '../../store/index';
+import { get, inviteUidForShare, isElder, pureElderView } from '../../store/index';
 import { get as apiGet } from '../../utils/request';
 import { addDays, dateCN, partOfDay, shortDate, weekdayOf, weekStartOf } from '../../utils/time';
 import { unlockByAd, PRODUCT } from '../../utils/ad';
@@ -146,9 +146,14 @@ Page({
     const s = get();
     // 同上：非管理员拿不到邀请码，不要拼空的 `ivt=`（会静默退化成普通欢迎页）
     const ivt = s.family.inviteToken;
+    // 晒周报顺带邀请时也认人：唯一一位还没绑的服药人 → 卡上带 uid，他点进来认领自己那条。
+    // 多位/零位不猜；没有邀请码的卡是普通入口，不拼 uid。
+    const uid = ivt ? inviteUidForShare() : '';
     return {
       title: `${s.family.name || '我家'}这周服药完成率 ${this.data.rate}%`,
-      path: ivt ? `/pages/launch/index?from=weekly&fid=${s.family.fid}&ivt=${ivt}` : '/pages/launch/index?from=weekly',
+      path: ivt
+        ? `/pages/launch/index?from=weekly&fid=${s.family.fid}&ivt=${ivt}${uid ? `&uid=${uid}` : ''}`
+        : '/pages/launch/index?from=weekly',
       success: () => report('share_click', { channel: 'wechat', from: 'weekly' }),
     };
   },

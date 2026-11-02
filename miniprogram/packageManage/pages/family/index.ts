@@ -50,6 +50,12 @@ Page({
     inviteChips: [] as any[],
     inviteUid: '',
     inviteName: '',
+    /**
+     * 多位可认领却还没点选 = 此刻不能转发。
+     * 微信的 `open-type="share"` 拦不住点击（点了就直接拉起转发面板），
+     * 所以只能在渲染层把按钮换成普通 button：不点人，转发入口根本不存在。
+     */
+    needPick: false,
   },
 
   async onShow() {
@@ -70,8 +76,13 @@ Page({
     const stillPending = !!inv && s.family.members.length <= inv.memberCount;
     const waitedDays = inv ? Math.floor((Date.now() - inv.at) / 86400000) : 0;
     const patients = s.family.patients || [];
-    const inviteChips = patients.map((p: any) => ({ uid: p.uid, name: p.alias || p.name || '家人' }));
-    // 点名规则：家里只有一位服药人 → 自动带（子女一秒都不用多花）；多位 → 不猜，让管理员点一下。
+    // 只列「还没人绑」的档案：服务端认领时只认 selfOpenid 为空的那条。
+    // 把已绑定的（妈妈已加入那条、子女自己吃药那条）列进选项 = 点中必然认领失败，
+    // 服务端退化成新建一条空的「我」—— 正是这轮要修的空药单 + 多一条档案，而界面看不出错。
+    const inviteChips = patients
+      .filter((p: any) => !p.selfOpenid)
+      .map((p: any) => ({ uid: p.uid, name: p.alias || p.name || '家人' }));
+    // 点名规则：家里只有一位可认领的服药人 → 自动带（子女一秒都不用多花）；多位 → 不猜，让管理员点一下。
     // "不猜"这条是硬约束：猜错就是把妈妈的档案发给爸爸，两条绑定全乱。
     const picked = inviteChips.find((c: any) => c.uid === this.data.inviteUid) || (inviteChips.length === 1 ? inviteChips[0] : null);
     const invitePath = (uid: string) =>
@@ -89,6 +100,9 @@ Page({
       inviteChips,
       inviteUid: picked ? picked.uid : '',
       inviteName: picked ? picked.name : '',
+      // 还没点名且有多位候选 → 把转发按钮换成「先选这次邀请谁」。
+      // 零候选（家里所有档案都绑好了）不拦：这时没有可认领的人，新人正常新建就是对的。
+      needPick: !picked && inviteChips.length > 1,
       // 非管理员没有邀请码（family.info 只对 admin 下发），拼出来的 `invite=` 是空串，
       // 落地页会当成"没有邀请"走普通欢迎页 —— 与其发一张假邀请卡，不如分享普通入口。
       // 带上 fid：落地页判"你已经在里面了"用的是 fid（比邀请码可靠）—— 邀请码只对
@@ -134,8 +148,18 @@ Page({
     const path = s.family.inviteToken
       ? `/pages/launch/index?fid=${s.family.fid}&invite=${s.family.inviteToken}&role=patient&uid=${uid}`
       : '/pages/launch/index';
-    this.setData({ inviteUid: uid, inviteName: chip.name, path });
+    // 点完立刻放开转发（needPick: false）—— 选人这个动作本身就是"可以发了"的信号
+    this.setData({ inviteUid: uid, inviteName: chip.name, path, needPick: false });
     report('invite_target_pick', {});
+  },
+
+  /**
+   * 多位候选但没点人时按了转发位 → 只提醒，不弹窗。
+   * 这里不能弹 showModal：用户在"发邀请"这条主路径上，被打断一次就可能直接退出页面；
+   * 一行 toast 足够把下一步说清。
+   */
+  onPickHint() {
+    wx.showToast({ title: '先选这次邀请谁', icon: 'none' });
   },
 
   /** 复制邀请码（主邀请路径）：家人拿到码后在小程序首页「我有邀请码」里粘贴。
@@ -205,6 +229,14 @@ Page({
   onShareAppMessage() {
     const s = get();
     report('share_click', { channel: 'wechat', from: 'invite' });
+    // 还没点名（多位可认领）却转发了 —— 只可能是走了右上角「···」菜单，微信拦不住它。
+    // 这样发出去的卡不带 uid，本质是"没说清邀谁"的邀请卡：不该以邀请卡的形式存在，
+    // 所以降级成**普通入口**（家人看到普通欢迎页，不会加入这个家，也就不会多出一条空档案）。
+    // 配套：这一档**不能** markInvited —— 卡里没有邀请码，家人根本不可能通过它进来，
+    // 记成"已发出邀请"会让页面挂上「等待加入」的假状态，比不记更糟。
+    if (this.data.needPick) {
+      return { title: '一起盯着爸妈吃药', path: '/pages/launch/index' };
+    }
     markInvited(s.family.fid, s.family.members.length);
     return {
       title: '一起盯着爸妈吃药',
