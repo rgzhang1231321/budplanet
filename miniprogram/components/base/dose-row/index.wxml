@@ -18,7 +18,7 @@
     <text wx:if="{{showTaken && row.is_corrected}}" class="dose__edited">已修改</text>
   </view>
 
-  <view wx:if="{{admin}}" class="dose__menu" catchtap="onMenu">
+  <view wx:if="{{canCorrect}}" class="dose__menu" catchtap="onMenu">
     <view class="i i-dots i--lg"></view>
   </view>
 </view>

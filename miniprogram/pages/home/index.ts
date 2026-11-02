@@ -65,8 +65,8 @@ Page({
     hasRows: true,
     /** 今日数据还在路上（rows 为空 + loading）：别抢在它到达前说"还没有添加药品" */
     loading: false,
-    /** role === 'admin' 才有改记录的权限（role 管权限，mode 只管渲染，两者不要混用） */
-    isAdmin: false,
+    /** 能不能改记录：契约 §7.8 是 admin/member。role 管权限，mode 只管渲染，两者不要混用 */
+    canCorrect: false,
     adOn: false,
     adUnitB: AD_UNITS.b,
     adUnitBElder: AD_UNITS.bElder,
@@ -174,7 +174,10 @@ Page({
       hasRows: rows.length > 0,
       // 首屏：数据没到时 rows 也是空的，与"真的没排药"必须分开，否则老人会以为今天不用吃药
       loading: s.today.loading && rows.length === 0,
-      isAdmin: s.family.role === 'admin',
+      // 契约 §7.8 + 后端 CheckinHandlers.cs:178 的 AssertMemberAsync(..., "admin", "member")：
+      // member 服务端本来就放行。这里曾写成只认 admin，后果不是报错，而是 member 的改判能力
+      // 被前端静默关掉 —— 同一个家庭里的第二位子女看得到「⋯」以外的一切，却改不了任何一条记录。
+      canCorrect: s.family.role === 'admin' || s.family.role === 'member',
       adOn: !!s.user.config.adOn,
       refreshAt: s.today.lastSyncAt ? tsToTime(s.today.lastSyncAt) : '',
     };
@@ -218,10 +221,11 @@ Page({
   openActionSheet(row: any) {
     const s = get();
     // 权限判 role，不判 mode：mode 只决定渲染哪套版式。
-    // member 也能进这个菜单的话，改一次就被服务端 1003 顶回首页（utils/request.ts handleError 会 reLaunch），
-    // 用户只会看到"点一下、页面跳走了"，不知道为什么。
-    if (s.family.role !== 'admin') {
-      wx.showToast({ title: '记录由家庭管理员修改', icon: 'none' });
+    // 契约 §7.8：admin/member 可改，elder 一律不可（服务端 AssertMemberAsync 会 1003，
+    // utils/request.ts handleError 会 reLaunch，用户只会看到"点一下、页面跳走了"，不知道为什么）。
+    // 所以入口只对 elder 收；这一道也只是纵深防御——正常路径 dose-row 根本不渲染「⋯」。
+    if (s.family.role !== 'admin' && s.family.role !== 'member') {
+      wx.showToast({ title: '记录由家人修改', icon: 'none' });
       return;
     }
     // 通道要按契约 §7 分开走，混用必报错：

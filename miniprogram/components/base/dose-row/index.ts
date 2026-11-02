@@ -1,6 +1,6 @@
 /**
  * DoseRow —— 用药行（5 槽位）
- * 计划时间 · 药名剂量 · 状态徽标 · 打卡时间戳（仅子女端）· 「⋯」菜单（仅管理员）
+ * 计划时间 · 药名剂量 · 状态徽标 · 打卡时间戳（仅子女端）· 「⋯」菜单（仅可改判角色）
  * 挤压规则：徽标固定宽不收缩；剂量永不省略（安全信息）；只有药名可让位。
  */
 import { diffMinutes, humanGap, tsToTime } from '../../../utils/time';
@@ -9,7 +9,8 @@ Component({
   options: { addGlobalClass: true },
   properties: {
     row: { type: Object, value: {} },
-    admin: { type: Boolean, value: false },
+    /** 能不能改这条记录：契约 §7.8 是 admin/member，elder 一律不给（服务端也会 1003） */
+    canCorrect: { type: Boolean, value: false },
     /** 子女端才展示打卡时间戳与异常标注 */
     showTaken: { type: Boolean, value: true },
     clickable: { type: Boolean, value: true },

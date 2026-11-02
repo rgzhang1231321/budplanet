@@ -73,7 +73,7 @@
           </view>
           <view class="group__body">
             <block wx:for="{{item.rows}}" wx:for-item="row" wx:key="dose_id">
-              <dose-row row="{{row}}" admin="{{isAdmin}}" bind:tap="onRowTap" bind:menu="onMenu"></dose-row>
+              <dose-row row="{{row}}" can-correct="{{canCorrect}}" bind:tap="onRowTap" bind:menu="onMenu"></dose-row>
               <view wx:if="{{index < item.rows.length - 1}}" class="group__line"></view>
             </block>
           </view>
@@ -116,7 +116,7 @@
             large="{{true}}"
             soft="{{true}}"
             showTaken="{{false}}"
-            admin="{{false}}"
+            can-correct="{{false}}"
             bind:tap="onRowTap"
           ></dose-row>
           <view wx:if="{{index < elderRows.length - 1}}" class="e-line"></view>
