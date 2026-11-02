@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>MedBox.Integration.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Api 是 Web SDK 项目，ProjectReference 会带进 Microsoft.AspNetCore.App 框架引用 -->
+    <ProjectReference Include="..\..\src\MedBox.Api\MedBox.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="coverlet.collector" />
+    <!-- 真容器 postgres:18-alpine（AGENTS.md §6.1 锁 4.16.0，禁止 add package 拉最新） -->
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      schema 的唯一真相源是 db/migrations/V*.sql（AGENTS.md §5.1 禁 EF Migration / EnsureCreated）。
+      测试进程要按文件名顺序执行它们，所以把脚本原样拷进输出目录（字节不变，不改动 db/）。
+      为什么要拷一份而不是运行时按相对路径找：testhost 会把当前目录改成自己的 bin，
+      而构建产物也可能被导到仓库外（例如本机另一个进程占着 src/MedBox.Api/bin 时）。
+      拷进来之后"用仓库的脚本建 schema"这条与产物落在哪无关。
+    -->
+    <None Include="..\..\..\db\migrations\*.sql"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="db\migrations\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>
