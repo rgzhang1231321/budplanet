@@ -62,8 +62,13 @@ Page({
 
     const seen: Record<string, 1> = {};
     raw.forEach((g) => g.rows.forEach((r: any) => { if (r.pid) seen[r.pid] = 1; }));
-    // 全家只有一位服药人时不标（每位都写"爸爸"是噪音）；纯服药人视角也不标（都是自己）
-    const needWho = !pureElder && Object.keys(seen).length >= 2;
+    // 只要不是「纯服药人看自己的记录」，每行都标"这是谁的"。
+    // ⛔ 曾经用「≥2 位服药人才标」省视觉噪音 —— 那是个错的省法：家里只有一位服药人时
+    // （最常见的起步状态）页面全是"药名 + 已服/漏服"，谁也没有主语，客户两次投诉的就是这个。
+    // 一位服药人的家庭里多一个"爸爸"是冗余，但"不知道是谁"是事故。
+    const needWho = !pureElder;
+    // 只有一位服药人时标签用更轻的样式（不加底色块），避免整页重复同一个词还抢眼
+    const onlyOne = Object.keys(seen).length < 2;
 
     const groups = raw.map((g) => ({
       date: g.date,
@@ -79,6 +84,8 @@ Page({
         taken_at: r.taken_at,
         is_corrected: r.is_corrected,
         who: needWho ? (r.patient || aliasOf(r.pid)) : '',
+        // 全家只有一位服药人：同一个名字会重复整页，用轻样式（无底色、弱化色）即可
+        whoQuiet: onlyOne,
       })),
     }));
     this.setData({ groups, loading: false, isEmpty: groups.length === 0, pureElder, needBind });

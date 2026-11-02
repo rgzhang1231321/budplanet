@@ -13,7 +13,7 @@
           <view wx:for="{{item.rows}}" wx:for-item="row" wx:key="dose_id" class="hrow">
             <text class="hrow__time">{{row.due_time}}</text>
             <view class="hrow__mid">
-              <text wx:if="{{row.who}}" class="hrow__who">{{row.who}}</text>
+              <text wx:if="{{row.who}}" class="hrow__who {{row.whoQuiet ? 'hrow__who--quiet' : ''}}">{{row.who}}</text>
               <text class="hrow__name">{{row.medicine_name}}</text>
             </view>
             <text class="hrow__dose">{{row.dose_text}}</text>

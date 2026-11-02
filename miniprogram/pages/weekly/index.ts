@@ -63,13 +63,10 @@ Page({
       const today = dateCN();
       // 数据视角判 role（契约 §4.1）：纯服药人只看自己的药，且不显示"这是谁的药"
       const pureElder = pureElderView();
-      // 「这是谁的药」只在**本周实际出现的服药人 ≥2 位**时才说，且纯服药人不显示别人信息。
-      // 判据与历史页 / 详细报告**同源同形**，但一律从本轮数据本身数 pid：
-      // 原来用 s.family.patients.length —— 那份是缓存，bootstrap 半失败时为空 → 人名整片消失，
-      // 而漏服条目照常渲染（2026-11-03 客户："只看到已服和漏服，不知道是谁"）。
-      const seenPids: Record<string, 1> = {};
-      (d.missList || []).forEach((m: any) => { if (m.pid) seenPids[m.pid] = 1; });
-      const needWho = !pureElder && Object.keys(seenPids).length >= 2;
+      // 「这是谁的药」只要不是纯服药人视角就标 —— 与历史页同一条口径。
+      // ⛔ 曾用「本周出现 ≥2 位服药人才标」：家里只有一位服药人时（最常见起步状态），
+      // 漏服条目全是"周几 早上 · 药名"，谁也没有主语。少一点冗余，换"永远能看出是谁"。
+      const needWho = !pureElder;
       const missDates = (d.missList || []).map((m: any) => m.date);
       const days = Array.from({ length: 7 }, (_, i) => {
         const date = addDays(ws, i);

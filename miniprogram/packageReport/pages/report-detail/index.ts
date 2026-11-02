@@ -58,11 +58,9 @@ Page({
       const start = week || d.weekStart || '';
       const missDates = (d.missList || []).map((m: any) => m.date);
 
-      // 「这是谁的药」只在**本周实际出现的服药人 ≥2 位**时才说 —— 与历史页 / 周报同源同形，
-      // 但判据从本轮 missList 数 pid，不读 family.patients 缓存（缓存空 → 人名静默消失）。
-      const seenPids: Record<string, 1> = {};
-      (d.missList || []).forEach((m: any) => { if (m.pid) seenPids[m.pid] = 1; });
-      const needWho = Object.keys(seenPids).length >= 2;
+      // 「这是谁的药」一律标 —— 与历史页 / 周报同一条口径（不再用"≥2 位服药人才标"，
+      // 那会让单服药人家庭的每条记录都没有主语，正是客户两次投诉的问题）。
+      const needWho = true;
 
       // P1-5：洞察全部从本周 missList 聚合，不新增接口。
       // 时段按 slot 分钟数分桶：<11:00 早 / 11:00-17:00 中 / ≥17:00 晚。

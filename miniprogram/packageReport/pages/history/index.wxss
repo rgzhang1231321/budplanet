@@ -63,6 +63,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 家里只有一位服药人时，同一个名字会在整页重复 —— 去掉底色块、降一档字号，
+   保留"这是谁的"信息但不和药名抢注意力。 */
+.hrow__who--quiet {
+  background: transparent;
+  padding: 0;
+  margin-right: 10rpx;
+  font-weight: 400;
+}
 .hrow__name {
   flex: 1;
   min-width: 0;
