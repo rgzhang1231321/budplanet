@@ -7,6 +7,14 @@ public sealed class DoseRowDto
 {
     [JsonPropertyName("dose_id")] public string DoseId { get; set; } = "";
     [JsonPropertyName("pid")] public string Pid { get; set; } = "";
+    /// <summary>
+    /// 这一行属于哪位服药人（别名优先，回落姓名）。v1.5 新增，与 missList[].patient 同源同形。
+    /// 为什么由服务端下发、而不是前端拿 pid 去 family.patients 里查：
+    /// 那是**缓存**，bootstrap 静默失败/半成功时它为 []，pid 查不到人 → 页面上人名整片消失，
+    /// 但记录照常渲染（2026-11-03 客户原话："只看到已服和漏服，不知道是谁"）。
+    /// 老前端不读这个字段，加了不影响兼容。
+    /// </summary>
+    [JsonPropertyName("patient")] public string Patient { get; set; } = "";
     /// <summary>当日分钟数 0–1439，不是"第几个时间点"的序号。</summary>
     [JsonPropertyName("slot")] public int Slot { get; set; }
     [JsonPropertyName("medicine_name")] public string MedicineName { get; set; } = "";

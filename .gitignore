@@ -60,3 +60,6 @@ deploy/.last_good.tmp
 # ── Python ──
 __pycache__/
 *.pyc
+
+# ── 预览码截图（每次发版都重新生成，是过程产物；仓库是公开的，别把它当交付物）──
+预览码-*.png

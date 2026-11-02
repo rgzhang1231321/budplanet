@@ -295,6 +295,8 @@ function rowOf(l: MockLog, date: string) {
   return {
     dose_id: l.dose_id,
     pid: l.pid,
+    // 与真实后端 v1.5 对齐：每行带服药人别名，历史/周报据此标"这是谁的"
+    patient: (d.patients.find((p) => p.uid === l.pid) || { alias: '' }).alias,
     slot: l.slot,
     medicine_name: l.medicine_name,
     dose_text: l.dose_text,

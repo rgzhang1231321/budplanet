@@ -52,6 +52,14 @@ public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMater
             .Select(m => new { m.MedicineId, m.Remark })
             .ToDictionaryAsync(x => x.MedicineId, x => x.Remark, ct);
 
+        // 每行带上"这是谁的药"：服务端权威下发，前端不再靠 family.patients 缓存反查
+        // （缓存为空时反查会静默返回空串 → 整个人名消失，2026-11-03 客户投诉的那一幕）。
+        var pids = rows.Select(r => r.PatientId).Distinct().ToList();
+        var aliasById = await db.Patients
+            .Where(p => pids.Contains(p.PatientId))
+            .Select(p => new { p.PatientId, p.Alias, p.Name })
+            .ToDictionaryAsync(x => x.PatientId, x => string.IsNullOrWhiteSpace(x.Alias) ? x.Name : x.Alias, ct);
+
         var dtos = rows.Select(r =>
         {
             var siblings = byPatient[r.PatientId];
@@ -60,6 +68,7 @@ public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMater
             {
                 DoseId = r.DoseId,
                 Pid = r.PatientId,
+                Patient = aliasById.TryGetValue(r.PatientId, out var pname) ? pname : "",
                 Slot = r.Slot,
                 MedicineName = r.MedNameSnapshot ?? "",
                 DoseText = r.DoseText ?? "",
@@ -200,7 +209,9 @@ public sealed class WeekHandler(IAppDbContext db, IMemberGuard guard, DoseMateri
                 Date = x.DueDate,
                 Slot = x.Slot,
                 Pid = x.PatientId,
-                Patient = patients.FirstOrDefault(p => p.PatientId == x.PatientId)?.Alias ?? "",
+                Patient = patients.FirstOrDefault(p => p.PatientId == x.PatientId) is { } pt
+                    ? (string.IsNullOrWhiteSpace(pt.Alias) ? pt.Name : pt.Alias)
+                    : "",
                 MedicineName = x.MedNameSnapshot ?? "",
                 DoseText = x.DoseText ?? "",
             })

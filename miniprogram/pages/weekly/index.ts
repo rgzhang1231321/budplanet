@@ -63,10 +63,13 @@ Page({
       const today = dateCN();
       // 数据视角判 role（契约 §4.1）：纯服药人只看自己的药，且不显示"这是谁的药"
       const pureElder = pureElderView();
-      // 「这是谁的药」只在家庭有 ≥2 位服药人时才说，且纯服药人不显示别人信息。
-      // 判据与历史页 / 详细报告**同源同形**（needWho = !pureElder && patients.length >= 2）：
-      // 三处各算各的就会出现"周报写着爸爸、历史只写药名"这种对不上的口径。
-      const needWho = !pureElder && s.family.patients.length >= 2;
+      // 「这是谁的药」只在**本周实际出现的服药人 ≥2 位**时才说，且纯服药人不显示别人信息。
+      // 判据与历史页 / 详细报告**同源同形**，但一律从本轮数据本身数 pid：
+      // 原来用 s.family.patients.length —— 那份是缓存，bootstrap 半失败时为空 → 人名整片消失，
+      // 而漏服条目照常渲染（2026-11-03 客户："只看到已服和漏服，不知道是谁"）。
+      const seenPids: Record<string, 1> = {};
+      (d.missList || []).forEach((m: any) => { if (m.pid) seenPids[m.pid] = 1; });
+      const needWho = !pureElder && Object.keys(seenPids).length >= 2;
       const missDates = (d.missList || []).map((m: any) => m.date);
       const days = Array.from({ length: 7 }, (_, i) => {
         const date = addDays(ws, i);

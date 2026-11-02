@@ -16,6 +16,8 @@ export interface Envelope<T> {
 export interface DoseRow {
   dose_id: string;
   pid: string;
+  /** 这一行属于哪位服药人（服务端下发，别名优先）。v1.5 起；老后端可能没有 → 前端回落本地档案 */
+  patient?: string;
   slot: number;
   medicine_name: string;
   dose_text: string;
