@@ -10,7 +10,8 @@
       <text class="dose__name">{{row.medicine_name}}</text>
       <text class="dose__dose">{{row.dose_text}}</text>
     </view>
-    <text wx:if="{{showTaken && subText}}" class="dose__sub {{subWarn ? 'dose__sub--warn' : ''}}">{{subText}}</text>
+    <!-- showTaken=false（老人端）只隐藏「打卡时间」这类信息；subPinned 的安抚语照常显示 -->
+    <text wx:if="{{subText && (showTaken || subPinned)}}" class="dose__sub {{subWarn ? 'dose__sub--warn' : ''}}">{{subText}}</text>
   </view>
 
   <view class="dose__state">

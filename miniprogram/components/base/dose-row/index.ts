@@ -23,6 +23,12 @@ Component({
     takenText: '',
     subText: '',
     subWarn: false,
+    /**
+     * 副文案是否「必显」。老人端传 showTaken=false（不显示打卡时间），
+     * 但「过了时间了，现在补记也算」是安抚语、不是打卡信息，不能跟着一起被藏掉
+     * —— 老人端漏服只显示「待服」徽标、不给一句解释，等于让他自己猜发生了什么。
+     */
+    subPinned: false,
     badgeStatus: 'pending',
   },
   observers: {
@@ -32,6 +38,7 @@ Component({
       const taken = row.status === 'taken' && row.taken_at;
       let subText = '';
       let subWarn = false;
+      let subPinned = false;
       if (taken) {
         const gap = diffMinutes(row.taken_at, row.due_ts);
         const dawn = new Date(row.taken_at + 8 * 3600e3).getUTCHours() < 5;
@@ -44,6 +51,7 @@ Component({
       } else if (row.status === 'missed') {
         if (isSoft) {
           subText = '过了时间了，现在补记也算';
+          subPinned = true;
         } else {
           subText = `超时 ${humanGap(diffMinutes(Date.now(), row.due_ts))} 未打卡`;
           subWarn = true;
@@ -52,13 +60,23 @@ Component({
         subText = '今天不吃了';
       } else if (row.status === 'pending' && Date.now() - row.due_ts > 45 * 60000) {
         subText = '过了时间了，现在补记也算';
+        subPinned = true;
       }
       const badgeStatus = isSoft && row.status === 'missed' ? 'pending' : row.status;
-      this.setData({ takenText: taken ? tsToTime(row.taken_at) : '', subText, subWarn, badgeStatus });
+      this.setData({ takenText: taken ? tsToTime(row.taken_at) : '', subText, subWarn, subPinned, badgeStatus });
     },
     soft(v: boolean) {
-      const status = (this.data.row || {}).status;
-      this.setData({ badgeStatus: v && status === 'missed' ? 'pending' : status });
+      const row = this.data.row || {};
+      const status = (row as any).status;
+      const patch: any = { badgeStatus: v && status === 'missed' ? 'pending' : status };
+      // soft 变化会改变 missed 的副文案（超时 X 未打卡 ↔ 过了时间了，现在补记也算），
+      // 必须一起重算，否则老人端会残留子女端的告警语。
+      if (status === 'missed') {
+        patch.subText = v ? '过了时间了，现在补记也算' : `超时 ${humanGap(diffMinutes(Date.now(), (row as any).due_ts))} 未打卡`;
+        patch.subWarn = !v;
+        patch.subPinned = v;
+      }
+      this.setData(patch);
     },
   },
   methods: {

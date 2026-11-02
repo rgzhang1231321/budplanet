@@ -44,6 +44,18 @@
   color: var(--text-2);
 }
 
+/* 老人端字号放大后，摘要 / 时间 / 进度三行挤在一行里会互相压字、换行交错。
+   改成：摘要独占一行，时间与进度另起一行；不再用 baseline 对齐。 */
+.p-root.elder .ck__head {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  row-gap: 4rpx;
+}
+.p-root.elder .ck__summary {
+  flex: 0 0 100%;
+  margin-bottom: 0;
+}
+
 .ck__card {
   flex: 1 1 auto;
   margin-top: var(--sp-4);

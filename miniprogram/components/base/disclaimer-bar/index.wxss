@@ -8,11 +8,12 @@
 .dbar__text {
   font-size: 24rpx;
   color: #5c6b7a;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.5;
   width: 100%;
+  /* 法务告知不允许截断：必须让用户读完，省略号截断等于没告知。
+     原来写的是 nowrap + ellipsis，关于页那句较长的免责声明会被切掉最后一行。 */
+  white-space: normal;
+  word-break: break-word;
 }
 .dbar--elder {
   min-height: 72rpx;
