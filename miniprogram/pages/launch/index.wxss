@@ -41,7 +41,8 @@
   display: block;
   margin-top: 12rpx;
   font-size: var(--fs-body);
-  color: rgba(255, 255, 255, 0.86);
+  color: #ffffff;
+  font-weight: 500;
   line-height: 1.5;
 }
 
@@ -61,7 +62,7 @@
 }
 .demo__date {
   font-size: var(--fs-caption);
-  color: var(--text-3);
+  color: var(--text-2);
 }
 .demo__rate {
   font-size: var(--fs-body);
@@ -191,7 +192,7 @@
 }
 .manual__t {
   font-size: var(--fs-body-s);
-  color: var(--brand-600);
+  color: var(--text-2);
   text-decoration: underline;
   text-underline-offset: 6rpx;
 }
@@ -274,13 +275,13 @@
 .mode__desc {
   margin-top: 6rpx;
   font-size: var(--fs-caption);
-  color: var(--text-3);
+  color: var(--text-2);
 }
 .mode__hint {
   display: block;
   margin-top: var(--sp-5);
   font-size: var(--fs-caption);
-  color: var(--text-3);
+  color: var(--text-2);
   text-align: center;
   line-height: 1.6;
 }
