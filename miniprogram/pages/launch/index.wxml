@@ -1,83 +1,5 @@
 <view class="p-root launch {{step === 'invite' ? 'elder' : ''}}">
-  <!-- ── P00 欢迎 ── -->
-  <block wx:if="{{step === 'welcome'}}">
-    <view class="hero" style="padding-top:{{statusBar + 24}}px">
-      <view class="hero__logo">
-        <view class="i i-pill hero__logo-icon"></view>
-      </view>
-      <text class="hero__title">替你记着吃药</text>
-      <text class="hero__sub">到点手机会响，响了点一下就成</text>
-    </view>
-
-    <view class="page demo-wrap">
-      <view class="demo">
-        <view class="demo__head">
-          <text class="demo__date">今天 {{demoDate}}</text>
-          <text class="demo__rate">2 / 3 已服用</text>
-        </view>
-        <view class="demo__bar"><view class="demo__bar-in"></view></view>
-        <view class="demo__row">
-          <text class="demo__time">08:00</text>
-          <text class="demo__med">降压药 1 片</text>
-          <view class="demo__badge demo__badge--ok">
-            <view class="i i-check-taken demo__badge-i"></view>
-            <text>已服</text>
-          </view>
-        </view>
-        <view class="demo__row">
-          <text class="demo__time">12:30</text>
-          <text class="demo__med">二甲双胍 1 片</text>
-          <view class="demo__badge demo__badge--ok">
-            <view class="i i-check-taken demo__badge-i"></view>
-            <text>已服</text>
-          </view>
-        </view>
-        <view class="demo__row">
-          <text class="demo__time">19:00</text>
-          <text class="demo__med">阿司匹林 1 片</text>
-          <view class="demo__badge">
-            <view class="i i-clock demo__badge-i"></view>
-            <text>待服</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="props">
-        <view class="props__item">
-          <view class="props__dot"></view>
-          <text class="props__t">子女设好，老人不用学</text>
-        </view>
-        <view class="props__item">
-          <view class="props__dot"></view>
-          <text class="props__t">吃了没吃，全家都看得见</text>
-        </view>
-        <view class="props__item">
-          <view class="props__dot"></view>
-          <text class="props__t">不看内容、不外传，只在家里可见</text>
-        </view>
-      </view>
-    </view>
-
-    <view class="foot page">
-      <primary-button label="开始使用" bind:tap="onStart"></primary-button>
-      <!-- 手动加入：家人把邀请码用微信/短信发过来，不走分享链接也能进 -->
-      <view class="manual" hover-class="manual--hover" bindtap="onManualInvite">
-        <text class="manual__t">我有邀请码</text>
-      </view>
-      <!-- 隐私政策 / 用户协议入口：首屏必须可直达（应用市场与微信审核都查这一项） -->
-      <view class="foot__legal">
-        <view class="foot__legal-item" hover-class="foot__legal-item--hover" data-type="privacy" bindtap="onLegal">
-          <text class="foot__legal-link">《隐私政策》</text>
-        </view>
-        <view class="foot__legal-item" hover-class="foot__legal-item--hover" data-type="agreement" bindtap="onLegal">
-          <text class="foot__legal-link">《用户协议》</text>
-        </view>
-      </view>
-      <text class="foot__note">只做提醒与记录，不提供任何医疗建议</text>
-    </view>
-  </block>
-
-  <!-- ── P01 双模选择 ── -->
+  <!-- ── P01 双模选择（搜一搜/首页/扫码进来的新用户首屏） ── -->
   <block wx:if="{{step === 'mode'}}">
     <view class="mode" style="padding-top:{{statusBar + 40}}px">
       <text class="mode__title">你是哪种情况？</text>
@@ -108,6 +30,26 @@
       </view>
 
       <text class="mode__hint">两种身份可以同时存在：自己吃药，也能管着全家</text>
+
+      <view class="foot">
+        <!-- 手动加入：家人把邀请码用微信/短信发过来，不走分享链接也能进。
+             原在 P00 底部，P00 退出首屏后落到 P01 —— 有邀请码的人需要的正是"选身份"这一屏 -->
+        <view class="manual" hover-class="manual--hover" bindtap="onManualInvite">
+          <text class="manual__t">我有邀请码</text>
+        </view>
+        <!-- 隐私政策 / 用户协议入口：首屏必须可直达（应用市场与微信审核都查这一项）。
+             P00 退出首屏后由 P01 承接，规格不变：view 承载 bindtap、命中盒 var(--h-tap) ≥44px、
+             字号/对比度走 token。漏掉这一项 = 提审被驳。 -->
+        <view class="foot__legal">
+          <view class="foot__legal-item" hover-class="foot__legal-item--hover" data-type="privacy" bindtap="onLegal">
+            <text class="foot__legal-link">《隐私政策》</text>
+          </view>
+          <view class="foot__legal-item" hover-class="foot__legal-item--hover" data-type="agreement" bindtap="onLegal">
+            <text class="foot__legal-link">《用户协议》</text>
+          </view>
+        </view>
+        <text class="foot__note">只做提醒与记录，不提供任何医疗建议</text>
+      </view>
     </view>
   </block>
 

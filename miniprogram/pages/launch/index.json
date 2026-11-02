@@ -1,8 +1,7 @@
 {
   "usingComponents": {
     "disclaim-modal": "../../components/base/disclaim-modal/index",
-    "disclaimer-bar": "../../components/base/disclaimer-bar/index",
-    "primary-button": "../../components/base/primary-button/index"
+    "disclaimer-bar": "../../components/base/disclaimer-bar/index"
   },
   "navigationStyle": "custom"
 }

@@ -1,145 +1,8 @@
 .launch {
-  --fs-hero: 60rpx;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   background: var(--bg-page);
-}
-
-/* ── P00 ── */
-.hero {
-  padding-left: var(--pad-page);
-  padding-right: var(--pad-page);
-  padding-bottom: 120rpx;
-  background: linear-gradient(160deg, #2e6be6 0%, #1e4fbf 55%, #17409c 100%);
-  border-radius: 0 0 48rpx 48rpx;
-}
-.hero__logo {
-  width: 104rpx;
-  height: 104rpx;
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.16);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: var(--sp-5);
-}
-.hero__logo-icon {
-  width: 56rpx;
-  height: 56rpx;
-  filter: brightness(0) invert(1);
-}
-.hero__title {
-  display: block;
-  margin-top: var(--sp-4);
-  font-size: var(--fs-hero);
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: 1rpx;
-}
-.hero__sub {
-  display: block;
-  margin-top: 12rpx;
-  font-size: var(--fs-body);
-  color: #ffffff;
-  font-weight: 500;
-  line-height: 1.5;
-}
-
-.demo-wrap {
-  margin-top: -84rpx;
-}
-.demo {
-  background: #ffffff;
-  border-radius: var(--r-l);
-  box-shadow: 0 12rpx 40rpx rgba(17, 34, 51, 0.12);
-  padding: var(--sp-4);
-}
-.demo__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.demo__date {
-  font-size: var(--fs-caption);
-  color: var(--text-2);
-}
-.demo__rate {
-  font-size: var(--fs-body);
-  font-weight: 600;
-  color: var(--brand-600);
-}
-.demo__bar {
-  height: 16rpx;
-  border-radius: 8rpx;
-  background: #e8edf2;
-  margin: var(--sp-2) 0 var(--sp-3);
-  overflow: hidden;
-}
-.demo__bar-in {
-  width: 66.667%;
-  height: 100%;
-  background: var(--brand-500);
-  border-radius: 8rpx;
-}
-.demo__row {
-  display: flex;
-  align-items: center;
-  height: 84rpx;
-  border-top: 1rpx solid var(--line);
-}
-.demo__time {
-  width: 104rpx;
-  font-size: var(--fs-caption);
-  color: var(--text-2);
-  font-variant-numeric: tabular-nums;
-}
-.demo__med {
-  flex: 1;
-  font-size: var(--fs-body-s);
-  color: var(--text-1);
-}
-.demo__badge {
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  font-size: var(--fs-caption);
-  color: var(--st-pending-text);
-  padding: 4rpx 16rpx;
-  border-radius: var(--r-full);
-  background: #eceff3;
-}
-.demo__badge-i {
-  width: 28rpx;
-  height: 28rpx;
-  margin-right: 6rpx;
-}
-.demo__badge--ok {
-  color: var(--st-taken-text);
-  background: var(--st-taken-bg);
-  font-weight: 600;
-}
-
-.props {
-  margin-top: var(--sp-5);
-}
-.props__item {
-  display: flex;
-  align-items: center;
-  padding: 12rpx 0;
-}
-.props__dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: var(--brand-500);
-  margin-right: 16rpx;
-  flex: none;
-}
-.props__t {
-  font-size: var(--fs-body-s);
-  color: var(--text-2);
-  line-height: 1.5;
 }
 
 .foot {
@@ -148,12 +11,13 @@
 }
 .foot__note {
   display: block;
-  margin-top: 0;
+  /* 与上面的法务链接拉开一档：两条挨在一起会被读成同一句话 */
+  margin-top: var(--sp-2);
   text-align: center;
   font-size: var(--fs-foot);
   color: var(--text-2);
 }
-/* 隐私政策 / 用户协议：一眼能找到，但不抢主按钮 */
+/* 隐私政策 / 用户协议：一眼能找到，但不抢上面的身份卡片 */
 .foot__legal {
   margin: 0;
   padding: 0;

@@ -1,27 +1,33 @@
 /**
- * pages/launch —— 启动分发（P00 授权 / P01 双模选择 / P42 被邀请落地）
+ * pages/launch —— 启动分发（P01 双模选择 / P42 被邀请落地）
  * 判据只有一条：URL 里有没有 fid + ivt。
  *   有  → P42 落地页：首屏零弹窗，点身份按钮后才弹免责确认，确认才 family.join
  *          例外：邀请指向的家就是我已经在的家 → 直接说"你已经在这个家里了"，不给"加入"按钮
- *   没有 → P00：首屏即弹免责确认（搜一搜/首页/扫码进来的新用户走这条）
- *         例外：已同意免责 + 已有家庭的老用户 → 直接进首页，不再走"开始使用 → 选身份"
+ *   没有 → P01：首屏即双模选择（搜一搜/首页/扫码进来的新用户走这条）；
+ *              点身份按钮后才弹免责确认，确认才 join —— 确认前不发任何请求、不写任何数据
+ *         例外：已同意免责 + 已有家庭的老用户 → 直接进首页，不再走"选身份"
+ *
+ * 原 P00 欢迎页按产品路线图 §五 决策 3（方案 c）退出首屏：它只承担"演示产品长什么样"，
+ * 而搜一搜/扫码进来的人要的是立刻选身份；邀请链路本来就有 P42 的整页老人规格兜底。
+ * 它底部的法务入口、「只做提醒与记录」注记与「我有邀请码」随之搬到 P01 ——
+ * 合规红线（首屏必须可直达《隐私政策》《用户协议》）不随 P00 一起消失。
  */
 import { bootstrap, bindSelf, agree, loadFamily, createFamily, ensureSelfPatient } from '../../store/user';
 import { get, set } from '../../store/index';
 import { call } from '../../utils/request';
 import { report } from '../../utils/report';
 import { statusBarHeight } from '../../utils/theme';
-import { dateCN, humanDate } from '../../utils/time';
 
 Page({
   data: {
     statusBar: 20,
-    // 落地页示意卡片的日期：必须按当天真实日期取，写死会被用户当成假 demo
-    demoDate: '',
-    step: 'welcome' as 'welcome' | 'mode' | 'invite' | 'joined',
+    /** 默认值就是首屏：没有邀请链路的新用户直接落在 P01，不再经过 P00 欢迎页 */
+    step: 'mode' as 'mode' | 'invite' | 'joined',
     showDisclaim: false,
     disclaimElder: false,
-    pending: '' as '' | 'mode' | 'join-patient' | 'join-guardian',
+    pending: '' as '' | 'join-patient' | 'join-guardian',
+    /** 入口来源（搜一搜/扫码/分享卡/checkin/report）：免责类埋点的 from 只认它，不认 step */
+    entryFrom: 'search',
     invite: { fid: '', ivt: '' },
     familyName: '',
     joining: false,
@@ -29,8 +35,8 @@ Page({
 
   async onLoad(q: Record<string, string>) {
     const ivt = q.ivt || q.invite || '';
-    // 日期动态取：写死「8月14日」会让上线后每天打开都是同一天，用户直接判定是假 demo
-    this.setData({ statusBar: statusBarHeight(), demoDate: humanDate(dateCN()) });
+    const from = q.from || 'search';
+    this.setData({ statusBar: statusBarHeight(), entryFrom: from });
     wx.setNavigationBarTitle({ title: '替你记着吃药' });
     try {
       await bootstrap();
@@ -46,6 +52,7 @@ Page({
       const joined = this.alreadyJoined(fid, ivt);
       this.setData({
         step: joined ? 'joined' : 'invite',
+        entryFrom: 'invite',
         invite: { fid, ivt },
         // 家名只知道自己的：邀请指向别人家时留空，页面用中性标题兜底，绝不拿自己的家名顶上
         familyName: joined ? s.family.name || '我家' : '',
@@ -54,18 +61,16 @@ Page({
       return;
     }
 
-    report('app_launch', { from: q.from || 'search' });
+    report('app_launch', { from });
     // 老用户早退：登录成功 + 已同意免责 + 已有家庭 → 直接进首页。
-    // 不加这一条，老人每次冷启都要点三次（开始使用 → 选身份 → 首页），而选身份还会再走一次 family.join。
+    // 不加这一条，老人每次冷启都要再点一次"选身份"，而选身份还会再走一次 family.join。
     if (s.ready && s.user.disclaimerAgreed && (s.family.all || []).length > 0) {
       wx.reLaunch({ url: '/pages/home/index' });
       return;
     }
-    if (!s.user.disclaimerAgreed) {
-      // 例外路径：首屏即弹（子女规格，此时 mode 未定）
-      this.setData({ showDisclaim: true, disclaimElder: false, pending: '' });
-      report('disclaimer_shown', { trigger: 'first_screen', from: q.from || 'search' });
-    }
+    // 没有邀请链路 → 首屏就是 P01（data 里的默认 step），这里不必再 setData。
+    // 免责确认故意不在这里弹：首屏弹等于把"选身份"挡住一步，方案 c 的全部意义就是省掉这一步；
+    // 合规 §11.3 仍满足 —— 点身份按钮时才弹，那之前没有任何请求、没有任何写库。
   },
 
   /**
@@ -91,16 +96,6 @@ Page({
     wx.navigateTo({ url: `/pages/legal/index?type=${e.currentTarget.dataset.type}` });
   },
 
-  onStart() {
-    const s = get();
-    if (!s.user.disclaimerAgreed) {
-      this.setData({ showDisclaim: true, disclaimElder: false, pending: 'mode' });
-      report('disclaimer_shown', { trigger: 'after_btn', from: 'welcome' });
-      return;
-    }
-    this.setData({ step: 'mode' });
-  },
-
   /** 手动输入邀请码：家人把码用微信/短信发过来时不依赖分享链接。
    *  校验只做形状（IVT + 8 位十六进制），真假由 family.join 判定 —— 这里没有预览接口，
    *  提前查一次等于把"加入"提前发生，反而会让选身份那步失效。 */
@@ -119,7 +114,7 @@ Page({
         }
         report('invite_code_manual', {});
         // fid 交给服务端按邀请码反查：拿到码的人本来就不该知道 fid
-        this.setData({ step: 'mode', invite: { fid: '', ivt: code } });
+        this.setData({ invite: { fid: '', ivt: code } });
       },
     });
   },
@@ -127,18 +122,18 @@ Page({
   /** P42：点「我自己吃药」——确认框用老人规格（规格跟着他点的按钮走） */
   onJoinAsPatient() {
     this.setData({ showDisclaim: true, disclaimElder: true, pending: 'join-patient' });
-    report('disclaimer_shown', { trigger: 'after_btn', from: 'invite', role: 'patient' });
+    report('disclaimer_shown', { trigger: 'after_btn', from: this.data.entryFrom, role: 'patient' });
   },
 
   onJoinAsGuardian() {
     this.setData({ showDisclaim: true, disclaimElder: false, pending: 'join-guardian' });
-    report('disclaimer_shown', { trigger: 'after_btn', from: 'invite', role: 'guardian' });
+    report('disclaimer_shown', { trigger: 'after_btn', from: this.data.entryFrom, role: 'guardian' });
   },
 
   async onDisclaimConfirm() {
     const delay = 1200;
     this.setData({ showDisclaim: false });
-    report('disclaimer_ack', { delay_ms: delay, from: this.data.step, trigger: this.data.pending ? 'after_btn' : 'first_screen' });
+    report('disclaimer_ack', { delay_ms: delay, from: this.data.entryFrom, trigger: 'after_btn' });
     try {
       await agree('disclaimer');
       await agree('privacy');
@@ -147,7 +142,6 @@ Page({
     }
     const p = this.data.pending;
     this.setData({ pending: '' });
-    if (p === 'mode') this.setData({ step: 'mode' });
     if (p === 'join-patient') this.join('patient');
     if (p === 'join-guardian') this.join('guardian');
   },
@@ -190,7 +184,7 @@ Page({
         await ensureSelfPatient(get().user.nickname || '我');
         await bindSelf('patient');
       }
-      // 建家是 P00→P01 这条自助路径的完成，不是"被邀请加入"，别混进 invite_accepted 的漏斗
+      // 建家是 P01 这条自助路径的完成，不是"被邀请加入"，别混进 invite_accepted 的漏斗
       if (needCreate) report('family_created', { fid: get().family.fid, role });
       else report('invite_accepted', { role, ms: 0 });
       wx.reLaunch({ url: '/pages/home/index' });
@@ -200,11 +194,22 @@ Page({
     }
   },
 
-  /** P01 双模选择 */
+  /** P01 双模选择：未同意免责就先弹确认，确认后才 join（确认前零请求、零写库） */
   onPickGuardian() {
+    if (!get().user.disclaimerAgreed) {
+      this.setData({ showDisclaim: true, disclaimElder: false, pending: 'join-guardian' });
+      report('disclaimer_shown', { trigger: 'after_btn', from: this.data.entryFrom, role: 'guardian' });
+      return;
+    }
     this.join('guardian');
   },
   onPickElder() {
+    if (!get().user.disclaimerAgreed) {
+      // 规格跟着他点的按钮走：点「我自己吃药」的人就是要吃药的人，按老人规格弹
+      this.setData({ showDisclaim: true, disclaimElder: true, pending: 'join-patient' });
+      report('disclaimer_shown', { trigger: 'after_btn', from: this.data.entryFrom, role: 'patient' });
+      return;
+    }
     this.join('patient');
   },
 
