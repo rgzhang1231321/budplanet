@@ -199,7 +199,13 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
                 "name = EXCLUDED.name, " +
                 "spec = COALESCE(EXCLUDED.spec, medicine_usage_stats.spec), " +
                 "default_dose = COALESCE(EXCLUDED.default_dose, medicine_usage_stats.default_dose)",
-                new object[] { nameKey, name, spec ?? (object)DBNull.Value, defaultDose ?? (object)DBNull.Value, delta, nowMs },
+                // 选填项为空就传 null，让 EF 自己转成 DBNull。
+                // 这里曾写成 `spec ?? (object)DBNull.Value`：EF 的 RawSqlCommandBuilder 拿
+                // typeof(DBNull) 去 FindMapping 找不到 store type，取 mapping 时直接抛异常，
+                // 整个 medicine.create 返回 1009「服务异常」——而用户只是没填一个选填项。
+                // spec!/defaultDose! 是告诉编译器"null 在这里是合法值"：object[] 的元素没带
+                // nullable 注解，EF 的 AddParameter 会做 `value ?? DBNull.Value`，不需要我们代劳。
+                new object[] { nameKey, name, spec!, defaultDose!, delta, nowMs },
                 ct);
 
         // 减：只 UPDATE，不 INSERT —— 减到一个不存在的药名不该凭空造一行 0 出来。

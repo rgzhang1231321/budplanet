@@ -186,4 +186,39 @@ public sealed class MedicineCreateQuotaTests
         body.GetProperty("code").GetInt32().Should().Be(1003);
         (await ActiveMedCountAsync(fid)).Should().Be(0);
     }
+
+    // ── 规格可留空（回归护栏，2026-11-02）───────────────────────
+    // 前端 `medicine-form` 传的是 `spec: this.data.spec`，用户不填"规格"时是 undefined，
+    // JSON.stringify 会直接丢掉这个 key → 服务端 req.Spec == null。
+    // 这里曾因 `spec ?? (object)DBNull.Value` 让 EF 推不出 store type mapping 而整个请求 1009：
+    // 用户只是没填一个选填项，看到的却是"服务异常，请稍后再试"。
+    /// <summary>不传 spec（用户没填选填项）必须正常创建，不是 1009。</summary>
+    [Fact]
+    public async Task 不传规格时要能正常创建而不是1009()
+    {
+        var (fid, openid, uid) = await SeedFamilyAsync("nospec", existingMeds: 0);
+
+        var (_, body) = await _fx.Api.PostAsync("/api/medicine/create",
+            new { fid, uid, name = "二甲双胍", default_dose = "1片" }, openid);
+
+        body.GetProperty("code").GetInt32().Should().Be(0);
+        (await ActiveMedCountAsync(fid)).Should().Be(1);
+    }
+
+    /// <summary>
+    /// default_dose 留空也要能建。
+    /// 这条走的是另一条路：MedicineHandlers.cs:183 把空剂量归一成 "1片"，
+    /// 所以到 DbContext 时它不是 null。放在这里是为了钉住这个归一化不被"优化"掉。
+    /// </summary>
+    [Fact]
+    public async Task 不传默认剂量时要能正常创建而不是1009()
+    {
+        var (fid, openid, uid) = await SeedFamilyAsync("nodose", existingMeds: 0);
+
+        var (_, body) = await _fx.Api.PostAsync("/api/medicine/create",
+            new { fid, uid, name = "维生素C", spec = "100mg×100片" }, openid);
+
+        body.GetProperty("code").GetInt32().Should().Be(0);
+        (await ActiveMedCountAsync(fid)).Should().Be(1);
+    }
 }
