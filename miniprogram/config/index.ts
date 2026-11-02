@@ -19,22 +19,24 @@ const DEV_PORT = 5080;
  * request 合法域名已登记 https://api.apiyun.net，真机请求不会被拦。
  * 想让真机临时连本地后端，控制台覆盖：wx.setStorageSync('api_base', 'http://192.168.x.x:5080')
  */
-const PROD_API_BASE = 'https://api.apiyun.net';
+const PROD_API_BASE = "https://api.apiyun.net";
 
 /** develop 开发版 / trial 体验版 / release 正式版 */
 function envVersion(): string {
   try {
     const info: any = (wx as any).getAccountInfoSync();
-    return (info && info.miniProgram && info.miniProgram.envVersion) || 'develop';
+    return (
+      (info && info.miniProgram && info.miniProgram.envVersion) || "develop"
+    );
   } catch (e) {
-    return 'develop';
+    return "develop";
   }
 }
 
 // platform 只在启动时取一次（getSystemInfoSync 比 getStorageSync 重）
-let platform = '';
+let platform = "";
 try {
-  platform = (wx.getSystemInfoSync() as any).platform || '';
+  platform = (wx.getSystemInfoSync() as any).platform || "";
 } catch (e) {
   /* ignore */
 }
@@ -45,13 +47,14 @@ try {
  */
 export function apiBase(): string {
   try {
-    const override = wx.getStorageSync('api_base');
-    if (typeof override === 'string' && override) return override.replace(/\/+$/, '');
+    const override = wx.getStorageSync("api_base");
+    if (typeof override === "string" && override)
+      return override.replace(/\/+$/, "");
   } catch (e) {
     /* ignore */
   }
-  if (envVersion() === 'release') return PROD_API_BASE;
-  return platform === 'devtools'
+  if (envVersion() === "release") return PROD_API_BASE;
+  return platform === "devtools"
     ? `http://127.0.0.1:${DEV_PORT}`
     : PROD_API_BASE;
 }
@@ -63,7 +66,7 @@ export const USE_MOCK = false;
 /** 运行时开关：默认读 USE_MOCK，控制台 wx.setStorageSync('use_mock', false) 可切真后端 */
 export function useMock(): boolean {
   try {
-    const v = wx.getStorageSync('use_mock');
+    const v = wx.getStorageSync("use_mock");
     if (v === true || v === false) return v;
   } catch (e) {
     /* ignore */
@@ -98,11 +101,11 @@ export function useMock(): boolean {
  * 只想临时试一下：控制台执行 wx.setStorageSync('ad_off', true) 可本地强制全关（仅本机生效）。
  */
 export const AD_UNITS = {
-  a: '',
-  b: '',
-  bElder: '',
-  c: '',
-  d: '',
+  a: "",
+  b: "",
+  bElder: "",
+  c: "",
+  d: "",
 };
 
 // 订阅消息模板：已按微信后台「功能 → 订阅消息 → 我的模板」实际选用的三套填写，
@@ -116,14 +119,14 @@ export const AD_UNITS = {
 // 消息属违规，处理方式是删除模板或封禁订阅消息接口（等于提醒功能整体停摆）。
 // 这不是前端代码能修的问题：模板 ID 必须在微信后台重新申请，审核通过后回来改这里。
 // 前端只此一处持有模板 ID（utils/subscribe.ts 只读 TMPL_IDS），改这里即可，勿在页面里写死。
-export const TMPL_IDS: Record<'CHECKIN' | 'MISSED' | 'WEEKLY', string> = {
-  CHECKIN: 'goqfpenKaS9IILIzItZUpt1SaNjZ5XcHgHqIEbitS_w', // 药剂更换提醒 10596（服药剂量 short_thing7 / 服药时间 time6）
-  MISSED: 'Dv3W1DnoL-bxD5GRf8NJ3aC35z0DoqkOCrUw2QQDEaQ', // 工作任务待办通知 49925（处理人 thing18 / 时间 time3 / 办理事项 thing14）
-  WEEKLY: 'Ip4U864D5NGg6gG4ITj5CN9kMSxLysQNZpEq70va8Rs', // 周报更新提醒 1542（统计时间 time5 / 备注 thing6）
+export const TMPL_IDS: Record<"CHECKIN" | "MISSED" | "WEEKLY", string> = {
+  CHECKIN: "goqfpenKaS9IILIzItZUpt1SaNjZ5XcHgHqIEbitS_w", // 药剂更换提醒 10596（服药剂量 short_thing7 / 服药时间 time6）
+  MISSED: "Dv3W1DnoL-bxD5GRf8NJ3aC35z0DoqkOCrUw2QQDEaQ", // 工作任务待办通知 49925（处理人 thing18 / 时间 time3 / 办理事项 thing14）
+  WEEKLY: "Ip4U864D5NGg6gG4ITj5CN9kMSxLysQNZpEq70va8Rs", // 周报更新提醒 1542（统计时间 time5 / 备注 thing6）
 };
 
-export const APP_VERSION = '1.0.0';
-export const CACHE_VERSION = 'v1';
+export const APP_VERSION = "1.0.0";
+export const CACHE_VERSION = "v1";
 
 /**
  * ⚠️ 上线前必须替换：客服邮箱（客户尚未提供真实邮箱，此处留空）。
@@ -133,7 +136,7 @@ export const CACHE_VERSION = 'v1';
  * 留空时「关于」页只显示微信客服会话入口（button open-type="contact"，不需要邮箱）。
  * 客户给出真实邮箱后填进来，页面会自动多出一行「客服邮箱 + 复制」。
  */
-export const SUPPORT_EMAIL = '';
+export const SUPPORT_EMAIL = "";
 
 // 打卡单批上限（契约：超限 1005）
 export const SUBMIT_BATCH_MAX = 8;
