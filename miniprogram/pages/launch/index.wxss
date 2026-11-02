@@ -76,7 +76,7 @@
   overflow: hidden;
 }
 .demo__bar-in {
-  width: 50%;
+  width: 66.667%;
   height: 100%;
   background: var(--brand-500);
   border-radius: 4rpx;
@@ -99,19 +99,24 @@
   color: var(--text-1);
 }
 .demo__badge {
-  font-size: var(--fs-micro);
-  color: var(--text-3);
-  padding: 4rpx 12rpx;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  font-size: var(--fs-caption);
+  color: var(--st-pending-text);
+  padding: 4rpx 16rpx;
   border-radius: var(--r-full);
-  background: #f3f6f9;
+  background: #eceff3;
+}
+.demo__badge-i {
+  width: 28rpx;
+  height: 28rpx;
+  margin-right: 6rpx;
 }
 .demo__badge--ok {
   color: var(--st-taken-text);
   background: var(--st-taken-bg);
-}
-.demo__badge--miss {
-  color: var(--st-missed-text);
-  background: var(--danger-bg);
+  font-weight: 600;
 }
 
 .props {

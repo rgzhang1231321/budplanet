@@ -12,24 +12,33 @@
     <view class="page demo-wrap">
       <view class="demo">
         <view class="demo__head">
-          <text class="demo__date">今天 8月14日 周三</text>
-          <text class="demo__rate">3 / 6 已服用</text>
+          <text class="demo__date">今天 {{demoDate}}</text>
+          <text class="demo__rate">2 / 3 已服用</text>
         </view>
         <view class="demo__bar"><view class="demo__bar-in"></view></view>
         <view class="demo__row">
           <text class="demo__time">08:00</text>
           <text class="demo__med">降压药 1 片</text>
-          <view class="demo__badge demo__badge--ok">✓ 已服</view>
+          <view class="demo__badge demo__badge--ok">
+            <view class="i i-check-green demo__badge-i"></view>
+            <text>已服</text>
+          </view>
         </view>
         <view class="demo__row">
           <text class="demo__time">12:30</text>
           <text class="demo__med">二甲双胍 1 片</text>
-          <view class="demo__badge demo__badge--miss">! 漏服</view>
+          <view class="demo__badge demo__badge--ok">
+            <view class="i i-check-green demo__badge-i"></view>
+            <text>已服</text>
+          </view>
         </view>
         <view class="demo__row">
           <text class="demo__time">19:00</text>
           <text class="demo__med">阿司匹林 1 片</text>
-          <view class="demo__badge">○ 待服</view>
+          <view class="demo__badge">
+            <view class="i i-clock demo__badge-i"></view>
+            <text>待服</text>
+          </view>
         </view>
       </view>
 

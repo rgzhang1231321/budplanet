@@ -11,10 +11,13 @@ import { get, set } from '../../store/index';
 import { call } from '../../utils/request';
 import { report } from '../../utils/report';
 import { statusBarHeight } from '../../utils/theme';
+import { dateCN, humanDate } from '../../utils/time';
 
 Page({
   data: {
     statusBar: 20,
+    // 落地页示意卡片的日期：必须按当天真实日期取，写死会被用户当成假 demo
+    demoDate: '',
     step: 'welcome' as 'welcome' | 'mode' | 'invite' | 'joined',
     showDisclaim: false,
     disclaimElder: false,
@@ -26,7 +29,8 @@ Page({
 
   async onLoad(q: Record<string, string>) {
     const ivt = q.ivt || q.invite || '';
-    this.setData({ statusBar: statusBarHeight() });
+    // 日期动态取：写死「8月14日」会让上线后每天打开都是同一天，用户直接判定是假 demo
+    this.setData({ statusBar: statusBarHeight(), demoDate: humanDate(dateCN()) });
     wx.setNavigationBarTitle({ title: '替你记着吃药' });
     try {
       await bootstrap();
