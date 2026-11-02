@@ -69,8 +69,8 @@
   color: var(--brand-600);
 }
 .demo__bar {
-  height: 8rpx;
-  border-radius: 4rpx;
+  height: 16rpx;
+  border-radius: 8rpx;
   background: #e8edf2;
   margin: var(--sp-2) 0 var(--sp-3);
   overflow: hidden;
@@ -79,7 +79,7 @@
   width: 66.667%;
   height: 100%;
   background: var(--brand-500);
-  border-radius: 4rpx;
+  border-radius: 8rpx;
 }
 .demo__row {
   display: flex;
@@ -95,7 +95,7 @@
 }
 .demo__med {
   flex: 1;
-  font-size: var(--fs-body);
+  font-size: var(--fs-body-s);
   color: var(--text-1);
 }
 .demo__badge {
@@ -136,7 +136,7 @@
   flex: none;
 }
 .props__t {
-  font-size: var(--fs-body);
+  font-size: var(--fs-body-s);
   color: var(--text-2);
   line-height: 1.5;
 }
@@ -147,22 +147,33 @@
 }
 .foot__note {
   display: block;
-  margin-top: var(--sp-3);
+  margin-top: 0;
   text-align: center;
-  font-size: var(--fs-caption);
-  color: var(--text-3);
+  font-size: var(--fs-foot);
+  color: var(--text-2);
 }
 /* 隐私政策 / 用户协议：一眼能找到，但不抢主按钮 */
 .foot__legal {
-  margin-top: var(--sp-4);
+  margin: 0;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.foot__legal-link {
+/* 点击目标挂在 item 上：命中盒 = item 整块矩形，才够 44px 老人点得准 */
+.foot__legal-item {
+  display: flex;
+  align-items: center;
+  min-height: var(--h-tap);
   padding: 0 var(--sp-3);
-  font-size: var(--fs-caption);
-  color: var(--text-3);
+}
+.foot__legal-item--hover {
+  background: var(--bg-page);
+  border-radius: var(--r-s);
+}
+.foot__legal-link {
+  font-size: var(--fs-foot);
+  color: var(--text-2);
   text-decoration: underline;
   text-underline-offset: 6rpx;
 }

@@ -20,7 +20,7 @@
           <text class="demo__time">08:00</text>
           <text class="demo__med">降压药 1 片</text>
           <view class="demo__badge demo__badge--ok">
-            <view class="i i-check-green demo__badge-i"></view>
+            <view class="i i-check-taken demo__badge-i"></view>
             <text>已服</text>
           </view>
         </view>
@@ -28,7 +28,7 @@
           <text class="demo__time">12:30</text>
           <text class="demo__med">二甲双胍 1 片</text>
           <view class="demo__badge demo__badge--ok">
-            <view class="i i-check-green demo__badge-i"></view>
+            <view class="i i-check-taken demo__badge-i"></view>
             <text>已服</text>
           </view>
         </view>
@@ -66,8 +66,12 @@
       </view>
       <!-- 隐私政策 / 用户协议入口：首屏必须可直达（应用市场与微信审核都查这一项） -->
       <view class="foot__legal">
-        <text class="foot__legal-link" data-type="privacy" bindtap="onLegal">《隐私政策》</text>
-        <text class="foot__legal-link" data-type="agreement" bindtap="onLegal">《用户协议》</text>
+        <view class="foot__legal-item" hover-class="foot__legal-item--hover" data-type="privacy" bindtap="onLegal">
+          <text class="foot__legal-link">《隐私政策》</text>
+        </view>
+        <view class="foot__legal-item" hover-class="foot__legal-item--hover" data-type="agreement" bindtap="onLegal">
+          <text class="foot__legal-link">《用户协议》</text>
+        </view>
       </view>
       <text class="foot__note">只做提醒与记录，不提供任何医疗建议</text>
     </view>

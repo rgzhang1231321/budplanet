@@ -47,6 +47,8 @@ page {
   --fs-body: 28rpx;
   --fs-body-s: 30rpx;
   --fs-caption: 24rpx;
+  /* 底部法务/免责类小字：卡在「正文之下、caption 之上」，13px 可读下限 */
+  --fs-foot: 26rpx;
   --fs-micro: 20rpx;
   --fs-btn: 32rpx;
   --lh-body: 1.5;
@@ -87,6 +89,7 @@ page {
   --h-nav: 88rpx;
   --h-tabbar: 116rpx;
   --h-input: 96rpx;
+  --h-tap: 88rpx;
   --badge-h: 48rpx;
 
   background: var(--bg-page);
@@ -104,6 +107,7 @@ page {
   --fs-body: 40rpx;
   --fs-body-s: 44rpx;
   --fs-caption: 36rpx;
+  --fs-foot: 38rpx;
   --fs-micro: 28rpx;
   --fs-btn: 48rpx;
   --lh-body: 1.55;
@@ -125,6 +129,7 @@ page {
   --h-main-btn: 160rpx;
   --h-sub-btn: 112rpx;
   --h-input: 128rpx;
+  --h-tap: 158rpx;
   --badge-h: 64rpx;
   --shadow-1: 0 4rpx 20rpx rgba(17, 34, 51, 0.08);
   background: #ffffff;
@@ -487,6 +492,10 @@ button.btn,
 }
 .i-check-green {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2312A150' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 12.5l5 5L20 7'/%3E%3C/svg%3E");
+}
+/* 已服对勾：描边色对齐 --st-taken-text(#0b7f38)，避免同一胶囊里出现两种绿 */
+.i-check-taken {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230B7F38' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 12.5l5 5L20 7'/%3E%3C/svg%3E");
 }
 .i-close {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A94A0' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E");
