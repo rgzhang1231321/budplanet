@@ -5,6 +5,7 @@ using MedBox.Application.Tests.TestSupport;
 using MedBox.Application.UseCases;
 using MedBox.Domain;
 using MedBox.Domain.Entities;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace MedBox.Application.Tests;
@@ -57,7 +58,7 @@ public sealed class FamilyJoinHandlerTests
         var clock = Clock();
         var guard = new MemberGuard(db, clock);
         var info = new FamilyInfoHandler(db, guard, clock);
-        return (db, new FamilyJoinHandler(db, clock), info);
+        return (db, new FamilyJoinHandler(db, clock, NullLogger<FamilyJoinHandler>.Instance), info);
     }
 
     private static Family FamilyWithToken(string? token) => new()
@@ -197,13 +198,14 @@ public sealed class FamilyJoinHandlerTests
     /// 现在的口径：加入家庭与改角色是两个 action，这里只做 self 绑定。
     /// </summary>
     [Fact]
-    public async Task 已是member的人再join带patient意图角色不变但绑上self()
+    public async Task 已是member的人再join带patient意图角色不变但绑上自己新建的档案()
     {
         var family = FamilyWithToken(Token);
         var member = MemberWithRole("member");
         var patient = UnboundPatient();
         var (db, handler, info) = Build(family, member, user: null, patient);
 
+        // 注意：这里**故意传了别人的 pid**（旧前端就是这么干的），验证它被忽略
         var dto = await handler.HandleAsync(Fid, Token, "patient", PatientId, Openid, info);
 
         // 角色一律不动（要改角色只能走 family.update_role）
@@ -212,15 +214,16 @@ public sealed class FamilyJoinHandlerTests
         db.DidNotReceive().Add(Arg.Any<FamilyMember>());
         family.MemberCount.Should().Be(1);
 
-        // 但 bindSelf 真正需要的东西照做：self_openid 与 SelfPatientId 都绑上
-        patient.SelfOpenid.Should().Be(Openid);
-        member.SelfPatientId.Should().Be(PatientId);
+        // 自绑只绑到自己新建的「我」上：传进来那条（别人的）一个字不动
+        patient.SelfOpenid.Should().BeNull();
+        db.Received(1).Add(Arg.Is<Patient>(p => p.Name == "我" && p.SelfOpenid == Openid));
+        dto.SelfUid.Should().NotBe(PatientId);
+        member.SelfPatientId.Should().Be(dto.SelfUid);
 
-        // mode 由 selfUids 派生：绑上自绑服药人之后他就是老人端，但 role 仍是 member
+        // mode 由 selfUids 派生：绑上之后他就是老人端主题，但 role 仍是 member
         dto.Role.Should().Be("member");
         dto.Mode.Should().Be("elder");
-        dto.SelfUid.Should().Be(PatientId);
-        dto.SelfUids.Should().Equal(PatientId);
+        dto.SelfUids.Should().HaveCount(1);
     }
 
     /// <summary>admin 同样不能被 join 顺带降级。</summary>
@@ -238,21 +241,206 @@ public sealed class FamilyJoinHandlerTests
         dto.Role.Should().Be("admin");
     }
 
-    /// <summary>自绑服药人已经被别人绑走时不再重复绑（self_openid 是排他的）。</summary>
+    /// <summary>
+    /// **发版窗口期护栏（旧前端 + 新后端）**：旧版小程序传的是 `uid = patients[0].uid`（=爸爸），
+    /// 而爸爸此时 self_openid 恰好是空的 —— 若后端"uid 有值就绑这一位"，爸爸会再次被绑走，
+    /// 客户今天的事故就原样复发。现在这条分支**结构上不读 uid**：必须新建「我」，
+    /// 且爸爸（真实 pid `Pd791ab565b`，2026-11-02 事故那条）的 self_openid 前后一字不变。
+    /// </summary>
     [Fact]
-    public async Task 自绑服药人已被别人绑走时不覆盖()
+    public async Task 旧前端传爸爸的uid时也只会新建我自己的档案且不碰爸爸()
+    {
+        var family = FamilyWithToken(Token);
+        var member = MemberWithRole("admin");
+        // 用客户事故里的真实 pid，避免"换了个假 pid 就测不出问题"的假绿
+        var dad = UnboundPatient();
+        dad.PatientId = "Pd791ab565b";                    // 爸爸：active、无自绑 = 事故现场
+        var before = dad.SelfOpenid;                      // 记下改前值（null）
+        var (db, handler, info) = Build(family, member, user: null, dad);
+
+        var dto = await handler.HandleAsync(Fid, Token, "patient", "Pd791ab565b", Openid, info);
+
+        db.Received(1).Add(Arg.Is<Patient>(p =>
+            p.Name == "我" && p.Status == "active" && p.SelfOpenid == Openid));
+        dad.SelfOpenid.Should().Be(before);               // 前后一字不变（不是"碰巧还是 null"）
+        dad.SelfOpenid.Should().NotBe(Openid);            // 没有被绑成本人
+        dto.SelfUid.Should().NotBe("Pd791ab565b");        // 绑的不是爸爸
+        member.SelfPatientId.Should().Be(dto.SelfUid);
+        dto.SelfUids.Should().HaveCount(1);
+    }
+
+    /// <summary>同上场景，但"我"的档案已经存在 → 复用，不重复建，爸爸依然不动。</summary>
+    [Fact]
+    public async Task 旧前端传爸爸的uid时若已有我的档案则复用且不碰爸爸()
+    {
+        var family = FamilyWithToken(Token);
+        var member = MemberWithRole("admin");
+        var dad = UnboundPatient();
+        var mine = new Patient
+        {
+            PatientId = "P_mine_0001",
+            FamilyId = Fid,
+            Name = "我",
+            Alias = "我",
+            Status = "active",
+            SelfOpenid = Openid,
+            CreatedAt = Now + 5000,
+        };
+        var (db, handler, info) = Build(family, member, user: null, dad, mine);
+
+        var dto = await handler.HandleAsync(Fid, Token, "patient", dad.PatientId, Openid, info);
+
+        db.DidNotReceive().Add(Arg.Any<Patient>());
+        dad.SelfOpenid.Should().BeNull();
+        mine.SelfOpenid.Should().Be(Openid);
+        dto.SelfUid.Should().Be("P_mine_0001");
+        member.SelfPatientId.Should().Be("P_mine_0001");
+    }
+
+    /// <summary>
+    /// 别人已经绑着的患者，别人不会被挤掉；本调用方自己另建一条 —— 而且**不再报错**。
+    /// 旧口径是"uid 被占 → 1005"，但 uid 已被忽略，这条错误路径随之消失；
+    /// 保留这条用例是为了钉住"绝不会把别人的 self_openid 改掉"。
+    /// </summary>
+    [Fact]
+    public async Task 患者已被别人绑时不覆盖别人的绑定()
     {
         var family = FamilyWithToken(Token);
         var member = MemberWithRole("member");
         var patient = UnboundPatient();
         patient.SelfOpenid = "openid_somebody_else";
-        var (_, handler, info) = Build(family, member, user: null, patient);
+        var (db, handler, info) = Build(family, member, user: null, patient);
 
-        await handler.HandleAsync(Fid, Token, "patient", PatientId, Openid, info);
+        var dto = await handler.HandleAsync(Fid, Token, "patient", patient.PatientId, Openid, info);
 
         patient.SelfOpenid.Should().Be("openid_somebody_else");
-        member.SelfPatientId.Should().BeNull();
+        db.Received(1).Add(Arg.Is<Patient>(p => p.Name == "我" && p.SelfOpenid == Openid));
+        member.SelfPatientId.Should().NotBe(patient.PatientId);
+        dto.SelfUid.Should().NotBe(patient.PatientId);
     }
+
+    /// <summary>uid 指向一个根本不存在的 pid：因为 uid 被忽略，照常绑自己的档案，不报错。</summary>
+    [Fact]
+    public async Task uid指向不存在的服药人也不报错仍绑自己的档案()
+    {
+        var family = FamilyWithToken(Token);
+        var member = MemberWithRole("member");
+        var (db, handler, info) = Build(family, member, user: null, UnboundPatient());
+
+        var dto = await handler.HandleAsync(Fid, Token, "patient", "P_not_exist", Openid, info);
+
+        db.Received(1).Add(Arg.Is<Patient>(p => p.Name == "我" && p.SelfOpenid == Openid));
+        dto.SelfUids.Should().HaveCount(1);
+        dto.Mode.Should().Be("elder");
+    }
+
+    // ── ⑦ 2026-11-02 客户事故的回归护栏：绝不把别人绑成"我"─────────────────
+    //
+    // 事故现象：客户在周报/历史里看到的是爸爸的药，标题写着「我的记录」。
+    // 根因链：前端 bindSelf 把 patients[0].uid（=爸爸）传上来 → 后端 uid 命中就直接绑；
+    //        而 uid 没有时，老实现还有 `?? 最早创建的 active 患者` 兜底，一样绑到爸爸。
+    // 下面三条把"新口径"钉死：uid 为空时必须自己造一条「我」，绝不抓现成的别人。
+
+    /// <summary>
+    /// uid 为空 + 家里已有 4 位患者（客户事故里的真实形态）→ 必须**新建一条「我」**并绑，
+    /// 别人的 self_openid 一个字不动；**再点一次是幂等的**，不会建出第二条「我」。
+    /// 这条是客户本次事故（爸爸被绑成"我"）的直接回归护栏。
+    /// </summary>
+    [Fact]
+    public async Task 带patient意图不给uid时新建我自己的档案而不是绑到别人且重复点不重复建()
+    {
+        var family = FamilyWithToken(Token);
+        var member = MemberWithRole("admin");
+        var archivedDad = new Patient           // 客户家里真实存在的第 4 条：已归档的爸爸
+        {
+            PatientId = "P0000000000",
+            FamilyId = Fid,
+            Name = "张建国",
+            Alias = "爸爸",
+            Status = "archived",
+            CreatedAt = Now - 2000,
+        };
+        var dad = UnboundPatient();             // 爸爸：active、无自绑（事故里就是这条被绑走）
+        var wife = new Patient
+        {
+            PatientId = "P0000000002",
+            FamilyId = Fid,
+            Name = "何冬瑞",
+            Alias = "媳妇",
+            Status = "active",
+            CreatedAt = Now + 1000,
+        };
+        var mom = new Patient
+        {
+            PatientId = "P0000000003",
+            FamilyId = Fid,
+            Name = "看见了",
+            Alias = "妈妈",
+            Status = "active",
+            CreatedAt = Now + 2000,
+        };
+        var (db, handler, info) = Build(family, member, user: null, archivedDad, dad, wife, mom);
+
+        // ── 第一次点「我自己吃药」──
+        var dto = await handler.HandleAsync(Fid, Token, "patient", null, Openid, info);
+
+        db.Received(1).Add(Arg.Is<Patient>(p =>
+            p.FamilyId == Fid &&
+            p.Name == "我" &&
+            p.Status == "active" &&
+            p.DisplayMode == "normal" &&
+            p.SelfOpenid == Openid));
+        // 别人一个都不许被绑走
+        dad.SelfOpenid.Should().BeNull();
+        wife.SelfOpenid.Should().BeNull();
+        mom.SelfOpenid.Should().BeNull();
+        archivedDad.SelfOpenid.Should().BeNull();
+        // 绑给的必须是新建那条，不是四位里任何一位
+        var mine = dto.SelfUid;
+        mine.Should().NotBeNullOrEmpty();
+        new[] { archivedDad.PatientId, dad.PatientId, wife.PatientId, mom.PatientId }
+            .Should().NotContain(mine!);
+        dto.SelfUids.Should().HaveCount(1);
+        dto.Mode.Should().Be("elder");
+        member.SelfPatientId.Should().Be(mine);
+
+        // ── 第二次点（下拉重进 / 重复点击）→ 幂等，仍然只有一条「我」──
+        var dto2 = await handler.HandleAsync(Fid, Token, "patient", null, Openid, info);
+
+        db.Received(1).Add(Arg.Any<Patient>());      // 总共只建过一条
+        dto2.SelfUid.Should().Be(mine);
+        dto2.SelfUids.Should().HaveCount(1);
+        dad.SelfOpenid.Should().BeNull();
+    }
+
+    /// <summary>uid 为空但"已经绑给我了" → 幂等复用，不重复建第二条「我」。</summary>
+    [Fact]
+    public async Task 带patient意图不给uid时已有本人档案则复用不重复建()
+    {
+        var family = FamilyWithToken(Token);
+        var member = MemberWithRole("admin");
+        var mine = new Patient
+        {
+            PatientId = "P_mine_0001",
+            FamilyId = Fid,
+            Name = "我",
+            Alias = "我",
+            Status = "active",
+            SelfOpenid = Openid,
+            CreatedAt = Now,
+        };
+        var (db, handler, info) = Build(family, member, user: null, mine, UnboundPatient());
+
+        var dto = await handler.HandleAsync(Fid, Token, "patient", null, Openid, info);
+
+        db.DidNotReceive().Add(Arg.Any<Patient>());
+        mine.SelfOpenid.Should().Be(Openid);
+        member.SelfPatientId.Should().Be("P_mine_0001");
+        dto.SelfUid.Should().Be("P_mine_0001");
+    }
+
+    // （原「uid 指向不存在的服药人 → 1005」用例已删：uid 在这条分支被忽略，
+    //   该错误路径不存在了；等价护栏见「uid指向不存在的服药人也不报错仍绑自己的档案」。）
 
     /// <summary>fid 为空时按邀请码反查家庭 —— 手动输码的人只知道码，不该知道 fid。</summary>
     [Fact]

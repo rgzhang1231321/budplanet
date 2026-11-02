@@ -147,15 +147,29 @@ export async function createFamily(name = '我家'): Promise<string> {
   return res.fid;
 }
 
-/** 刚建好的家里一个服药人都没有：先把"我"建成服药人，后面的 bindSelf 才有地方可绑。
- *  不建的话 family.join(role=patient) 找不到 target，绑定是**静默失败** ——
- *  老人会落在子女版界面，也看不到「我的今日」。 */
-export async function ensureSelfPatient(name: string): Promise<void> {
+/** 「我自己吃药」这条路上，本家还没有"我"的服药人档案时怎么办。
+ *
+ *  以前在这里 `patient.create` 补建一条「我」—— 判据写的是 `patients.length > 0`，
+ *  于是家里只要已经有一位服药人（爸爸/妈妈/媳妇），这条**永远不建**，"我"也就永远绑不上；
+ *  现在判据换成"有没有 self_openid == 我 的档案"，与本家患者总数无关。
+ *
+ *  ⚠️ 但**这里不再建档案**：建 + 绑由紧接着的 `family.join(role:'patient')` 一次完成
+ *  （服务端：已绑给我的就复用，没有就新建一条「我」再绑）。为什么不让前端建：
+ *  前端 create 出来的是"没有 self_openid 的裸患者"，后端接着 join 时仍找不到"绑给我的那条"，
+ *  会再建一条 → 服药人列表里出现两条「我」。**同一条档案只能有一个创建点。**
+ *  本函数现在只做一件事：没有本人档案时留一条日志，方便线上定位走到哪条分支。
+ */
+export async function ensureSelfPatient(): Promise<void> {
   const s = state();
-  if (!s.family.fid || s.family.patients.length > 0) return;
-  const alias = (name || '我').slice(0, 20);
-  await call('patient', 'create', { fid: s.family.fid, name: alias, alias });
-  await loadFamily();
+  if (!s.family.fid) return;
+  const hasSelf = s.family.patients.some((p) => !!p.selfOpenid && p.selfOpenid === s.user.openid);
+  if (hasSelf) return;
+  logClient('info', '本家还没有「我」的服药人档案，交给 family.join 建并绑定', {
+    scene: 'bind_self',
+    domain: 'patient',
+    action: 'create',
+    code: 0,
+  });
 }
 
 /** 「我自己吃药」：绑定 self_openid，服务端随后按 selfUids 过滤今日。
@@ -203,7 +217,9 @@ export async function bindSelf(role: 'patient' | 'guardian'): Promise<any> {
     fid: s.family.fid,
     ivt: s.family.inviteToken,
     role,
-    uid: s.family.patients[0] ? s.family.patients[0].uid : undefined,
+    // ⛔ 不许再传 uid。这里曾传 `patients[0].uid`，即"家里第一位服药人"——他多半是爸爸。
+    // 后端拿到就把他绑成"我"，于是客户的周报/历史全变成「我的记录」。不传 uid 时由服务端
+    // 按"已经绑给我的那条 → 没有就新建一条「我」"处理，永远不会绑到别人身上。
   });
   await loadFamily();
   setMode(null);

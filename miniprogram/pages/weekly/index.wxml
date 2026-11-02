@@ -26,6 +26,7 @@
         <view wx:if="{{missCount}}" class="miss-list">
           <view wx:for="{{misses}}" wx:key="index" class="miss-list__row">
             <view class="miss-list__dot"></view>
+            <text wx:if="{{item.who}}" class="miss-list__who">{{item.who}}</text>
             <text class="miss-list__text">{{item.text}}</text>
             <text class="miss-list__dose">{{item.dose}}</text>
           </view>
@@ -41,7 +42,7 @@
       </view>
     </block>
 
-    <view wx:if="{{!isSelf}}" class="d-card" bindtap="onOpenDetail">
+    <view wx:if="{{!pureElder}}" class="d-card" bindtap="onOpenDetail">
       <view class="d-card__icon"><view class="i i-video i--lg"></view></view>
       <view class="d-card__text">
         <text class="d-card__title">看 15 秒视频，看详细分析</text>

@@ -1,10 +1,12 @@
 /**
  * pages/home —— P10 家庭看板 / E10 老人端今日（同一路由，mode 决定渲染）
- * 身份（isSelf = 我本人也是服药人）与字号（isElder = 大字版）是两件事：
- * 服药人默认也用普通版，字号由他手动切；但不能让他看全家的药单、也不能给他红字漏服告警。
+ * 三件事必须分开判，不要再用一个 isSelf 混着用（本项目真实事故就是这么来的）：
+ *   · 字号/版式 = isElder()（mode）
+ *   · 能看多少数据 = seesWholeFamily()（role：admin/member 看全家，elder 只看自己）
+ *   · 能不能给自己补记这类权限 = isSelf()（有没有自绑服药人）
  */
 import { bootstrap, refreshToday, switchFamily } from '../../store/user';
-import { get, groups, isElder, isSelf, on, overview, visibleRows } from '../../store/index';
+import { get, groups, isElder, on, overview, pureElderView, seesWholeFamily, visibleRows } from '../../store/index';
 import { correct, skip, take } from '../../store/today';
 import { dateCN, dayStartTs, humanDate, humanGap, diffMinutes, tsToTime } from '../../utils/time';
 import { statusBarHeight } from '../../utils/theme';
@@ -125,7 +127,9 @@ Page({
     // P0-5：「已联系」当天有效。联系过不等于吃了，只把红条降级成灰字，不改状态。
     const acks = ackMap();
     const acked = !!firstMiss && !!acks[firstMiss.dose_id] && dateCN(acks[firstMiss.dose_id]) === dateCN();
-    const childView = !isSelf();
+    // 漏服红条/首设清单只给"能看全家"的人（admin/member）。判 role 不判 mode：
+    // "自己也吃药又管全家"的 admin 必须能看到爸妈的漏服，否则他等于没有看板。
+    const childView = seesWholeFamily();
 
     // P0-2：CHECKIN 额度为 0 = 明天起收不到到点提醒。这是"产品静默失效"，必须让它可见。
     const quotaEmpty = (s.user.quota.CHECKIN || 0) <= 0;
@@ -169,7 +173,8 @@ Page({
       setupHasPatient: hasPatient,
       setupHasMed: hasMed,
       setupInvited: invited,
-      recentText: isSelf() && rv && rv.at ? `${rv.alias}${relativeDay(rv.at)}看过` : '',
+      // "XX 昨天看过"是给被照护方的安抚回执：纯服药人才有意义，与后端 RecentView 判据同源
+      recentText: pureElderView() && rv && rv.at ? `${rv.alias}${relativeDay(rv.at)}看过` : '',
       hasPatients: s.family.patients.length > 0,
       hasRows: rows.length > 0,
       // 首屏：数据没到时 rows 也是空的，与"真的没排药"必须分开，否则老人会以为今天不用吃药
@@ -205,8 +210,9 @@ Page({
 
   onRowTap(e: any) {
     const row = e.detail.row;
-    // 服药人（即使开着普通版）直接进打卡页：他改不了记录，弹 ActionSheet 只会给一条错误路
-    if (isSelf()) {
+    // 纯服药人（role=elder）直接进打卡页：他改不了记录，弹 ActionSheet 只会给一条错误路。
+    // admin/member 走改判菜单 —— 判 role，不判 mode（判 mode 会把"自己也吃药又管全家"的 admin 误送进打卡页）
+    if (pureElderView()) {
       navTo(`/pages/checkin/index?dose=${row.dose_id}`);
       return;
     }

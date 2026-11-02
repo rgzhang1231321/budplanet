@@ -4,6 +4,7 @@ using MedBox.Application.Services;
 using MedBox.Domain;
 using MedBox.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace MedBox.Application.UseCases;
 
@@ -99,7 +100,7 @@ public sealed class FamilyCreateHandler(IAppDbContext db, ContentSecurityChecker
     public static string NewToken() => "IVT" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
 }
 
-public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock)
+public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock, ILogger<FamilyJoinHandler> logger)
 {
     /// <summary>
     /// family.join —— 只负责"进这个家"，**不改已有成员的角色**。
@@ -154,14 +155,8 @@ public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock)
         }
         else if (roleIntent == "patient")
         {
-            // 只做"绑定 self"，不改角色。见本类 summary。
-            var target = await db.Patients.FirstOrDefaultAsync(p => p.FamilyId == fid && p.PatientId == uid, ct)
-                         ?? await db.Patients.Where(p => p.FamilyId == fid && p.Status == "active").OrderBy(p => p.CreatedAt).FirstOrDefaultAsync(ct);
-            if (target is not null && string.IsNullOrEmpty(target.SelfOpenid))
-            {
-                target.SelfOpenid = openid;
-                member.SelfPatientId = target.PatientId;
-            }
+            // 只做"绑定 self"，不改角色。见本类 summary。绑定规则见 BindSelfAsync。
+            await BindSelfAsync(fid, uid, openid, member, ct);
         }
 
         var user = await db.Users.FirstOrDefaultAsync(u => u.Openid == openid, ct);
@@ -173,6 +168,77 @@ public sealed class FamilyJoinHandler(IAppDbContext db, IClock clock)
         var dto = await info.HandleAsync(fid, openid, ct);
         return dto;
     }
+
+    /// <summary>
+    /// 「我本人也吃药」的自绑。**只做两件事**：找"已经绑给我的那条"（幂等复用）→ 没有就新建「我」再绑。
+    ///
+    /// ⚠️ 本方法**刻意不看 uid**（参数保留：`family.join` 的 uid 是契约冻结入参，不删不改名）。
+    /// 为什么连"uid 有值就绑这一位"都不做：
+    ///   前端要审核 1–7 天，前后端不可能同一秒上线。窗口期内
+    ///   · 旧前端 + 新后端：旧前端仍在传 `uid = patients[0].uid`（=爸爸），若这里接受 uid，
+    ///     爸爸此时 self_openid 恰好是空的，"没被别人绑"这道校验形同虚设 → 又绑回爸爸；
+    ///   · 新前端 + 旧后端：旧后端的 `??` 兜底会抓最早创建的那位 → 同样绑回爸爸。
+    ///   两条路都会让客户今天这个事故原样复发。所以这条分支**根本不看 uid**：
+    ///   不管新前端传 undefined 还是旧前端传爸爸的 pid，结果都一样 —— 绑到自己的档案上，碰不到别人。
+    ///
+    /// 忽略 uid 不会误伤合法场景：`roleIntent='patient'` 且"已是成员"这条分支，产品里只有
+    /// 「我自己吃药」一个入口；受邀老人走的是 `member is null` 的新成员分支，不经过这里。
+    ///
+    /// 历史事故回顾：老实现 uid 为空时用 `?? OrderBy(CreatedAt).FirstOrDefault()` 兜底，
+    /// 等于把"家里的爸爸"当成"我"。**任何形式的"挑一位来绑"都不许再写回来。**
+    /// </summary>
+    private async Task BindSelfAsync(string fid, string? uid, string openid, FamilyMember member, CancellationToken ct)
+    {
+        var target = await db.Patients.FirstOrDefaultAsync(
+            p => p.FamilyId == fid && p.SelfOpenid == openid && p.Status == "active", ct);
+
+        string outcome;
+        if (target is null)
+        {
+            target = CreateSelfPatient(fid);
+            outcome = "created_new";
+        }
+        else
+        {
+            outcome = "bound_existing";
+        }
+
+        target.SelfOpenid = openid;
+        member.SelfPatientId = target.PatientId;
+
+        // uid 只用于观测：发版窗口期能直接从日志看出"还有旧客户端在传 uid"。
+        // 只记"有没有传"，不记值 —— 旧客户端传的是别人的 pid，记进日志等于把别人档案写进日志。
+        logger.LogInformation(
+            "family.join 自绑 outcome={Outcome} uid_ignored={UidProvided} openid={Openid} fid={Fid} patient={Pid}",
+            outcome, !string.IsNullOrWhiteSpace(uid), MaskOpenid(openid), fid, target.PatientId);
+    }
+
+    /// <summary>
+    /// 给"我自己吃药"的人建一条属于本人的服药人档案。
+    /// 名字固定「我」而不是微信昵称：① 昵称是 UGC，写库前要走内容安全（本路径没有那道闸）；
+    /// ② 这条档案的语义就是"我自己"，用户在服药人列表里看到「我」最不容易再认错人。
+    /// PatientId 格式与 PatientCreateHandler 保持一致（P + 10 位 guid）。
+    /// </summary>
+    private Patient CreateSelfPatient(string fid)
+    {
+        var patient = new Patient
+        {
+            PatientId = "P" + Guid.NewGuid().ToString("N")[..10],
+            FamilyId = fid,
+            Name = "我",
+            Alias = "我",
+            ChronicTags = [],
+            Status = "active",
+            DisplayMode = "normal",
+            CreatedAt = clock.NowMs,
+        };
+        db.Add(patient);
+        return patient;
+    }
+
+    /// <summary>日志里不落完整 openid。</summary>
+    private static string MaskOpenid(string openid)
+        => string.IsNullOrEmpty(openid) ? "***" : openid.Length <= 6 ? openid + "***" : openid[..6] + "***";
 }
 
 /// <summary>family.list：只回我加入的家庭（role 来自 family_members）。</summary>

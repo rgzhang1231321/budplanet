@@ -15,8 +15,10 @@ public sealed class MedicineListHandler(IAppDbContext db, IMemberGuard guard, IC
 
         var q = db.Medicines.Where(x => x.FamilyId == fid && x.Status == "active");
         if (!string.IsNullOrEmpty(uid)) q = q.Where(x => x.PatientId == uid);
-        // 老人端只拿自己的药，不是下发后前端隐藏
-        if (m.IsElder && string.IsNullOrEmpty(uid)) q = q.Where(x => m.SelfUids.Contains(x.PatientId));
+        // 纯服药人（role=elder）只拿自己的药，不是下发后前端隐藏。
+        // 判 role 不判自绑：自绑的 admin 打开药品列表要能看到全家的药（数据视角按 role，见 TodayHandler summary）。
+        if (m.Role == "elder" && m.SelfUids.Length > 0 && string.IsNullOrEmpty(uid))
+            q = q.Where(x => m.SelfUids.Contains(x.PatientId));
 
         var meds = await q.OrderBy(x => x.CreatedAt).ToListAsync(ct);
         var mids = meds.Select(x => x.MedicineId).ToList();

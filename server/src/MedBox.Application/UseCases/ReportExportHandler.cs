@@ -27,7 +27,9 @@ public sealed class ReportExportHandler(IAppDbContext db, IMemberGuard guard, Do
         await materializer.EnsureDaysAsync(fid, dates, ct);
 
         var q = db.DoseLogs.Where(x => x.FamilyId == fid && dates.Contains(x.DueDate));
-        if (m.IsElder) q = q.Where(x => m.SelfUids.Contains(x.PatientId));
+        // 数据视角判 role（见 TodayHandler summary）：自绑的 admin 导出的报告也必须含全家人，
+        // 否则"给医生看的近 30 天报告"里只剩他自己那几行。
+        if (m.Role == "elder" && m.SelfUids.Length > 0) q = q.Where(x => m.SelfUids.Contains(x.PatientId));
         var rows = await q.ToListAsync(ct);
 
         var countable = rows.Where(x => !x.IsCorrected).ToList();

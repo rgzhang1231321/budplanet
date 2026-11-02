@@ -64,7 +64,7 @@
         </view>
         <view class="mrow__mid">
           <text class="mrow__name">{{item.name}}</text>
-          <text class="mrow__who">{{item.patient}} · {{item.dose}}</text>
+          <text class="mrow__who">{{item.who}}</text>
         </view>
         <text class="tag tag--warn">漏服</text>
       </view>

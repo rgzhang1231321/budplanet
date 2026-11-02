@@ -43,6 +43,19 @@
   margin-right: var(--sp-2);
   flex: none;
 }
+.miss-list__who {
+  flex: none;
+  max-width: 160rpx;
+  margin-right: var(--sp-1);
+  padding: 0 var(--sp-1);
+  border-radius: var(--r-s);
+  background: var(--bg-page);
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .miss-list__text {
   flex: 1;
   font-size: var(--fs-body);

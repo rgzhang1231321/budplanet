@@ -198,7 +198,28 @@ export function mode(): Mode {
   return 'guardian';
 }
 
-/** 我本人就是这个家的服药人（服务端按 self_openid 派生）。决定数据视角，与字号无关。 */
+/**
+ * 能看全家数据 = role 为 admin / member。**这是"数据视角"，判据只能是 role。**
+ * 为什么不看 mode：mode 只决定渲染（契约 §4.1），它由"有没有自绑服药人"派生。
+ * 契约同时写明 role='admin' + mode='elder'（自己也吃药、同时管全家）是常见组合 ——
+ * 拿 mode 判数据视角会把这类人的爸妈直接裁出视野（本项目真实事故：
+ * 子女点过「我自己吃药」→ 被绑成家里第一位服药人 → 周报/历史/看板全变成"我的"）。
+ */
+export function seesWholeFamily(): boolean {
+  return state.family.role !== 'elder';
+}
+
+/** 纯服药人视角 = role 为 elder：只看自己的药，也不能有"这是谁的药"这类他人信息。 */
+export function pureElderView(): boolean {
+  return state.family.role === 'elder';
+}
+
+/**
+ * 我本人也是服药人（服务端按 patients.self_openid 派生，等于"我有 selfUids"）。
+ * ⚠️ 只用于**权限**判断（我能不能给自己补记、要不要接广告），不要拿它判"能看多少数据"——
+ * 那属于数据视角，用上面的 seesWholeFamily() / pureElderView()。
+ * 后端同名字段 MemberGuard.IsElder / Membership.Mode 语义相同，两边不要各改各的。
+ */
 export function isSelf(): boolean {
   return state.family.mode === 'elder';
 }
@@ -208,10 +229,10 @@ export function isElder(): boolean {
   return mode() === 'elder';
 }
 
-/** 服药人只看「我的今日」；无绑定患者时退化为第一位（演示态） */
+/** 纯服药人只看「我的今日」；admin/member 看全家。无绑定患者时退化为第一位（演示态） */
 export function visibleRows(): DoseRow[] {
   const rows = state.today.rows;
-  if (!isSelf()) return rows;
+  if (seesWholeFamily()) return rows;
   const self = state.family.selfUids.length ? state.family.selfUids : state.family.patients.slice(0, 1).map((p) => p.uid);
   if (!self.length) return rows;
   return rows.filter((r) => self.indexOf(r.pid) >= 0);

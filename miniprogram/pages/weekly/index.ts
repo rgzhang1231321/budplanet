@@ -4,7 +4,7 @@
  * familyCount 是家庭集体计数（"咱家这周 21 次"），不是个人连续天数。
  */
 import { bootstrap } from '../../store/user';
-import { get, isElder, isSelf } from '../../store/index';
+import { get, isElder, pureElderView } from '../../store/index';
 import { get as apiGet } from '../../utils/request';
 import { addDays, dateCN, partOfDay, shortDate, weekdayOf, weekStartOf } from '../../utils/time';
 import { unlockByAd, PRODUCT } from '../../utils/ad';
@@ -15,8 +15,8 @@ import { requestOne } from '../../utils/subscribe';
 Page({
   data: {
     elder: false,
-    /** 我本人是服药人：广告/激励视频一律不给看（老人误点扣费比广告收入重要） */
-    isSelf: false,
+    /** 纯服药人视角（role=elder）：广告/激励视频一律不给看，详细报告入口也不给 */
+    pureElder: false,
     rangeText: '',
     rate: 0,
     delta: '',
@@ -59,6 +59,8 @@ Page({
       );
       const deltaNum = (d.rate || 0) - (prev.rate || 0);
       const today = dateCN();
+      // 数据视角判 role（契约 §4.1）：纯服药人只看自己的药，且不显示"这是谁的药"
+      const pureElder = pureElderView();
       const missDates = (d.missList || []).map((m: any) => m.date);
       const days = Array.from({ length: 7 }, (_, i) => {
         const date = addDays(ws, i);
@@ -71,7 +73,7 @@ Page({
       });
       this.setData({
         elder: isElder(),
-        isSelf: isSelf(),
+        pureElder,
         week: ws,
         rangeText: `${shortDate(ws)} - ${shortDate(addDays(ws, 6))}`,
         rate: d.rate || 0,
@@ -82,6 +84,8 @@ Page({
         misses: (d.missList || []).slice(0, 5).map((m: any) => ({
           text: `${weekdayOf(m.date)} ${partOfDay(m.slot)} · ${m.medicine_name}`,
           dose: m.dose_text,
+          // 家庭有 ≥2 位服药人时才需要说清"是谁的"；纯服药人不显示他人信息（也不显示自己的名字）
+          who: pureElder ? '' : m.patient || '',
         })),
         missCount: (d.missList || []).length,
         days,
@@ -90,8 +94,8 @@ Page({
         adOn: !!s.user.config.adOn,
         isEmpty: !d.rate && !(d.missList || []).length,
         // WEEKLY 额度为 0 才提示：一次性订阅授权 1 次 = 1 条，发完下一条又得重新点。
-        // 判据是"我是被照护方"（isSelf），不是"开着大字版"。
-        showWeeklyCta: !isSelf() && (s.user.quota.WEEKLY || 0) <= 0,
+        // 判据是"我是被照护方"（role=elder），不是"开着大字版"，也不是"有没有自绑"。
+        showWeeklyCta: !pureElder && (s.user.quota.WEEKLY || 0) <= 0,
       });
       report('weekly_view', { rate: d.rate || 0 });
     } catch (e) {
@@ -99,10 +103,10 @@ Page({
     }
   },
 
-  /** 广告位 D：看 15 秒视频换详细报告（成本在前、权益在后）；服药人本人不给看 */
+  /** 广告位 D：看 15 秒视频换详细报告（成本在前、权益在后）；纯服药人不给看 */
   onOpenDetail() {
     // 静默 return 会表现成"点了没反应"：服药人点了也要给一句人话（不能出现"失败/错误"）
-    if (this.data.isSelf) {
+    if (this.data.pureElder) {
       wx.showToast({ title: '详细报告是给家人看的', icon: 'none' });
       return;
     }

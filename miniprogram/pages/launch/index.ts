@@ -179,9 +179,10 @@ Page({
       }
       if (role === 'patient' && !hasInvite) {
         // 带 ivt 的那次 join 已经在服务端把 role=elder / self_patient_id 绑好了，不走这里。
-        // 自己吃药 + 不是被别人邀请进来的：刚建的家一个服药人都没有，先把自己建成服药人再补绑
-        // self_openid —— 没有 patient 的话 join 找不到绑定目标，会静默失败，老人落在子女版界面。
-        await ensureSelfPatient(get().user.nickname || '我');
+        // 自己吃药 + 不是被别人邀请进来的：建「我」这条档案 + 绑 self_openid 两件事
+        // 都在 family.join(role=patient) 里一次做完（服务端幂等：已绑过就复用，不会重复建）。
+        // 这里只留一条"还没有本人档案"的痕迹，不再由前端 patient.create —— 两处都建会出现两条「我」。
+        await ensureSelfPatient();
         await bindSelf('patient');
       }
       // 建家是 P01 这条自助路径的完成，不是"被邀请加入"，别混进 invite_accepted 的漏斗

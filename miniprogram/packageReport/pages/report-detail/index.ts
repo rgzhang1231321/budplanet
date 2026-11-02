@@ -1,6 +1,6 @@
 /** packageReport/pages/report-detail —— P31 详细报告（激励视频 D 解锁后进入） */
 import { bootstrap } from '../../../store/user';
-import { get, isSelf } from '../../../store/index';
+import { get, pureElderView } from '../../../store/index';
 import { get as apiGet } from '../../../utils/request';
 import { unlockLog } from '../../../utils/ad';
 import { addDays, dateCN, shortDate, weekdayOf } from '../../../utils/time';
@@ -29,8 +29,9 @@ Page({
   async onLoad(q: Record<string, string>) {
     await bootstrap().catch(() => {});
     // 这页是"看视频换来的东西"，也是分包页 —— 不能只靠入口不给进，URL 直开必须自己校验。
-    // ① 服药人本人不给看（老人误点/被诱导点都没有意义，且周报是发给子女的）
-    if (isSelf()) {
+    // ① 纯服药人（role=elder）不给看（老人误点/被诱导点都没有意义，且周报是发给子女的）
+    //    判 role 不判 mode：否则"自己也吃药又管全家"的 admin 会被自己的 mode 挡在门外。
+    if (pureElderView()) {
       wx.showToast({ title: '详细报告是给家人看的', icon: 'none' });
       setTimeout(() => wx.navigateBack({ fail: () => wx.reLaunch({ url: '/pages/weekly/index' }) }), 600);
       return;
@@ -129,6 +130,8 @@ Page({
           name: m.medicine_name,
           patient: m.patient,
           dose: m.dose_text,
+          // 患者名 + 剂量拼成一句：patient 为空时不会留下一个孤零零的「· 1片」
+          who: m.patient ? `${m.patient} · ${m.dose_text || ''}`.trim() : m.dose_text || '',
         })),
         days: start
           ? Array.from({ length: 7 }, (_, i) => {

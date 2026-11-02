@@ -10,7 +10,10 @@ namespace MedBox.Application.UseCases;
 
 /// <summary>
 /// schedule.today：老人端与子女端同一接口，一次给全 today 树（含已过点）。
-/// 老人端在服务端按 selfUids 过滤 —— 不是下发后前端隐藏。
+/// 数据视角判 **role**（admin/member 看全家、elder 只看自己），在服务端裁 —— 不是下发后前端隐藏。
+/// 为什么不用 IsElder（= 有没有自绑服药人）裁：契约 §4.1 mode 只管渲染、role 只管权限，
+/// 而 role='admin' + 自绑（子女自己也吃降压药、同时管全家）是常见组合，用自绑裁数据
+/// 会把这类人的爸妈整片裁掉（"爸爸的记录显示成我的"就是这条链路）。
 /// </summary>
 public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMaterializer materializer, IClock clock, ILogger<TodayHandler> logger)
 {
@@ -30,7 +33,9 @@ public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMater
         await materializer.EnsureDayAsync(fid, date, ct);
 
         var q = db.DoseLogs.Where(d => d.FamilyId == fid && d.DueDate == date);
-        if (m.IsElder) q = q.Where(d => m.SelfUids.Contains(d.PatientId));
+        // role=elder 但一个 selfUid 都没有（还没被绑上服药人）时不过滤：否则他打开就是空药单，
+        // 与改动前行为一致，不制造新的"药单丢了"。
+        if (m.Role == "elder" && m.SelfUids.Length > 0) q = q.Where(d => m.SelfUids.Contains(d.PatientId));
 
         var rows = await q.OrderBy(d => d.Slot).ToListAsync(ct);
         var byPatient = rows.GroupBy(r => r.PatientId).ToDictionary(g => g.Key, g => g.OrderBy(x => x.Slot).ToList());
@@ -67,13 +72,15 @@ public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMater
             };
         }).ToList();
 
-        // 子女打开看板 = 一次"我来看过"；老人端不记（自己看自己的药单，写了也没人读）
-        if (!m.IsElder) await RecordViewAsync(fid, openid, m.Role, ct);
+        // 子女打开看板 = 一次"我来看过"；纯服药人不记（自己看自己的药单，写了也没人读）。
+        // 判 role：自绑的 admin 也是"来看过"，他的回执对爸妈同样有意义。
+        if (m.Role != "elder") await RecordViewAsync(fid, openid, m.Role, ct);
 
         return new TodayResultDto
         {
             Rows = dtos,
-            RecentView = m.IsElder ? await RecentViewAsync(fid, openid, ct) : null,
+            // 安抚回执只发给纯服药人：与前端 home 的 recentText 同源（pureElderView）
+            RecentView = m.Role == "elder" ? await RecentViewAsync(fid, openid, ct) : null,
             ServerTs = clock.NowMs,
         };
     }
@@ -168,7 +175,8 @@ public sealed class WeekHandler(IAppDbContext db, IMemberGuard guard, DoseMateri
         await materializer.EnsureDaysAsync(fid, dates, ct);
 
         var q = db.DoseLogs.Where(x => x.FamilyId == fid && dates.Contains(x.DueDate));
-        if (m.IsElder) q = q.Where(x => m.SelfUids.Contains(x.PatientId));
+        // 同 TodayHandler：数据视角判 role，不判自绑（契约 §4.1）。见 TodayHandler summary。
+        if (m.Role == "elder" && m.SelfUids.Length > 0) q = q.Where(x => m.SelfUids.Contains(x.PatientId));
         var rows = await q.ToListAsync(ct);
 
         // 分母 = 计划次数（不含人工改判行）；分子 = 自主完成

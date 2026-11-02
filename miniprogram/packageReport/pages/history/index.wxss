@@ -44,6 +44,25 @@
   font-variant-numeric: tabular-nums;
   flex: none;
 }
+.hrow__mid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.hrow__who {
+  flex: none;
+  max-width: 160rpx;
+  margin-right: var(--sp-1);
+  padding: 0 var(--sp-1);
+  border-radius: var(--r-s);
+  background: var(--bg-page);
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .hrow__name {
   flex: 1;
   min-width: 0;
