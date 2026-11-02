@@ -25,6 +25,9 @@ export interface QueueTask {
   /** 旧版本队列（v1 早期只存 kind）的兼容字段，新写入同时写它，读取时以 status 为准 */
   kind?: 'take' | 'skip';
   reason?: string;
+  /** 写入前的行状态（pending/missed/skipped）：重试超上限被放弃时按它回滚，不能把「没记上」留在「已服」 */
+  origin?: DoseStatus;
+  origin_at?: number;
   retry: number;
   at: number;
 }
@@ -36,6 +39,8 @@ export interface EnqueueInput {
   slot: number;
   status: DoseStatus;
   reason?: string;
+  origin?: DoseStatus;
+  origin_at?: number;
 }
 
 const keyOf = (t: { pid: string; date: string; slot: number }) => `${t.pid}_${t.date}_${t.slot}`;
@@ -87,6 +92,8 @@ export function enqueue(task: EnqueueInput) {
     status: task.status,
     kind: kindOf(task.status),
     reason: task.reason,
+    origin: task.origin,
+    origin_at: task.origin_at,
     retry: 0,
     at: Date.now(),
   };
@@ -106,13 +113,22 @@ export function enqueue(task: EnqueueInput) {
   flush();
 }
 
-/** 放弃任务（重试超上限）：出队 + 落日志 + 明确提示，绝不让它继续 1.2 秒一次地重投 */
+/** 放弃任务（重试超上限）：出队 + 行状态回滚到写入前 + 明确提示，绝不让它继续 1.2 秒一次地重投。
+ *  必须回滚状态：本地「已服」是乐观值，放弃后若不回滚，界面会一直显示已服而服务端没记上，
+ *  且打卡页终态锁死（viewState=taken 禁再点）——用户既看不到真相也补不了记。 */
 function drop(tasks: QueueTask[]) {
   if (!tasks.length) return;
   const keys = tasks.map(keyOf);
   logClient('error', `队列放弃 ${tasks.length} 条写入（重试超上限）`, { scene: 'queue_drop', slots: keys });
   report('checkin_dropped', { n: tasks.length });
-  keys.forEach((k) => patchRow(k, { syncing: false })); // 别让顶部一直挂"正在同步"
+  tasks.forEach((t) =>
+    patchRow(keyOf(t), {
+      syncing: false,
+      status: t.origin || 'pending', // 兼容旧条目没有 origin：退回 pending（常见写入前态），好过停在假「已服」
+      taken_at: t.origin_at || 0,
+    }),
+  );
+  emit('today.dropped'); // 打卡页据此 rebuild 回可打卡态；home 监听任意 emit 自动重渲染
   // 老人端文案红线：不出现"失败 / 错误"
   wx.showToast({ title: '这条没记上，请重新点一次', icon: 'none' });
 }

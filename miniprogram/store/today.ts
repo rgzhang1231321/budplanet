@@ -79,12 +79,15 @@ async function submit(tasks: WriteTask[], origins: RowOrigin[] = []): Promise<Su
       .filter((r: any) => r.code === 1005 || r.code === 1003)
       .forEach((r: any) => {
         const t = tasks.find((x) => keyOf(x) === keyOf(r));
+        const o = origins.find((x) => x.dose_id === keyOf(r));
         enqueue({
           pid: r.pid,
           date: r.date,
           slot: r.slot,
           status: t ? t.status : 'taken',
           reason: t && t.skip_reason,
+          origin: o ? o.status : undefined,
+          origin_at: o ? o.taken_at : undefined,
         });
         patchRow(keyOf(r), { syncing: true });
       });
@@ -97,9 +100,18 @@ async function submit(tasks: WriteTask[], origins: RowOrigin[] = []): Promise<Su
     return { ok: rejected.length === 0 && (d.applied || []).length > 0, offline: false, applied: d.applied || [], rejected };
   } catch (e: any) {
     // 网络失败：带着本次意图入队重试，状态不回退（辅助写入失败不阻断主链路）
-    tasks.forEach((t) =>
-      enqueue({ pid: t.pid, date: t.date, slot: t.slot, status: t.status, reason: t.skip_reason }),
-    );
+    tasks.forEach((t) => {
+      const o = origins.find((x) => x.dose_id === keyOf(t));
+      enqueue({
+        pid: t.pid,
+        date: t.date,
+        slot: t.slot,
+        status: t.status,
+        reason: t.skip_reason,
+        origin: o ? o.status : undefined,
+        origin_at: o ? o.taken_at : undefined,
+      });
+    });
     emit('today.offline');
     return { ok: false, offline: true, applied: [], rejected: [] };
   }

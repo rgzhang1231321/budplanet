@@ -58,6 +58,10 @@ Page({
         this.setData({ syncShow: false });
       } else if (changed === 'today.offline') {
         this.setData({ syncShow: true, syncState: 'error' });
+      } else if (changed === 'today.dropped') {
+        // 队列放弃（重试超上限）：store 已把行回滚到写入前，这里重渲染回可打卡态，
+        // 不 rebuild 的话页面停在「已服」终态，用户既看不到真相也补不了记
+        this.build();
       }
     });
     this.build();
