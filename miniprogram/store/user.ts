@@ -159,15 +159,25 @@ export async function ensureSelfPatient(name: string): Promise<void> {
 }
 
 /** 「我自己吃药」：绑定 self_openid，服务端随后按 selfUids 过滤今日。
- *  ⚠️ **非 admin 不重复调 join**：`family.info` 的 `invite_token` 只对 admin 下发，
- *  所以「没有码」实际等于「我不是管理员」。少一次无用往返，也避免
- *  `roleIntent='patient'` 把 member 补成 elder。这道判断是团队口径，别删。
- *  判据用 role 而不是 inviteToken：令牌只是"我是 admin"的代理变量，
- *  而**历史家庭可能令牌为空**（后端 FamilyJoinPolicy 明确把空令牌视为合法状态），
- *  拿令牌判会把"admin 但没令牌"的人一起挡掉，绑定就静默丢了。
  *
- *  ⚠️ 但**不许静默跳过**：正常路径不该走到这里（建家人是 admin、邀请路径根本不进本函数），
- *  一旦 skip 就说明有真问题（家庭信息没加载到 / 权限被改），必须留痕。 */
+ *  为什么要放过 member：`family.join` 现在**只负责"进这个家"，不改已有成员的角色** ——
+ *  历史上 `roleIntent='patient'` 会把非 admin 成员降级成 elder，那个分支已删
+ *  （见后端 `FamilyHandlers.FamilyJoinHandler` 的 summary，改角色只能走
+ *  `family.update_role`）。所以"帮着管家的子女"和"自己也要吃药的人"不是互斥身份，
+ *  member 自绑随之开放（路线图决策 6 / 审计 §13.4.1）。旧判据 `role !== 'admin'`
+ *  的唯一理由"避免 member 被降级"已经不存在，再拿它卡人就是凭一条过时注释把能力关着。
+ *
+ *  为什么 elder 仍然跳过：elder 是经 P42 邀请链路以 patient 意图进来的，服务端在那条
+ *  join 上已经把 `self_openid` / `self_patient_id` 绑好，再调一次是无谓往返。
+ *  判据写成"elder 才跳"而不是"admin/member 才放"，是为了将来新增第四种角色时
+ *  默认走向绑定，而不是默认被静默丢掉一次能力。
+ *
+ *  判据用 role 而不是 inviteToken：`family.info` 的 `invite_token` 只对 admin 下发，
+ *  令牌只是"我是 admin"的代理变量，而**历史家庭可能令牌为空**（后端 FamilyJoinPolicy
+ *  明确把空令牌视为合法状态），拿令牌判会把"admin 但没令牌"的人一起挡掉，绑定就静默丢了。
+ *
+ *  ⚠️ 两条 skip 都**不许静默**：正常路径不该走到这里（建家人是 admin、邀请路径根本不进
+ *  本函数），一旦 skip 就说明有真问题（家庭信息没加载到 / 权限被改），必须留痕。 */
 export async function bindSelf(role: 'patient' | 'guardian'): Promise<any> {
   const s = state();
   if (!s.family.fid) {
@@ -180,14 +190,14 @@ export async function bindSelf(role: 'patient' | 'guardian'): Promise<any> {
     });
     return { skipped: true, reason: 'no_family' };
   }
-  if (s.family.role !== 'admin') {
-    logClient('warn', 'bindSelf 跳过：当前角色不是 admin', {
+  if (s.family.role === 'elder') {
+    logClient('warn', 'bindSelf 跳过：elder 的 self 已由邀请链路绑定', {
       scene: 'bind_self',
       domain: 'family',
       action: 'join',
       code: 0,
     });
-    return { skipped: true, reason: 'not_admin' };
+    return { skipped: true, reason: 'elder_no_self_bind' };
   }
   const res: any = await call('family', 'join', {
     fid: s.family.fid,
