@@ -1,7 +1,7 @@
 /** packageReport/pages/report-detail —— P31 详细报告（激励视频 D 解锁后进入） */
 import { bootstrap } from '../../../store/user';
 import { get, isSelf } from '../../../store/index';
-import { call, get as apiGet } from '../../../utils/request';
+import { get as apiGet } from '../../../utils/request';
 import { unlockLog } from '../../../utils/ad';
 import { addDays, dateCN, shortDate, weekdayOf } from '../../../utils/time';
 import { logClient } from '../../../utils/logger';
@@ -155,27 +155,14 @@ Page({
     }
   },
 
+  /**
+   * P1-6：导出给医生看 —— 跳到真正的「近 30 天用药报告」单页（可存图/转发），
+   * 不再调 user.export 那个全量数据包（两者语义完全不同，JSON 给不了医生）。
+   */
   onExport() {
-    call('user', 'export', {})
-      .then((d: any) => {
-        // 复制到剪贴板而不是塞进弹窗正文：正文不能长按选中，用户拿不走这条链接
-        let copied = false;
-        wx.setClipboardData({
-          data: d.fileUrl,
-          success: () => {
-            copied = true;
-          },
-          // complete 兜底：只挂 success 时，某些环境会"点了没反应"
-          complete: () => {
-            wx.showModal({
-              title: '导出给医生看',
-              content: copied ? '下载链接已复制，24 小时内有效。在浏览器里打开即可下载。' : `链接 24 小时内有效：\n${d.fileUrl}`,
-              showCancel: false,
-              confirmText: '知道了',
-            });
-          },
-        });
-      })
-      .catch(() => wx.showToast({ title: '稍后再试', icon: 'none' }));
+    wx.navigateTo({
+      url: '/packageReport/pages/export-report/index',
+      fail: () => wx.showToast({ title: '页面打开失败，稍后再试', icon: 'none' }),
+    });
   },
 });

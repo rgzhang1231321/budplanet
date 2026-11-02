@@ -35,6 +35,14 @@ public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMater
         var rows = await q.OrderBy(d => d.Slot).ToListAsync(ct);
         var byPatient = rows.GroupBy(r => r.PatientId).ToDictionary(g => g.Key, g => g.OrderBy(x => x.Slot).ToList());
 
+        // P1-2：用药提示（饭前/饭后/随餐）跟着行下发，打卡卡片才能显示标签。
+        // 这是展示信息，读药品当前备注即可；不落快照（历史药名/剂量另有快照，备注不需要）。
+        var medIds = rows.Select(r => r.MedicineId).Distinct().ToList();
+        var medNotes = await db.Medicines
+            .Where(m => medIds.Contains(m.MedicineId))
+            .Select(m => new { m.MedicineId, m.Remark })
+            .ToDictionaryAsync(x => x.MedicineId, x => x.Remark, ct);
+
         var dtos = rows.Select(r =>
         {
             var siblings = byPatient[r.PatientId];
@@ -55,6 +63,7 @@ public sealed class TodayHandler(IAppDbContext db, IMemberGuard guard, DoseMater
                 SnoozeCount = r.SnoozeCount,
                 TodayIndex = index,
                 TodayTotal = siblings.Count,
+                Note = medNotes.TryGetValue(r.MedicineId, out var note) ? note : null,
             };
         }).ToList();
 

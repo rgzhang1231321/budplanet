@@ -21,6 +21,8 @@ public sealed class DoseRowDto
     [JsonPropertyName("snooze_count")] public int SnoozeCount { get; set; }
     [JsonPropertyName("today_index")] public int TodayIndex { get; set; }
     [JsonPropertyName("today_total")] public int TodayTotal { get; set; }
+    /// <summary>用药提示（饭前/饭后/随餐…），来自药品备注；打卡卡片据此显示标签。</summary>
+    [JsonPropertyName("note")] public string? Note { get; set; }
 }
 
 public sealed class RecentViewDto

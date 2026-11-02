@@ -345,6 +345,7 @@ public sealed class MedBoxDbContext(DbContextOptions<MedBoxDbContext> options) :
             e.Property(x => x.CycleEndDate).HasColumnName("cycle_end_date").HasMaxLength(10);
             e.Property(x => x.StartDate).HasColumnName("start_date").HasMaxLength(10);
             e.Property(x => x.Status).HasColumnName("status").HasMaxLength(16);
+            e.Property(x => x.PauseUntil).HasColumnName("pause_until").HasMaxLength(10);
             e.Property(x => x.AdvanceMin).HasColumnName("advance_min");
             e.Property(x => x.CreatedBy).HasColumnName("created_by").HasMaxLength(64);
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");

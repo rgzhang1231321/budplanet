@@ -33,10 +33,15 @@ public sealed class NotifyController(QuotaHandler quota, NotifyAckHandler ack) :
 [ApiController]
 [Route("api/report")]
 [Authorize]
-public sealed class ReportController(ReportBatchHandler batch) : ControllerBase
+public sealed class ReportController(ReportBatchHandler batch, ReportExportHandler export) : ControllerBase
 {
     /// <summary>埋点攒批。参数在服务端过一遍隐私闸门，原文不落库、只留枚举分布。</summary>
     [HttpPost("batch")]
     public async Task<ApiResponse> Batch([FromBody] ReportBatchRequest req, CancellationToken ct)
         => ApiResponse.Ok(await batch.HandleAsync(req.Events, ct));
+
+    /// <summary>复诊报告（v1.6）：近 N 天用药记录，不含诊断/建议/医嘱。</summary>
+    [HttpPost("export")]
+    public async Task<ApiResponse> Export([FromBody] ReportExportRequest req, CancellationToken ct)
+        => ApiResponse.Ok(await export.HandleAsync(req.Fid, req.Days, User.OpenId(), ct));
 }

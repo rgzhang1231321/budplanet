@@ -21,6 +21,10 @@ public sealed class MedicineItemDto
     [JsonPropertyName("active")] public bool Active { get; set; } = true;
     [JsonPropertyName("slots")] public List<SlotDto> Slots { get; set; } = [];
     [JsonPropertyName("cycle_type")] public string CycleType { get; set; } = "long_term";
+    /// <summary>v1.6：计划状态 active / paused（finished 的药已不在此列表）。</summary>
+    [JsonPropertyName("plan_status")] public string PlanStatus { get; set; } = "active";
+    /// <summary>v1.6：暂停到期日（东八区 YYYY-MM-DD），仅 paused 时有值。</summary>
+    [JsonPropertyName("pause_until")] public string? PauseUntil { get; set; }
 }
 
 public sealed class MedicineListResult
@@ -73,4 +77,17 @@ public sealed class PlanUpsertResult
 {
     [JsonPropertyName("planId")] public string PlanId { get; set; } = "";
     [JsonPropertyName("nextFireAt")] public long NextFireAt { get; set; }
+}
+
+/// <summary>plan.pause（v1.6）：until = 东八区 YYYY-MM-DD，到期自动恢复。</summary>
+public sealed class PlanPauseRequest
+{
+    [JsonPropertyName("mid")] public string Mid { get; set; } = "";
+    [JsonPropertyName("until")] public string Until { get; set; } = "";
+}
+
+/// <summary>plan.resume（v1.6）：立即恢复。</summary>
+public sealed class PlanResumeRequest
+{
+    [JsonPropertyName("mid")] public string Mid { get; set; } = "";
 }

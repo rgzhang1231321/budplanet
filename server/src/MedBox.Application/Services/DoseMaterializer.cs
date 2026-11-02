@@ -31,6 +31,22 @@ public sealed class DoseMaterializer(IAppDbContext db, IClock clock, ILogger<Dos
         // 取到最晚那天为止已开始的计划：更晚开始的计划在这批日期里都不该生成
         var lastDate = targets.OrderBy(d => d, StringComparer.Ordinal).Last();
 
+        // P1-1：暂停到期自动恢复。物化某天时，把"到期日 <= 该天"的 paused 计划翻回 active，
+        // 这样医生让停 7 天、到期那天打开小程序，药单就自动回来了，不需要额外定时任务。
+        var resumed = await db.Plans
+            .Where(p => p.FamilyId == familyId && p.Status == "paused"
+                        && p.PauseUntil != null && string.Compare(p.PauseUntil, lastDate) <= 0)
+            .ToListAsync(ct);
+        if (resumed.Count > 0)
+        {
+            foreach (var p in resumed)
+            {
+                p.Status = "active";
+                p.PauseUntil = null;
+            }
+            await db.SaveChangesAsync(ct);
+        }
+
         var plans = await db.Plans
             .Where(p => p.FamilyId == familyId && p.Status == "active" && string.Compare(p.StartDate, lastDate) <= 0)
             .ToListAsync(ct);

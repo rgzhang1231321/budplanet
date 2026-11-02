@@ -16,6 +16,7 @@
       <block wx:if="{{!batch}}">
         <text class="ck__name">{{list[0].medicine_name}}</text>
         <text class="ck__dose">{{list[0].dose_text}}</text>
+        <view wx:if="{{list[0].note}}" class="ck__note"><text>{{list[0].note}}</text></view>
         <view class="ck__badge"><status-badge status="pending" big="{{true}}"></status-badge></view>
       </block>
       <block wx:else>
@@ -51,6 +52,7 @@
       <block wx:if="{{!batch}}">
         <text class="ck__name">{{list[0].medicine_name}}</text>
         <text class="ck__dose">{{list[0].dose_text}}</text>
+        <view wx:if="{{list[0].note}}" class="ck__note"><text>{{list[0].note}}</text></view>
         <view class="ck__badge"><status-badge status="pending" big="{{true}}"></status-badge></view>
       </block>
       <block wx:else>

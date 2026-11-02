@@ -94,6 +94,8 @@ public static class DependencyInjection
         services.AddScoped<MedicineArchiveHandler>();
         services.AddScoped<PlanUpsertHandler>();
         services.AddScoped<PlanFinishHandler>();
+        services.AddScoped<PlanPauseHandler>();
+        services.AddScoped<PlanResumeHandler>();
         services.AddScoped<TodayHandler>();
         services.AddScoped<WeekHandler>();
         services.AddScoped<SubmitHandler>();
@@ -103,6 +105,7 @@ public static class DependencyInjection
         services.AddScoped<QuotaHandler>();
         services.AddScoped<NotifyAckHandler>();
         services.AddScoped<ReportBatchHandler>();
+        services.AddScoped<ReportExportHandler>();
         services.AddScoped<ExportHandler>();
         services.AddScoped<EraseHandler>();
 

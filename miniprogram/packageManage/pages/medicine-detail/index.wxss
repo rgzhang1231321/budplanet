@@ -45,3 +45,83 @@
   font-size: var(--fs-body);
   color: var(--st-missed-text);
 }
+
+/* ── P1-1 暂停状态条 ── */
+.paused-bar {
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-m);
+  background: #f0faf4;
+  border: 1rpx solid #cdeed9;
+}
+.paused-bar__t {
+  display: block;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--st-taken-text);
+}
+.paused-bar__d {
+  display: block;
+  margin-top: 4rpx;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+
+/* ── P1-1 暂停 sheet ── */
+.mask {
+  position: fixed;
+  inset: 0;
+  background: var(--mask);
+  z-index: 100;
+}
+.psheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 101;
+  background: var(--bg-card);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: var(--sp-5) var(--sp-4) calc(var(--sp-5) + env(safe-area-inset-bottom));
+}
+.psheet__title {
+  display: block;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.psheet__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+.pchip {
+  height: 64rpx;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-full);
+  background: var(--bg-page);
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  display: flex;
+  align-items: center;
+}
+.pchip--on {
+  background: var(--brand-100);
+  color: var(--brand-600);
+  font-weight: 600;
+}
+.psheet__hint {
+  display: block;
+  margin-top: var(--sp-3);
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.psheet__cancel {
+  margin-top: var(--sp-3);
+  text-align: center;
+  font-size: var(--fs-body);
+  color: var(--text-3);
+  padding: var(--sp-2) 0;
+}

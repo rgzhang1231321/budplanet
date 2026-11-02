@@ -12,6 +12,12 @@
       </view>
     </view>
 
+    <!-- P1-1 暂停状态条 -->
+    <view wx:if="{{paused}}" class="paused-bar">
+      <text class="paused-bar__t">已暂停 · {{pauseUntilText}}</text>
+      <text class="paused-bar__d">暂停期间不提醒，也不计入完成率</text>
+    </view>
+
     <view class="list mt-4">
       <view class="list__row">
         <text class="list__label">默认剂量</text>
@@ -27,13 +33,44 @@
       </view>
     </view>
 
-    <view class="mt-4">
-      <primary-button label="编辑药品" bind:tap="onEdit"></primary-button>
-    </view>
-    <view class="mt-3">
-      <primary-button label="调整时间与剂量" type="sub" bind:tap="onPlan"></primary-button>
-    </view>
+    <block wx:if="{{paused}}">
+      <view class="mt-4">
+        <primary-button label="恢复用药" bind:tap="onResume"></primary-button>
+      </view>
+    </block>
+    <block wx:else>
+      <view class="mt-4">
+        <primary-button label="编辑药品" bind:tap="onEdit"></primary-button>
+      </view>
+      <view class="mt-3">
+        <primary-button label="暂停用药" type="sub" bind:tap="onPause"></primary-button>
+      </view>
+      <view class="mt-3">
+        <primary-button label="调整时间与剂量" type="sub" bind:tap="onPlan"></primary-button>
+      </view>
+    </block>
 
     <view class="danger mt-5" bindtap="onArchive">删除这个药</view>
   </view>
+
+  <!-- P1-1 暂停用药 sheet -->
+  <block wx:if="{{showPause}}">
+    <view class="mask" bindtap="onClosePause"></view>
+    <view class="psheet">
+      <text class="psheet__title">暂停到什么时候？</text>
+      <view class="psheet__chips">
+        <view class="pchip {{pausePick === 3 ? 'pchip--on' : ''}}" data-days="3" bindtap="onPickPause">3 天</view>
+        <view class="pchip {{pausePick === 7 ? 'pchip--on' : ''}}" data-days="7" bindtap="onPickPause">7 天</view>
+        <view class="pchip {{pausePick === 14 ? 'pchip--on' : ''}}" data-days="14" bindtap="onPickPause">14 天</view>
+        <picker mode="date" value="{{pauseUntil}}" bindchange="onPickPauseDate">
+          <view class="pchip {{pausePick === 0 ? 'pchip--on' : ''}}">自定义</view>
+        </picker>
+      </view>
+      <text class="psheet__hint">暂停期间不提醒，也不计入完成率；到期自动恢复。</text>
+      <view class="mt-4">
+        <primary-button label="暂停到 {{pauseUntil}}" bind:tap="onConfirmPause"></primary-button>
+      </view>
+      <view class="psheet__cancel" bindtap="onClosePause">取消</view>
+    </view>
+  </block>
 </view>

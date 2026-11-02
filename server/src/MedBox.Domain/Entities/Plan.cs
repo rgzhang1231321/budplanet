@@ -16,6 +16,8 @@ public class Plan
     public string? CycleEndDate { get; set; }
     public string StartDate { get; set; } = "";
     public string Status { get; set; } = "active";
+    /// <summary>暂停到期日（东八区 YYYY-MM-DD）。status='paused' 时有效，到期后物化时自动恢复 active。</summary>
+    public string? PauseUntil { get; set; }
     public int AdvanceMin { get; set; }
     public string? CreatedBy { get; set; }
     public long UpdatedAt { get; set; }

@@ -76,6 +76,9 @@ interface MockPlan {
   uid: string;
   slots: { t: string; d: string; slot_key: string }[];
   cycle_type: string;
+  /** P1-1：active / paused */
+  status?: string;
+  pause_until?: string | null;
 }
 interface MockLog {
   dose_id: string;
@@ -303,6 +306,7 @@ function rowOf(l: MockLog, date: string) {
     snooze_count: l.snooze_count,
     today_index: idx + 1,
     today_total: pidRows.length,
+    note: (d.medicines.find((m) => m.name === l.medicine_name && m.uid === l.pid) || { note: '' }).note || '',
   };
 }
 
@@ -558,6 +562,8 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
             active: m.active,
             slots: plan ? plan.slots : [],
             cycle_type: plan ? plan.cycle_type : 'long_term',
+            plan_status: plan ? plan.status || 'active' : 'active',
+            pause_until: plan ? plan.pause_until || null : null,
           };
         });
       return ok({ items, server_ts: Date.now() });
@@ -624,6 +630,25 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
     case 'plan.finish': {
       const plan = d.plans.find((pl) => pl.planId === p.planId);
       if (plan) d.plans = d.plans.filter((x) => x.planId !== plan.planId);
+      save();
+      return ok({ ok: true });
+    }
+    case 'plan.pause': {
+      const plan = d.plans.find((pl) => pl.mid === p.mid);
+      if (!plan) return err(1005, '这个药还没有用药计划');
+      plan.status = 'paused';
+      plan.pause_until = p.until;
+      // 删掉未到点的 pending 行，避免暂停期间还显示可打卡
+      const medName = (d.medicines.find((m) => m.mid === p.mid) || { name: '' }).name;
+      d.logs = d.logs.filter((l) => !(l.status === 'pending' && l.medicine_name === medName));
+      save();
+      return ok({ ok: true, pause_until: p.until });
+    }
+    case 'plan.resume': {
+      const plan = d.plans.find((pl) => pl.mid === p.mid);
+      if (!plan) return err(1005, '这个药还没有用药计划');
+      plan.status = 'active';
+      plan.pause_until = null;
       save();
       return ok({ ok: true });
     }
@@ -749,6 +774,40 @@ function handleSync(domain: string, action: string, p: Payload): { code: number;
     }
 
     /* ── report ── */
+    case 'report.export': {
+      const days = p.days || 30;
+      const startDate = addDays(today, -(days - 1));
+      const rows = d.logs.filter((l) => l.date >= startDate && l.date <= today);
+      const countable = rows.filter((l) => !l.is_corrected);
+      const taken = countable.filter((l) => l.status === 'taken').length;
+      const rate = countable.length ? Math.round((taken * 100) / countable.length) : 0;
+      const missCount = rows.filter((l) => l.status === 'missed').length;
+      const medMap: Record<string, { usage: Record<string, true>; taken: number; total: number }> = {};
+      rows.forEach((l) => {
+        if (!medMap[l.medicine_name]) medMap[l.medicine_name] = { usage: {}, taken: 0, total: 0 };
+        const hh = `${`${Math.floor(l.slot / 60)}`.padStart(2, '0')}:${`${l.slot % 60}`.padStart(2, '0')}`;
+        medMap[l.medicine_name].usage[`${hh} ${l.dose_text}`] = true;
+        if (!l.is_corrected) {
+          medMap[l.medicine_name].total += 1;
+          if (l.status === 'taken') medMap[l.medicine_name].taken += 1;
+        }
+      });
+      const meds = Object.keys(medMap)
+        .map((name) => ({
+          name,
+          usage: Object.keys(medMap[name].usage).sort().join(' · '),
+          rate: medMap[name].total ? Math.round((medMap[name].taken * 100) / medMap[name].total) : 0,
+        }))
+        .sort((a, b) => b.rate - a.rate);
+      return ok({
+        range: { start: startDate, end: today },
+        rate,
+        missCount,
+        medCount: meds.length,
+        meds,
+        server_ts: Date.now(),
+      });
+    }
     case 'report.batch':
       return ok({ ok: true });
 

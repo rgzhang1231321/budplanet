@@ -28,6 +28,8 @@ export interface DoseRow {
   snooze_count: number;
   today_index: number;
   today_total: number;
+  /** P1-2：用药提示（饭前/饭后/随餐…），来自药品备注，打卡卡片显示为标签 */
+  note?: string;
   /** 前端本地态：已点但未同步（契约无此字段，不上送） */
   syncing?: boolean;
   /** 前端本地态：这一行属于哪个东八区自然日（契约 rows[] 无 date，落库时靠它防止跨天写错日期） */
@@ -120,6 +122,10 @@ export interface MedicineItem {
   active: boolean;
   slots: { t: string; d: string; slot_key: string }[];
   cycle_type: string;
+  /** v1.6：计划状态 active / paused */
+  plan_status?: string;
+  /** v1.6：暂停到期日 YYYY-MM-DD（仅 paused 时有值） */
+  pause_until?: string | null;
 }
 
 /**

@@ -58,6 +58,8 @@ Page({
                 t: sl.t,
                 d: sl.d || m.default_dose,
               })),
+              // P1-1：暂停中的药在列表里明示，避免用户以为"怎么不提醒了"
+              paused: m.plan_status === 'paused',
             }));
           return { uid: p.uid, alias: p.alias, initial: (p.alias || '家').slice(0, 1), list };
         })

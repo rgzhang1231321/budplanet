@@ -72,7 +72,7 @@
     <view wx:else class="none">这周没有漏服记录</view>
 
     <view class="mt-5">
-      <primary-button label="导出给医生看" type="sub" bind:tap="onExport"></primary-button>
+      <primary-button label="导出近 30 天报告" bind:tap="onExport"></primary-button>
     </view>
 
     <text class="note">

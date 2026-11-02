@@ -20,8 +20,9 @@ public sealed class MedicineListHandler(IAppDbContext db, IMemberGuard guard, IC
 
         var meds = await q.OrderBy(x => x.CreatedAt).ToListAsync(ct);
         var mids = meds.Select(x => x.MedicineId).ToList();
+        // 带上 paused 计划：药品详情/列表要显示「已暂停 · 8月20日恢复」。
         var plans = await db.Plans
-            .Where(p => mids.Contains(p.MedicineId) && p.Status == "active")
+            .Where(p => mids.Contains(p.MedicineId) && p.Status != "finished")
             .ToListAsync(ct);
 
         return new MedicineListResult
@@ -40,6 +41,8 @@ public sealed class MedicineListHandler(IAppDbContext db, IMemberGuard guard, IC
                     Active = true,
                     // 出参回前端认的 cycle_30；直接透传 days_n 会让"30 天"的 chip 回填不上
                     CycleType = PlanCycle.ToWire(plan?.CycleType, plan?.CycleDays),
+                    PlanStatus = plan?.Status ?? "active",
+                    PauseUntil = plan?.PauseUntil,
                     Slots = plan is null
                         ? []
                         : DoseMaterializer.ParseSlots(plan.Slots)

@@ -75,6 +75,22 @@
       <view class="input-wrap mt-4">
         <input class="input" value="{{dose}}" placeholder="自定义，例如 3/4片" bindinput="onDoseInput" />
       </view>
+
+      <!-- P1-2：什么时候吃 —— 饭前/饭后是用药安全信息，比规格更重要 -->
+      <text class="q mt-5">什么时候吃？</text>
+      <text class="q__sub">选一个，到点会显示在打卡卡片上</text>
+      <view class="chips">
+        <view
+          wx:for="{{noteOptions}}"
+          wx:key="*this"
+          class="chip2 {{note === item ? 'chip2--on' : ''}}"
+          data-note="{{item}}"
+          bindtap="onPickNote"
+        >{{item}}</view>
+      </view>
+      <view class="input-wrap mt-4">
+        <input class="input" value="{{note}}" placeholder="也可以自己填，例如 随餐嚼服（可不填）" bindinput="onNoteInput" />
+      </view>
     </view>
 
     <!-- Step 3 时间与周期 -->

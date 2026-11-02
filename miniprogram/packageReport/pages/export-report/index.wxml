@@ -1,0 +1,56 @@
+<view class="p-root">
+  <page-nav title="用药报告" back="{{true}}"></page-nav>
+
+  <view wx:if="{{loadError}}" class="page page--safe">
+    <view class="none">报告还没取到</view>
+    <view class="mt-5">
+      <primary-button label="再试一次" type="sub" bind:tap="onRetry"></primary-button>
+    </view>
+  </view>
+
+  <view wx:else class="page page--safe">
+    <!-- A4 比例的报告纸卡 -->
+    <view class="paper">
+      <text class="paper__eye">替你记着吃药 · 用药记录</text>
+      <text class="paper__title">{{patientName}} · 近 30 天用药记录</text>
+      <text class="paper__range">{{rangeText}}</text>
+
+      <view class="pstats">
+        <view class="pstat"><text class="pstat__n">{{rate}}%</text><text class="pstat__l">完成率</text></view>
+        <view class="pstat"><text class="pstat__n">{{missCount}}</text><text class="pstat__l">漏服次数</text></view>
+        <view class="pstat"><text class="pstat__n">{{medCount}}</text><text class="pstat__l">在服药品</text></view>
+      </view>
+
+      <view class="ptable">
+        <view class="ptable__h">
+          <text class="ptable__c1">药品</text>
+          <text class="ptable__c2">用法</text>
+          <text class="ptable__c3">完成率</text>
+        </view>
+        <view wx:for="{{meds}}" wx:key="name" class="ptable__r">
+          <text class="ptable__c1">{{item.name}}</text>
+          <text class="ptable__c2">{{item.usage}}</text>
+          <text class="ptable__c3">{{item.rate}}%</text>
+        </view>
+        <view wx:if="{{!meds.length}}" class="ptable__empty">近 30 天还没有用药记录</view>
+      </view>
+
+      <view class="pfoot">
+        <text>本报告由用户自行记录生成，不含任何诊断或用药建议。</text>
+        <text>数据范围：{{rangeText}}</text>
+      </view>
+    </view>
+
+    <view class="mt-4">
+      <primary-button label="保存为图片" bind:tap="onSaveImage"></primary-button>
+    </view>
+    <view class="mt-3">
+      <button class="btn btn--sub btn--full" open-type="share">转发给家人</button>
+    </view>
+
+    <text class="note">报告不含诊断建议，仅供复诊时向医生说明服药情况。</text>
+
+    <!-- 离屏 canvas：保存为图片时把同一份数据画出来 -->
+    <canvas type="2d" id="reportCanvas" class="rpt-canvas"></canvas>
+  </view>
+</view>

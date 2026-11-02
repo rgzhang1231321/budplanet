@@ -23,7 +23,10 @@
             <view class="mrow" hover-class="mrow--hover" data-mid="{{med.mid}}" bindtap="onOpen">
               <view class="mrow__icon"><view class="i i-pill"></view></view>
               <view class="mrow__main">
-                <text class="mrow__name">{{med.name}}</text>
+                <view class="mrow__title">
+                  <text class="mrow__name">{{med.name}}</text>
+                  <text wx:if="{{med.paused}}" class="mrow__paused">已暂停</text>
+                </view>
                 <text class="mrow__spec">{{med.spec || '未填规格'}}</text>
                 <view class="mrow__times">
                   <text wx:for="{{med.times}}" wx:for-item="sl" wx:key="t" class="chip">{{sl.t ? sl.t + ' · ' : ''}}{{sl.d}}</text>

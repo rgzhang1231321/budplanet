@@ -120,3 +120,18 @@
   margin: 0 10rpx 8rpx 0;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── P1-1 列表暂停态 ── */
+.mrow__title {
+  display: flex;
+  align-items: center;
+}
+.mrow__paused {
+  margin-left: var(--sp-2);
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  background: var(--bg-page);
+  border-radius: var(--r-s);
+  padding: 2rpx 10rpx;
+  flex: none;
+}

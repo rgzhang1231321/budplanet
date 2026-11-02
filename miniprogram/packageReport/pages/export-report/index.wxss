@@ -1,0 +1,139 @@
+/* A4 纸卡（210:297） */
+.paper {
+  margin-top: var(--sp-3);
+  background: #ffffff;
+  border-radius: var(--r-s);
+  box-shadow: 0 8rpx 40rpx rgba(17, 34, 51, 0.1), 0 0 0 1rpx #edf0f3;
+  padding: var(--sp-5);
+}
+.paper__eye {
+  display: block;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  letter-spacing: 2rpx;
+}
+.paper__title {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--text-1);
+}
+.paper__range {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.pstats {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+.pstat {
+  flex: 1;
+  background: #f7f9fb;
+  border-radius: var(--r-s);
+  padding: var(--sp-3) var(--sp-2);
+  text-align: center;
+}
+.pstat__n {
+  display: block;
+  font-size: var(--fs-emph);
+  font-weight: 700;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.pstat__l {
+  display: block;
+  margin-top: 4rpx;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+
+.ptable {
+  margin-top: var(--sp-4);
+}
+.ptable__h,
+.ptable__r {
+  display: flex;
+  align-items: center;
+  padding: var(--sp-2) 0;
+}
+.ptable__h {
+  border-bottom: 1rpx solid var(--line);
+}
+.ptable__r {
+  border-bottom: 1rpx solid #f2f5f8;
+}
+.ptable__c1 {
+  flex: 1.4;
+  min-width: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-1);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ptable__c2 {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-micro);
+  color: var(--text-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ptable__c3 {
+  flex: 0.6;
+  text-align: right;
+  font-size: var(--fs-caption);
+  color: var(--text-1);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.ptable__h .ptable__c1,
+.ptable__h .ptable__c2,
+.ptable__h .ptable__c3 {
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  font-weight: 600;
+}
+.ptable__empty {
+  padding: var(--sp-4) 0;
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.pfoot {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1rpx solid var(--line);
+}
+.pfoot text {
+  display: block;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  line-height: 1.6;
+}
+
+.note {
+  display: block;
+  margin-top: var(--sp-4);
+  text-align: center;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+/* 离屏画布：只用于生成图片，不显示在页面上 */
+.rpt-canvas {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 750px;
+  height: 1060px;
+}

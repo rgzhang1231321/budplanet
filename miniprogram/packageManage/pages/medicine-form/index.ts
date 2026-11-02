@@ -27,6 +27,9 @@ Page({
     spec: '',
     dose: '1片',
     doses: ['半片', '1片', '2片', '1.5片'],
+    /** P1-2：什么时候吃（写进药品备注，打卡卡片会显示） */
+    note: '',
+    noteOptions: ['饭前', '随餐', '饭后', '睡前'],
     times: [{ t: '08:00', d: '1片' }] as { t: string; d: string }[],
     template: 'm1',
     templates: TEMPLATES,
@@ -78,6 +81,7 @@ Page({
         d: sl.d || m.default_dose,
       })),
       cycle: m.cycle_type || 'long_term',
+      note: m.note || '',
     });
   },
 
@@ -174,6 +178,14 @@ Page({
   onDoseInput(e: any) {
     this.setData({ dose: e.detail.value });
   },
+  /** P1-2：什么时候吃（快捷 chips，点一下即选中；再点取消） */
+  onPickNote(e: any) {
+    const note = e.currentTarget.dataset.note;
+    this.setData({ note: this.data.note === note ? '' : note });
+  },
+  onNoteInput(e: any) {
+    this.setData({ note: e.detail.value });
+  },
   next2() {
     this.setData({ step: 3 });
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
@@ -244,6 +256,7 @@ Page({
           name: (this.data.name || '').trim(),
           spec: this.data.spec,
           default_dose: this.data.dose,
+          note: this.data.note,
         });
         mid = r.mid;
       } else {
@@ -254,6 +267,7 @@ Page({
           name: (this.data.name || '').trim(),
           spec: this.data.spec,
           default_dose: this.data.dose,
+          note: this.data.note,
         });
       }
       await call('plan', this.data.mid ? 'update' : 'create', {

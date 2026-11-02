@@ -23,7 +23,7 @@
     {
       "root": "packageReport",
       "name": "report",
-      "pages": ["pages/report-detail/index", "pages/history/index"]
+      "pages": ["pages/report-detail/index", "pages/history/index", "pages/export-report/index"]
     },
     {
       "root": "packageSettings",

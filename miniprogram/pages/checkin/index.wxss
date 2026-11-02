@@ -415,3 +415,15 @@
   color: var(--st-warn);
   font-size: var(--fs-caption);
 }
+
+/* ── P1-2：用药提示标签（饭前/饭后/随餐） ── */
+.ck__note {
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--sp-2);
+  padding: 4rpx 16rpx;
+  border-radius: var(--r-full);
+  background: var(--bg-page);
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+}

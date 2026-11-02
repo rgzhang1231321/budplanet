@@ -105,6 +105,59 @@ public sealed class PlanUpsertHandler(IAppDbContext db, IMemberGuard guard, IClo
 }
 
 /// <summary>
+/// plan.pause（P1-1）：医生让停两周 / 术前停药。暂停期间不生成新剂量、不提醒、不计入完成率分母。
+/// 必须同时删掉未到点的 pending 行 —— 留着可打卡的行，老人会以为还要吃、子女会看到永远打不完的「待服」。
+/// </summary>
+public sealed class PlanPauseHandler(IAppDbContext db, IMemberGuard guard, IClock clock)
+{
+    public async Task<object> HandleAsync(string mid, string until, string openid, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(mid)) throw new ValidationException("缺少 mid");
+        if (string.IsNullOrWhiteSpace(until) || !TimeCn.TryParseDate(until, out var pauseUntil))
+            throw new ValidationException("暂停到期日格式应为 YYYY-MM-DD");
+        if (string.CompareOrdinal(pauseUntil, clock.TodayCn) < 0)
+            throw new ValidationException("暂停到期日不能早于今天");
+
+        var plan = await db.Plans.FirstOrDefaultAsync(p => p.MedicineId == mid && p.Status != "finished", ct)
+                   ?? throw new ValidationException("这个药还没有用药计划");
+        await guard.AssertMemberAsync(plan.FamilyId, openid, ct, "admin", "member");
+
+        plan.Status = "paused";
+        plan.PauseUntil = pauseUntil;
+        plan.UpdatedAt = clock.NowMs;
+
+        // 删掉未到点的 pending 行（已 taken/missed/skipped 的历史不动）
+        var now = clock.NowMs;
+        var stale = await db.DoseLogs
+            .Where(d => d.PlanId == plan.PlanId && d.Status == DoseStatusWire.Pending && d.DueTs > now)
+            .ToListAsync(ct);
+        foreach (var row in stale) db.Remove(row);
+
+        await db.SaveChangesAsync(ct);
+        return new { ok = true, pause_until = pauseUntil };
+    }
+}
+
+/// <summary>plan.resume（P1-1）：立即恢复，幂等。</summary>
+public sealed class PlanResumeHandler(IAppDbContext db, IMemberGuard guard, IClock clock)
+{
+    public async Task<object> HandleAsync(string mid, string openid, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(mid)) throw new ValidationException("缺少 mid");
+        var plan = await db.Plans.FirstOrDefaultAsync(p => p.MedicineId == mid && p.Status != "finished", ct)
+                   ?? throw new ValidationException("这个药还没有用药计划");
+        await guard.AssertMemberAsync(plan.FamilyId, openid, ct, "admin", "member");
+        if (plan.Status == "active" && plan.PauseUntil is null) return new { ok = true };
+
+        plan.Status = "active";
+        plan.PauseUntil = null;
+        plan.UpdatedAt = clock.NowMs;
+        await db.SaveChangesAsync(ct);
+        return new { ok = true };
+    }
+}
+
+/// <summary>
 /// plan.finish：周期用药到期/主动结束。
 /// 幂等（重复调用返回 ok），并删掉未到点的 pending 行 —— 计划停了还留着可打卡的行，
 /// 老人会以为还要吃，子女会看到一个永远打不完的"待服"。
