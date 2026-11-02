@@ -6,7 +6,7 @@
  */
 import { bootstrap, loadQuota } from '../../../store/user';
 import { get } from '../../../store/index';
-import { requestOne } from '../../../utils/subscribe';
+import { requestOne, requestMany } from '../../../utils/subscribe';
 import { report } from '../../../utils/report';
 
 type TmplKey = 'CHECKIN' | 'MISSED' | 'WEEKLY';
@@ -65,7 +65,24 @@ Page({
     });
   },
 
-  onTopupCheckin() {
-    this.onTopup({ currentTarget: { dataset: { key: 'CHECKIN' } } });
+  /**
+   * 一键补三种：微信一次弹窗最多 3 个模板，勾中的每项各 +1 条。
+   * 主角是"补额度"，用户在这页的意图就是补，没必要让他一条一条点三次。
+   */
+  onTopupAll() {
+    report('subscribe_request', { scene: 'quota_all', tmpl: 'ALL', quota_before: get().user.quota });
+    requestMany(['CHECKIN', 'MISSED', 'WEEKLY'], 'quota_all').then((res) => {
+      if (res.unconfigured) {
+        wx.showToast({ title: '提醒模板待配置', icon: 'none' });
+        return;
+      }
+      const n = res.accepted.length;
+      wx.showToast({
+        title: n > 0 ? `已补充 ${n} 种提醒` : '没开启也能在小程序里看到',
+        icon: 'none',
+      });
+      // ack 回传的 quota 已写回 store，这里重渲染即可
+      this.render();
+    });
   },
 });

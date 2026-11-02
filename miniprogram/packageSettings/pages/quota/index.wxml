@@ -11,10 +11,10 @@
       <text class="qhero__sub">{{checkin > 0 ? '用完就收不到了' : '已经用完，明天起收不到提醒'}}</text>
     </view>
 
-    <!-- 解释为什么是 1 -->
+    <!-- 解释为什么是「一条一条算」 -->
     <view class="qexplain">
-      <text class="qexplain__t">微信规定：每条提醒都要你点一次同意</text>
-      <text class="qexplain__d">点一次 = 一条。不是我们想限制你，是规则如此。</text>
+      <text class="qexplain__t">微信规定：同意一次，才有一条提醒</text>
+      <text class="qexplain__d">一次弹窗最多补三种，勾哪项就补哪项。不是我们想限制你，是规则如此。</text>
     </view>
 
     <!-- 三个模板的额度 -->
@@ -30,8 +30,8 @@
     </view>
 
     <view class="qcta">
-      <primary-button label="补充到点提醒" bind:tap="onTopupCheckin"></primary-button>
-      <text class="qcta__hint">点一次同意 = 多一条提醒</text>
+      <primary-button label="一键补充三种提醒" bind:tap="onTopupAll"></primary-button>
+      <text class="qcta__hint">一次弹窗勾几项，就各补一条</text>
     </view>
 
     <text class="qfoot">不点同意也能用小程序，只是收不到微信提醒。</text>
