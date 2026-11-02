@@ -4,7 +4,9 @@
     "dose-row": "../../components/base/dose-row/index",
     "ad-slot": "../../components/base/ad-slot/index",
     "empty-state": "../../components/base/empty-state/index",
-    "primary-button": "../../components/base/primary-button/index"
+    "primary-button": "../../components/base/primary-button/index",
+    "quota-bar": "../../components/base/quota-bar/index",
+    "setup-checklist": "../../components/base/setup-checklist/index"
   },
   "navigationStyle": "custom",
   "enablePullDownRefresh": true,

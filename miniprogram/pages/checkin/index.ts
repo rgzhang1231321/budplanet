@@ -40,6 +40,14 @@ Page({
     canMakeup: false,
     missTitle: '',
     missWhy: '',
+    /** P0-4：还没到点（due_ts - now > 30min）—— 主按钮降级，避免老人提前服药 */
+    early: false,
+    earlyText: '',
+    /** P1-7 / P0-4：下一次几点 + 今日汇总「今天 3 次，已吃 2 次」 */
+    nextText: '',
+    summaryText: '',
+    /** P0-2：额度 ≤1 时在成功页预埋一句，别等第二天收不到提醒才发现 */
+    quotaHint: '',
   },
 
   onLoad(q: Record<string, string>) {
@@ -162,6 +170,23 @@ Page({
     const nick = members.length && members[0].nick ? members[0].nick : '家人';
     const known = reach ? `${nick}会看到这条记录` : `${nick}打开小程序就能看到`;
 
+    // P0-4：还没到点（due_ts - now > 30min）。老人 6:20 打开 8:00 的药，若照常显示「我已服用」，
+    // 有提前服药风险（缓释片 / 降糖药尤其危险）。主按钮降级为「我提前吃了」。
+    const earlyMs = first.due_ts - Date.now();
+    const early = viewState === 'pending' && earlyMs > 30 * 60000;
+    const earlyText = early ? humanGap(Math.ceil(earlyMs / 60000)) : '';
+    // 下一次：同一天里排在当前之后的下一条（老人最常问「下一次几点」）
+    const next = rows
+      .filter((r) => r.slot > first.slot && r.status === 'pending')
+      .sort((a, b) => a.slot - b.slot)[0];
+    const nextText = next ? `下一次 ${next.due_time} · ${next.medicine_name}` : '';
+    // P1-7：老人端首屏汇总「今天 3 次，已吃 2 次」——他不必逐行读药单才能回答"我早上吃了没"
+    const todayTotal = rows.length;
+    const todayTaken = rows.filter((r) => r.status === 'taken').length;
+    const summaryText = `今天 ${todayTotal} 次，已吃 ${todayTaken} 次`;
+    // P0-2：一次性订阅 1 次 = 1 条，额度见底时下一顿就收不到。成功页先埋一句，别等静默失效。
+    const quotaHint = (s.user.quota.CHECKIN || 0) <= 1 ? '下次提醒需要你点一下「允许」' : '';
+
     this.setData({
       elder: isElder(),
       viewState,
@@ -179,6 +204,11 @@ Page({
       members,
       whoText,
       adOn: !!s.user.config.adOn,
+      early,
+      earlyText,
+      nextText,
+      summaryText,
+      quotaHint,
     });
 
     if (viewState === 'taken') {

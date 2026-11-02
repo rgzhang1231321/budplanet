@@ -115,6 +115,19 @@
   flex: none;
 }
 
+/* P0-5：已联系 → 红条降级为灰字，避免同一条告警天天扎人 */
+.miss__btn--ghost {
+  margin-left: auto;
+  border-color: var(--line);
+  color: var(--text-2);
+}
+.missacked {
+  margin-top: var(--sp-3);
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
 /* ── 分组卡 ── */
 .group {
   margin-top: var(--sp-3);

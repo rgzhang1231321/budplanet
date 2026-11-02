@@ -1,0 +1,38 @@
+.qb {
+  display: flex;
+  align-items: center;
+  margin-top: var(--sp-3);
+  min-height: 76rpx;
+  padding: 0 var(--sp-2) 0 var(--sp-3);
+  border-radius: var(--r-m);
+  background: #fff6ed;
+  border: 1rpx solid #ffe0c2;
+}
+.qb__ico {
+  color: var(--warm-500);
+  margin-right: var(--sp-2);
+  display: flex;
+  flex: none;
+}
+.qb__text {
+  flex: 1;
+  font-size: var(--fs-caption);
+  color: var(--st-warn);
+  line-height: 1.4;
+}
+.qb__go {
+  flex: none;
+  font-size: var(--fs-caption);
+  color: var(--brand-600);
+  font-weight: 600;
+  padding: 0 var(--sp-2);
+}
+.qb__close {
+  flex: none;
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+}

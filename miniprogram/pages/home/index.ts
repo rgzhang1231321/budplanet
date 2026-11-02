@@ -11,6 +11,20 @@ import { statusBarHeight } from '../../utils/theme';
 import { AD_UNITS } from '../../config/index';
 import { report } from '../../utils/report';
 
+/** P0-5：「已联系」是本地痕迹，不改服务端状态 —— 联系过不等于吃了。按 dose_id 记到当天。 */
+const ACK_KEY = 'missed_ack_v1';
+/** P0-3：设置清单可关闭，3 天后重新出现（留存提示，不是永久骚扰）。 */
+const SETUP_KEY = 'setup_dismiss_v1';
+const SETUP_RESHOW_MS = 3 * 24 * 3600 * 1000;
+
+function ackMap(): Record<string, number> {
+  try {
+    return wx.getStorageSync(ACK_KEY) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
 /** 「XX 今天/昨天/N 天前看过」——回执时间不能写死成"昨天"，那是编的 */
 function relativeDay(at: number): string {
   const today = dateCN();
@@ -32,6 +46,17 @@ Page({
     elderRows: [] as any[],
     missedText: '',
     showMissed: false,
+    /** P0-5：红条点过「已联系」后降级为一行灰字，当天不再展开 */
+    missedAcked: false,
+    missedAckedText: '',
+    /** P0-2：提醒额度耗尽时首页顶部出琥珀细条 */
+    quotaEmpty: false,
+    quotaDismissed: false,
+    /** P0-3：首设清单（添加服药人 / 添加第一个药 / 邀请家人） */
+    showSetup: false,
+    setupHasPatient: false,
+    setupHasMed: false,
+    setupInvited: false,
     recentText: '',
     hasPatients: true,
     hasRows: true,
@@ -87,10 +112,41 @@ Page({
     // 漏服强提示：只给子女端（老人看到红色告警的第一反应是焦虑而不是行动）
     const firstMiss = rows.find((r) => r.status === 'missed');
     let missedText = '';
+    let missedAckedText = '';
     if (firstMiss) {
       const p = s.family.patients.find((x) => x.uid === firstMiss.pid);
-      missedText = `${(p && p.alias) || ''}今天 ${firstMiss.due_time} 的 ${firstMiss.medicine_name} 还没吃`;
+      const alias = (p && p.alias) || '';
+      missedText = `${alias}今天 ${firstMiss.due_time} 的 ${firstMiss.medicine_name} 还没吃`;
+      missedAckedText = `${firstMiss.due_time} 那条已联系过`;
     }
+    // P0-5：「已联系」当天有效。联系过不等于吃了，只把红条降级成灰字，不改状态。
+    const acks = ackMap();
+    const acked = !!firstMiss && !!acks[firstMiss.dose_id] && dateCN(acks[firstMiss.dose_id]) === dateCN();
+    const childView = !isSelf();
+
+    // P0-2：CHECKIN 额度为 0 = 明天起收不到到点提醒。这是"产品静默失效"，必须让它可见。
+    const quotaEmpty = (s.user.quota.CHECKIN || 0) <= 0;
+    let quotaDismissed = false;
+    try {
+      const d = wx.getStorageSync('quota_bar_dismiss_v1');
+      quotaDismissed = !!d && dateCN(d) === dateCN();
+    } catch (e) {
+      quotaDismissed = false;
+    }
+
+    // P0-3：首设清单。成员 > 1 视为「邀请已生效」，整卡消失；关闭后 3 天再出现。
+    const invited = s.family.members.length > 1;
+    const hasPatient = s.family.patients.length > 0;
+    const hasMed = rows.length > 0;
+    let setupDismissed = false;
+    try {
+      const at = wx.getStorageSync(SETUP_KEY);
+      setupDismissed = !!at && Date.now() - at < SETUP_RESHOW_MS;
+    } catch (e) {
+      setupDismissed = false;
+    }
+    // 只有"还没邀请到人"且至少有服药人时才出清单（纯新家 + 邀请未完成）
+    const showSetup = childView && !invited && hasPatient && !setupDismissed;
 
     const rv = s.today.recentView;
     const base = {
@@ -100,7 +156,15 @@ Page({
       ov,
       perText,
       missedText,
-      showMissed: !!firstMiss && !isSelf(),
+      missedAcked: !!firstMiss && childView && acked,
+      missedAckedText,
+      showMissed: !!firstMiss && childView && !acked,
+      quotaEmpty,
+      quotaDismissed,
+      showSetup,
+      setupHasPatient: hasPatient,
+      setupHasMed: hasMed,
+      setupInvited: invited,
       recentText: isSelf() && rv && rv.at ? `${rv.alias}${relativeDay(rv.at)}看过` : '',
       hasPatients: s.family.patients.length > 0,
       hasRows: rows.length > 0,
@@ -163,21 +227,37 @@ Page({
     let items: string[] = [];
     if (row.status === 'taken') items = ['改为漏服', '改为跳过'];
     else if (row.status === 'missed' && !row.is_corrected) items = ['改为已服'];
-    else if (row.status === 'pending') items = ['改为跳过'];
-    else items = ['这一条已不能改'];
-    items = items.concat(['取消']);
+    // 老人打电话说「我吃了，那个按钮我不会点」：pending 必须能记成已服。
+    // 契约 §7 允许 pending→taken（走 checkin.submit）；原先只给「改为跳过」，
+    // 会把一次已服记成跳过，周报完成率被拉低且语义全错。
+    else if (row.status === 'pending') items = ['替他记上（已服）', '改为跳过'];
+    // 一条都改不了就别弹菜单：弹出来只有一个点不动的选项，用户还得再点一次取消才退得出去。
+    // 已跳过、以及已被人工改判过的漏服，都落到这里。
+    if (!items.length) {
+      wx.showToast({ title: '这一条已不能改', icon: 'none' });
+      return;
+    }
+    // 不要再往 itemList 里塞「取消」：showActionSheet 底部自带系统取消项，
+    // 自己加一条就会出现两个取消（点自己加的那条还会走 success，被误当成业务项）。
+    // 用户点系统取消时走 fail(errMsg 含 cancel)，不进 success，所以这里不用处理。
 
     wx.showActionSheet({
       itemList: items,
       success: (r) => {
         const pick = items[r.tapIndex];
-        if (pick === '这一条已不能改' || pick === '取消') return;
+        const isProxy = pick === '替他记上（已服）';
         const to: 'taken' | 'missed' | 'skipped' =
-          pick === '改为已服' ? 'taken' : pick === '改为漏服' ? 'missed' : 'skipped';
+          pick === '改为已服' || isProxy ? 'taken' : pick === '改为漏服' ? 'missed' : 'skipped';
+        const p = get().family.patients.find((x) => x.uid === row.pid);
+        const alias = (p && p.alias) || '家人';
+        const label = to === 'taken' ? '已服' : to === 'missed' ? '漏服' : '跳过';
         wx.showModal({
-          title: '确认修改',
-          content: `把 ${row.due_time} 的 ${row.medicine_name} 改成「${to === 'taken' ? '已服' : to === 'missed' ? '漏服' : '跳过'}」？这会记入用药史。`,
-          confirmText: '确认修改',
+          title: isProxy ? '替他记一次？' : '确认修改',
+          // 代记必须说清「这是替谁记的」：子女不能悄悄替老人刷完成率。
+          content: isProxy
+            ? `把 ${row.due_time} 的 ${row.medicine_name} 记为「已服」？这是代 ${alias} 记的，会记入用药史。`
+            : `把 ${row.due_time} 的 ${row.medicine_name} 改成「${label}」？这会记入用药史。`,
+          confirmText: isProxy ? '确认已服' : '确认修改',
           success: async (m) => {
             if (!m.confirm) return;
             try {
@@ -210,8 +290,56 @@ Page({
     });
   },
 
+  /** 去打卡：带上最早一条待服的 dose，打卡页才能算出「还没到点」的时间语义（P0-4） */
   onGoCheckin() {
-    wx.navigateTo({ url: '/pages/checkin/index' });
+    const pend = visibleRows()
+      .filter((r) => r.status === 'pending')
+      .sort((a, b) => a.slot - b.slot)[0];
+    wx.navigateTo({ url: pend ? `/pages/checkin/index?dose=${pend.dose_id}` : '/pages/checkin/index' });
+  },
+
+  /** P0-5：标记「已联系」——本地当天有效，只把红条降级为灰字，不改服务端状态 */
+  onAckMissed() {
+    const row = visibleRows().find((r) => r.status === 'missed');
+    if (!row) return;
+    try {
+      const m = ackMap();
+      m[row.dose_id] = Date.now();
+      wx.setStorageSync(ACK_KEY, m);
+    } catch (e) {
+      /* ignore */
+    }
+    this.render();
+  },
+
+  /** P0-2：去补充提醒额度 */
+  onQuotaGo() {
+    wx.navigateTo({ url: '/packageSettings/pages/quota/index' });
+  },
+
+  /** P0-2：当天关闭额度细条（24h 内不再出现） */
+  onQuotaClose() {
+    try {
+      wx.setStorageSync('quota_bar_dismiss_v1', Date.now());
+    } catch (e) {
+      /* ignore */
+    }
+    this.setData({ quotaDismissed: true });
+  },
+
+  /** P0-3：设置清单 → 邀请家人（复用家庭组页，那里有邀请码与转发） */
+  onInvite() {
+    wx.navigateTo({ url: '/packageManage/pages/family/index' });
+  },
+
+  /** P0-3：关闭设置清单，3 天后重新出现 */
+  onSetupClose() {
+    try {
+      wx.setStorageSync(SETUP_KEY, Date.now());
+    } catch (e) {
+      /* ignore */
+    }
+    this.setData({ showSetup: false });
   },
 
   onMissedBar() {

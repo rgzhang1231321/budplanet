@@ -1,0 +1,127 @@
+.qhero {
+  margin-top: var(--sp-4);
+  background: var(--bg-card);
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-1);
+  padding: var(--sp-6) var(--sp-4);
+  text-align: center;
+}
+.qhero__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+.qhero__num {
+  /* 用变量放大，避免 CI-1「页面内硬编码字号」；约等于 120rpx */
+  font-size: calc(var(--fs-num-l) * 1.875);
+  font-weight: 700;
+  color: var(--brand-600);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.qhero__unit {
+  margin-left: var(--sp-2);
+  font-size: var(--fs-body);
+  color: var(--text-2);
+}
+.qhero__sub {
+  display: block;
+  margin-top: var(--sp-3);
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.qexplain {
+  margin-top: var(--sp-3);
+  background: var(--brand-100);
+  border-radius: var(--r-m);
+  padding: var(--sp-3) var(--sp-4);
+}
+.qexplain__t {
+  display: block;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--brand-900);
+}
+.qexplain__d {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.qlist {
+  margin-top: var(--sp-4);
+  background: var(--bg-card);
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+.qrow {
+  display: flex;
+  align-items: center;
+  min-height: 108rpx;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1rpx solid var(--line);
+}
+.qrow:last-child {
+  border-bottom: none;
+}
+.qrow__main {
+  flex: 1;
+  min-width: 0;
+}
+.qrow__name {
+  display: block;
+  font-size: var(--fs-body);
+  color: var(--text-1);
+  font-weight: 600;
+}
+.qrow__desc {
+  display: block;
+  margin-top: 4rpx;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+.qrow__status {
+  flex: none;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  margin: 0 var(--sp-3);
+  font-variant-numeric: tabular-nums;
+}
+.qrow__status--bad {
+  color: var(--st-missed);
+}
+.qrow__status--warn {
+  color: var(--warm-500);
+}
+.qrow__status--ok {
+  color: var(--text-3);
+}
+.qrow__go {
+  flex: none;
+  font-size: var(--fs-caption);
+  color: var(--brand-600);
+  font-weight: 600;
+}
+
+.qcta {
+  margin-top: var(--sp-5);
+}
+.qcta__hint {
+  display: block;
+  margin-top: var(--sp-2);
+  text-align: center;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+.qfoot {
+  display: block;
+  margin-top: var(--sp-5);
+  text-align: center;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+  line-height: 1.5;
+}

@@ -6,9 +6,43 @@
     </view>
   </page-nav>
 
-  <!-- ── P11 待打卡 ── -->
-  <view wx:if="{{viewState === 'pending'}}" class="ck">
+  <!-- ── P0-4 还没到点：主按钮降级，避免老人提前服药 ── -->
+  <view wx:if="{{viewState === 'pending' && early}}" class="ck">
     <view class="ck__head">
+      <text class="ck__summary">{{summaryText}}</text>
+    </view>
+
+    <view class="ck__card">
+      <block wx:if="{{!batch}}">
+        <text class="ck__name">{{list[0].medicine_name}}</text>
+        <text class="ck__dose">{{list[0].dose_text}}</text>
+        <view class="ck__badge"><status-badge status="pending" big="{{true}}"></status-badge></view>
+      </block>
+      <block wx:else>
+        <view wx:for="{{list}}" wx:key="dose_id" class="ck__brow">
+          <text class="ck__bname">{{item.medicine_name}}</text>
+          <text class="ck__bdose">{{item.dose_text}}</text>
+        </view>
+        <view wx:if="{{folded}}" class="ck__fold">等 {{extra}} 种药</view>
+      </block>
+    </view>
+
+    <view class="ck__early">
+      <text class="ck__early-t">还没到点</text>
+      <text class="ck__early-d">还有 {{earlyText}}</text>
+    </view>
+
+    <view class="ck__actions">
+      <view class="ck__early-btn"><text>还没到点</text></view>
+      <view class="ck__early-link" bindtap="onTake"><text>我提前吃了</text></view>
+      <text wx:if="{{nextText}}" class="ck__who">{{nextText}}</text>
+    </view>
+  </view>
+
+  <!-- ── P11 待打卡 ── -->
+  <view wx:elif="{{viewState === 'pending'}}" class="ck">
+    <view class="ck__head">
+      <text wx:if="{{elder}}" class="ck__summary">{{summaryText}}</text>
       <text class="ck__when">{{headText}}</text>
       <text wx:if="{{showProgress}}" class="ck__prog">{{progressText}}</text>
     </view>
@@ -60,6 +94,7 @@
     </view>
     <text class="ok__title">已经记下了</text>
     <text class="ok__sub">{{subText}}</text>
+    <text wx:if="{{quotaHint}}" class="ok__quota">{{quotaHint}}</text>
 
     <view class="ok__stack"><member-avatar-stack members="{{members}}"></member-avatar-stack></view>
     <text class="ok__known">{{knownText}}</text>

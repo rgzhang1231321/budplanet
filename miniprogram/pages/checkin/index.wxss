@@ -353,3 +353,65 @@
     transform: translateY(0);
   }
 }
+
+/* ── P1-7：老人端今日汇总「今天 3 次，已吃 2 次」 ── */
+.ck__summary {
+  display: block;
+  width: 100%;
+  font-size: var(--fs-body);
+  color: var(--text-2);
+  margin-bottom: var(--sp-1);
+}
+.p-root.elder .ck__summary {
+  font-size: var(--fs-body-s);
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+/* ── P0-4：还没到点（主按钮降级，防提前服药） ── */
+.ck__early {
+  text-align: center;
+  margin-bottom: var(--sp-4);
+}
+.ck__early-t {
+  display: block;
+  font-size: var(--fs-body);
+  color: var(--text-2);
+}
+.ck__early-d {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-emph);
+  font-weight: 700;
+  color: var(--warm-500);
+  font-variant-numeric: tabular-nums;
+}
+.ck__early-btn {
+  height: var(--h-main-btn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-m);
+  background: var(--bg-page);
+  color: var(--text-3);
+  font-size: var(--fs-btn);
+  font-weight: 600;
+}
+.ck__early-link {
+  margin-top: var(--sp-4);
+  text-align: center;
+  font-size: var(--fs-body);
+  color: var(--brand-600);
+  font-weight: 600;
+  padding: var(--sp-2) 0;
+}
+
+/* ── P0-2：成功页额度预埋 ── */
+.ok__quota {
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-full);
+  background: #fff6ed;
+  color: var(--st-warn);
+  font-size: var(--fs-caption);
+}

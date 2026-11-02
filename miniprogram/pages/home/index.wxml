@@ -17,6 +17,26 @@
   <!-- ── 子女端 P10 ── -->
   <block wx:if="{{!elder}}">
     <view class="page page--tab">
+      <!-- P0-2 提醒额度耗尽告警（琥珀，非错误色；可当天关闭） -->
+      <quota-bar
+        wx:if="{{quotaEmpty && !quotaDismissed}}"
+        text="提醒额度用完了，明天起收不到到点提醒"
+        bind:action="onQuotaGo"
+        bind:close="onQuotaClose"
+      ></quota-bar>
+
+      <!-- P0-3 首设清单：还没邀请到家人时出现，邀请成功后整卡消失 -->
+      <setup-checklist
+        wx:if="{{showSetup}}"
+        hasPatient="{{setupHasPatient}}"
+        hasMed="{{setupHasMed}}"
+        invited="{{setupInvited}}"
+        bind:addPatient="onAddPatient"
+        bind:addMed="onAdd"
+        bind:invite="onInvite"
+        bind:close="onSetupClose"
+      ></setup-checklist>
+
       <view class="ov">
         <view class="ov__top">
           <text class="ov__date">{{dateText}}</text>
@@ -33,10 +53,13 @@
         </view>
       </view>
 
-      <view wx:if="{{showMissed}}" class="miss" bindtap="onMissedBar">
+      <!-- P0-5 漏服条：未联系=红条（带「已联系」出口）；联系过=降级为一行灰字 -->
+      <view wx:if="{{showMissed}}" class="miss">
         <text class="miss__text">{{missedText}}</text>
-        <view class="miss__btn"><text>去提醒</text></view>
+        <view class="miss__btn miss__btn--ghost" catchtap="onAckMissed"><text>已联系</text></view>
+        <view class="miss__btn" catchtap="onMissedBar"><text>去提醒</text></view>
       </view>
+      <view wx:elif="{{missedAcked}}" class="missacked"><text>{{missedAckedText}}</text></view>
 
       <block wx:if="{{hasRows}}">
         <view wx:for="{{groups}}" wx:key="uid" class="group">
@@ -59,7 +82,7 @@
         <view wx:if="{{loading}}" class="fresh">正在看看今天的药…</view>
 
         <empty-state
-          wx:else
+          wx:elif="{{!showSetup}}"
           icon="{{hasPatients ? 'pill' : 'user'}}"
           title="{{hasPatients ? '还没有添加药品' : '还没有服药人'}}"
           desc="{{hasPatients ? '设好药品和时间，到点手机会提醒' : '先添加一位家人，再给他设吃药提醒'}}"

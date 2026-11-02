@@ -28,7 +28,12 @@
     {
       "root": "packageSettings",
       "name": "settings",
-      "pages": ["pages/settings/index", "pages/unlocks/index", "pages/about/index"]
+      "pages": [
+        "pages/settings/index",
+        "pages/unlocks/index",
+        "pages/about/index",
+        "pages/quota/index"
+      ]
     }
   ],
   "preloadRule": {

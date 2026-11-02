@@ -1,0 +1,39 @@
+<view class="p-root">
+  <page-nav title="提醒额度" back="{{true}}"></page-nav>
+
+  <view class="page page--safe">
+    <!-- 顶部大数字：还能提醒几次 -->
+    <view class="qhero">
+      <view class="qhero__row">
+        <text class="qhero__num">{{checkin}}</text>
+        <text class="qhero__unit">次 · 还能提醒 {{checkin}} 次</text>
+      </view>
+      <text class="qhero__sub">{{checkin > 0 ? '用完就收不到了' : '已经用完，明天起收不到提醒'}}</text>
+    </view>
+
+    <!-- 解释为什么是 1 -->
+    <view class="qexplain">
+      <text class="qexplain__t">微信规定：每条提醒都要你点一次同意</text>
+      <text class="qexplain__d">点一次 = 一条。不是我们想限制你，是规则如此。</text>
+    </view>
+
+    <!-- 三个模板的额度 -->
+    <view class="qlist">
+      <view wx:for="{{rows}}" wx:key="key" class="qrow">
+        <view class="qrow__main">
+          <text class="qrow__name">{{item.name}}</text>
+          <text class="qrow__desc">{{item.desc}}</text>
+        </view>
+        <text class="qrow__status qrow__status--{{item.tone}}">{{item.text}}</text>
+        <view class="qrow__go" data-key="{{item.key}}" catchtap="onTopup">去补充</view>
+      </view>
+    </view>
+
+    <view class="qcta">
+      <primary-button label="补充到点提醒" bind:tap="onTopupCheckin"></primary-button>
+      <text class="qcta__hint">点一次同意 = 多一条提醒</text>
+    </view>
+
+    <text class="qfoot">不点同意也能用小程序，只是收不到微信提醒。</text>
+  </view>
+</view>

@@ -1,0 +1,26 @@
+<view class="sc">
+  <view class="sc__head">
+    <text class="sc__title">{{title}}</text>
+    <view class="sc__close" catchtap="onClose"><view class="i i-close i--sm"></view></view>
+  </view>
+
+  <view class="sc__row {{step1Done ? 'sc__row--done' : (active === 1 ? 'sc__row--active' : '')}}" catchtap="onRow1">
+    <view class="sc__dot">{{step1Done ? '✓' : '1'}}</view>
+    <text class="sc__label">添加服药人</text>
+    <view wx:if="{{active === 1}}" class="sc__act">去添加</view>
+  </view>
+
+  <view class="sc__row {{step2Done ? 'sc__row--done' : (active === 2 ? 'sc__row--active' : '')}}" catchtap="onRow2">
+    <view class="sc__dot">{{step2Done ? '✓' : '2'}}</view>
+    <text class="sc__label">添加第一个药</text>
+    <view wx:if="{{active === 2}}" class="sc__act">去添加</view>
+  </view>
+
+  <view class="sc__row {{step3Done ? 'sc__row--done' : (active === 3 ? 'sc__row--active' : '')}}" catchtap="onRow3">
+    <view class="sc__dot">{{step3Done ? '✓' : '3'}}</view>
+    <text class="sc__label">把邀请码发给家人</text>
+    <view wx:if="{{active === 3}}" class="sc__act">去邀请</view>
+  </view>
+
+  <text class="sc__hint">家人加入后，你就能看到他们今天吃没吃</text>
+</view>

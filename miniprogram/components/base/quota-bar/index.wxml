@@ -1,0 +1,6 @@
+<view class="qb">
+  <view class="qb__ico"><view class="i i-bell i--sm"></view></view>
+  <text class="qb__text">{{text}}</text>
+  <view class="qb__go" catchtap="onAction">去补充 ›</view>
+  <view class="qb__close" catchtap="onClose"><view class="i i-close i--sm"></view></view>
+</view>
