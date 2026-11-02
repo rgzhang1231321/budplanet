@@ -44,8 +44,15 @@ public sealed class NotifyAckHandler(IAppDbContext db, IClock clock)
     public async Task<object> HandleAsync(AckRequest req, string openid, CancellationToken ct = default)
     {
         var now = clock.NowMs;
-        var key = string.IsNullOrWhiteSpace(req.TmplKey) ? "CHECKIN" : req.TmplKey;
-        var accepted = req.Accepted?.Contains(key) == true;
+        // tmpl_key 是冻结字段、必填（契约 §notify.ack）。这里**不兜底**：
+        // 以前空 key 会静默记到 CHECKIN 上，症状是"补了三种、只有到点提醒的次数涨"——
+        // 一个本该暴露的参数错误变成了一次看似正常的额度变更，排查要重走整条链路。
+        // 宁可 1005（前端 .catch 里静默吞掉，用户无感），也不要写进错误的池子。
+        var key = (req.TmplKey ?? string.Empty).Trim().ToUpperInvariant();
+        if (key is not ("CHECKIN" or "MISSED" or "WEEKLY"))
+            throw new ValidationException("tmpl_key 应为 CHECKIN / MISSED / WEEKLY");
+
+        var accepted = req.Accepted?.Any(a => string.Equals((a ?? string.Empty).Trim(), key, StringComparison.OrdinalIgnoreCase)) == true;
 
         var row = await db.Subscriptions.FirstOrDefaultAsync(s => s.Openid == openid && s.TmplKey == key, ct);
         if (row is null)

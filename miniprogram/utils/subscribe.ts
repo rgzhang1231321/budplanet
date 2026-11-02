@@ -89,6 +89,12 @@ export interface MultiSubscribeResult {
   /** 没勾 / 被拒的模板 */
   rejected: TmplKey[];
   unconfigured?: boolean;
+  /**
+   * 每个模板的 `notify.ack` 都回完之后才 resolve（失败也当回完，永不 reject）。
+   * 一次弹窗 = 3 个独立 ack、3 份独立回包的 quota 快照，谁先回不确定；
+   * 想让页面显示"补完之后"的数字，必须等这个，而不是等本函数 resolve。
+   */
+  settled: Promise<void>;
 }
 
 /**
@@ -105,7 +111,12 @@ export function requestMany(tmplKeys: TmplKey[], scene: string): Promise<MultiSu
   const keys = tmplKeys.filter((k) => !!TMPL_IDS[k]);
   if (!keys.length) {
     report('subscribe_result', { scene, tmpl: tmplKeys.join(','), err: 'unconfigured' });
-    return Promise.resolve({ accepted: [], rejected: [], unconfigured: true });
+    return Promise.resolve({
+      accepted: [],
+      rejected: [],
+      unconfigured: true,
+      settled: Promise.resolve(),
+    });
   }
   return new Promise((resolve) => {
     wx.requestSubscribeMessage({
@@ -113,26 +124,33 @@ export function requestMany(tmplKeys: TmplKey[], scene: string): Promise<MultiSu
       success(res: any) {
         const accepted = keys.filter((k) => res[TMPL_IDS[k]] === 'accept');
         const rejected = keys.filter((k) => accepted.indexOf(k) < 0);
+        const acks: Promise<void>[] = [];
         keys.forEach((k) => {
           const ok = accepted.indexOf(k) >= 0;
           report('subscribe_result', { scene, tmpl: k, accepted: ok, ban: res[TMPL_IDS[k]] === 'ban' });
           if (ok) alwaysCache[k] = true;
           // 逐模板 ack：服务端一个 tmpl_key 一行，拒授权也要报，否则授权率恒为 100%
-          call('notify', 'ack', { tmpl_key: k, accepted: ok ? [k] : [], requested: 1 })
-            .then((d: any) => {
-              if (d && d.quota) set('user.quota', d.quota);
-            })
-            .catch(() => {});
+          acks.push(
+            call('notify', 'ack', { tmpl_key: k, accepted: ok ? [k] : [], requested: 1 })
+              .then((d: any) => {
+                if (d && d.quota) set('user.quota', d.quota);
+              })
+              // 单个 ack 失败不能拖累其它两个：额度真涨了服务端知道，前端下次 onShow 会校准
+              .catch(() => {}),
+          );
         });
-        resolve({ accepted, rejected });
+        // 立即 resolve：弹窗里用户的"补上了吗"必须马上有反馈（toast），不能等网络；
+        // 需要"补完之后"的准确数字就 await settled（页面里配 store 订阅用）。
+        resolve({ accepted, rejected, settled: Promise.all(acks).then(() => undefined) });
       },
       fail(err: any) {
         const off = /ban|20004|auth den/i.test(err.errMsg || '');
+        const acks: Promise<void>[] = [];
         keys.forEach((k) => {
           report('subscribe_result', { scene, tmpl: k, err: off ? 'main_off' : 'fail' });
-          call('notify', 'ack', { tmpl_key: k, accepted: [], requested: 1 }).catch(() => {});
+          acks.push(call('notify', 'ack', { tmpl_key: k, accepted: [], requested: 1 }).catch(() => {}));
         });
-        resolve({ accepted: [], rejected: keys });
+        resolve({ accepted: [], rejected: keys, settled: Promise.all(acks).then(() => undefined) });
       },
     });
   });

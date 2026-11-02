@@ -5,16 +5,40 @@
  * 三个模板的额度、说明、补授权入口放在一起，让"静默失效"变成可见、可补。
  */
 import { bootstrap, loadQuota } from '../../../store/user';
-import { get } from '../../../store/index';
+import { get, on } from '../../../store/index';
 import { requestOne, requestMany } from '../../../utils/subscribe';
 import { report } from '../../../utils/report';
 
 type TmplKey = 'CHECKIN' | 'MISSED' | 'WEEKLY';
 
+const LABEL: Record<TmplKey, string> = {
+  CHECKIN: '到点提醒',
+  MISSED: '漏服提醒',
+  WEEKLY: '每周周报',
+};
+
 Page({
   data: {
     checkin: 0,
     rows: [] as any[],
+  },
+
+  /**
+   * 本页**必须**订阅 store，不能只在 TAP 回调里 render 一次。
+   * 原因：一次「一键补充」= 3 个独立 notify.ack、3 份独立回包，回包顺序不确定；
+   * 谁先回来谁把 user.quota 覆盖一次。只在点完那一刻 render，读到的是点之前的快照，
+   * 页面就停在旧数字上（真机反馈：「补了三种，只有到点提醒的次数涨了」）。
+   */
+  onLoad() {
+    (this as any)._off = on((_s, changed) => {
+      if (changed === 'user.quota' || changed === 'reset') this.render();
+    });
+  },
+
+  onUnload() {
+    const off = (this as any)._off;
+    if (typeof off === 'function') off();
+    (this as any)._off = null;
   },
 
   async onShow() {
@@ -69,20 +93,24 @@ Page({
    * 一键补三种：微信一次弹窗最多 3 个模板，勾中的每项各 +1 条。
    * 主角是"补额度"，用户在这页的意图就是补，没必要让他一条一条点三次。
    */
-  onTopupAll() {
+  async onTopupAll() {
     report('subscribe_request', { scene: 'quota_all', tmpl: 'ALL', quota_before: get().user.quota });
-    requestMany(['CHECKIN', 'MISSED', 'WEEKLY'], 'quota_all').then((res) => {
-      if (res.unconfigured) {
-        wx.showToast({ title: '提醒模板待配置', icon: 'none' });
-        return;
-      }
-      const n = res.accepted.length;
-      wx.showToast({
-        title: n > 0 ? `已补充 ${n} 种提醒` : '没开启也能在小程序里看到',
-        icon: 'none',
-      });
-      // ack 回传的 quota 已写回 store，这里重渲染即可
-      this.render();
+    // 注意：requestMany 会同步发起 wx.requestSubscribeMessage（保住 TAP 手势），
+    // 所以这行之前不能有 await，否则微信判非用户手势、直接 fail。
+    const res = await requestMany(['CHECKIN', 'MISSED', 'WEEKLY'], 'quota_all');
+    if (res.unconfigured) {
+      wx.showToast({ title: '提醒模板待配置', icon: 'none' });
+      return;
+    }
+    const n = res.accepted.length;
+    wx.showToast({
+      title: n === 3 ? '三种提醒各补 1 条' : n > 0 ? `已补充 ${res.accepted.map((k) => LABEL[k]).join('、')}` : '没开启也能在小程序里看到',
+      icon: 'none',
     });
+    // 等三个 ack 都落库，再拉一次服务端真相：中途某个 ack 失败、或回包乱序
+    // 把 quota 覆盖成较旧的快照，都以这次 GET 为准。store 订阅会顺带重渲染。
+    await res.settled;
+    await loadQuota();
+    this.render();
   },
 });
