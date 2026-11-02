@@ -6,8 +6,11 @@
       <view wx:if="{{back}}" class="nav__back" hover-class="nav__back--hover" bindtap="goBack">
         <view class="i i-back"></view>
       </view>
-      <view class="nav__titles">
-        <text class="nav__title">{{title}}</text>
+      <view class="nav__titles" bindtap="onTitleTap">
+        <view class="nav__title-row">
+          <text class="nav__title">{{title}}</text>
+          <view wx:if="{{titleChevron}}" class="nav__chev"></view>
+        </view>
         <text wx:if="{{subtitle}}" class="nav__sub">{{subtitle}}</text>
       </view>
     </view>

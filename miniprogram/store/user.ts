@@ -77,6 +77,19 @@ export async function loadFamily() {
   });
 }
 
+/**
+ * 多家庭切换（P1-3）：管自己父母 + 配偶父母两个家的用户，原先永远只能看到第一个家。
+ * 改 fid → 重拉 family.info（角色/成员/服药人都变）→ 重拉今日 → 广播，首页据此重渲染。
+ */
+export async function switchFamily(fid: string): Promise<void> {
+  const s = state();
+  if (!fid || fid === s.family.fid) return;
+  set('family.fid', fid);
+  await loadFamily();
+  await refreshToday(false);
+  emit('family');
+}
+
 /** 今日数据：老人端与子女端同一接口（schedule.today 一次给全 today 树） */
 export async function refreshToday(silent = true) {
   const s = state();

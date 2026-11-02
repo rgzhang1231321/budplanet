@@ -40,11 +40,24 @@
   flex-direction: column;
   min-width: 0;
 }
+.nav__title-row {
+  display: flex;
+  align-items: center;
+}
 .nav__title {
   font-size: var(--fs-h1);
   font-weight: 700;
   color: var(--text-1);
   line-height: 1.2;
+}
+/* 下拉小三角：暗示标题可点（多家庭切换） */
+.nav__chev {
+  width: 0;
+  height: 0;
+  margin-left: 10rpx;
+  border-left: 8rpx solid transparent;
+  border-right: 8rpx solid transparent;
+  border-top: 9rpx solid var(--text-2);
 }
 .nav__sub {
   font-size: var(--fs-caption);

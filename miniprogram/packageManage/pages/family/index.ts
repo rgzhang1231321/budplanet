@@ -5,6 +5,29 @@ import { call } from '../../../utils/request';
 import { report } from '../../../utils/report';
 import { requestOne } from '../../../utils/subscribe';
 
+/** P1-4：邀请发出后本地留痕，用于「已发出邀请 · 等待加入」占位（48h 后变「再发一次」） */
+const INV_KEY = 'invite_pending_v1';
+
+function inviteState(fid: string): { at: number; memberCount: number } | null {
+  try {
+    const all = wx.getStorageSync(INV_KEY) || {};
+    return all[fid] || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function markInvited(fid: string, memberCount: number) {
+  if (!fid) return;
+  try {
+    const all = wx.getStorageSync(INV_KEY) || {};
+    all[fid] = { at: Date.now(), memberCount };
+    wx.setStorageSync(INV_KEY, all);
+  } catch (e) {
+    /* ignore */
+  }
+}
+
 Page({
   data: {
     name: '',
@@ -15,6 +38,10 @@ Page({
     path: '',
     showMissedCta: false,
     missedLater: false,
+    /** P1-4：已发出邀请、对方还没加入 */
+    pendingInvite: false,
+    pendingText: '',
+    pendingResend: false,
   },
 
   async onShow() {
@@ -30,10 +57,17 @@ Page({
     const roleMap: Record<string, string> = { admin: '管理员', member: '成员', elder: '服药人' };
     const isAdmin = s.family.role === 'admin';
     const quota = (s.user.quota || {}) as any;
+    // P1-4：邀请发出后成员数没涨 = 对方还没进来。48h 后把文案换成「再发一次」。
+    const inv = inviteState(s.family.fid);
+    const stillPending = !!inv && s.family.members.length <= inv.memberCount;
+    const waitedDays = inv ? Math.floor((Date.now() - inv.at) / 86400000) : 0;
     this.setData({
       name: s.family.name || '我家',
       token: s.family.inviteToken,
       isAdmin,
+      pendingInvite: isAdmin && stillPending,
+      pendingText: waitedDays >= 2 ? `邀请已发出 ${waitedDays} 天，还没进来` : '邀请已发出，等家人加入',
+      pendingResend: waitedDays >= 2,
       canLeave: s.family.members.length > 1,
       // 非管理员没有邀请码（family.info 只对 admin 下发），拼出来的 `invite=` 是空串，
       // 落地页会当成"没有邀请"走普通欢迎页 —— 与其发一张假邀请卡，不如分享普通入口。
@@ -71,10 +105,19 @@ Page({
     wx.setClipboardData({
       data: code,
       success: () => {
-        report('invite_code_copy', { fid: get().family.fid });
+        const s = get();
+        report('invite_code_copy', { fid: s.family.fid });
+        // P1-4：复制即视为"已发出邀请"，成员数没涨就显示待加入占位
+        markInvited(s.family.fid, s.family.members.length);
+        this.setData({ pendingInvite: true, pendingText: '邀请已发出，等家人加入', pendingResend: false });
         wx.showToast({ title: '邀请码已复制', icon: 'none' });
       },
     });
+  },
+
+  /** P1-4：再发一次（复制并重置计时） */
+  onResend() {
+    this.onCopyCode();
   },
 
   onReset() {
@@ -97,7 +140,9 @@ Page({
   },
 
   onShareAppMessage() {
+    const s = get();
     report('share_click', { channel: 'wechat', from: 'invite' });
+    markInvited(s.family.fid, s.family.members.length);
     return {
       title: '一起盯着爸妈吃药',
       path: this.data.path,

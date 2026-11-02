@@ -58,6 +58,15 @@
       </view>
     </view>
 
+    <!-- P1-4 待加入占位：邀请发出后，管理员能看到"对方进没进" -->
+    <view wx:if="{{pendingInvite}}" class="pending">
+      <view class="pending__main">
+        <text class="pending__title">已发出邀请 · 等待加入</text>
+        <text class="pending__desc">{{pendingText}}</text>
+      </view>
+      <view wx:if="{{pendingResend}}" class="pending__act" catchtap="onResend">再发一次</view>
+    </view>
+
     <!-- 成员列表下方给一个显式的「再邀请」入口：
          原先只能回到页面顶部找分享按钮，加完第一个人后不知道还能不能继续加。
          邀请码是长期有效的（除非主动「重发邀请码」），所以同一个按钮可以反复用。

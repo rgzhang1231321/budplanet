@@ -1,12 +1,13 @@
 <view class="p-root">
-  <page-nav title="历史记录" back="{{true}}"></page-nav>
+  <page-nav title="{{self ? '我的记录' : '历史记录'}}" back="{{true}}"></page-nav>
 
   <view class="page page--safe">
     <block wx:if="{{!isEmpty}}">
       <view wx:for="{{groups}}" wx:key="date" class="g">
         <view class="g__head">
           <text class="g__date">{{item.label}}</text>
-          <text class="g__sum">{{item.taken}}/{{item.total}}</text>
+          <!-- 服药人本人不做完成率评价，只看事实 -->
+          <text wx:if="{{!self}}" class="g__sum">{{item.taken}}/{{item.total}}</text>
         </view>
         <view class="list">
           <view wx:for="{{item.rows}}" wx:for-item="row" wx:key="dose_id" class="hrow">

@@ -3,6 +3,9 @@
   <page-nav
     title="{{elder ? '今天要吃的药' : familyName}}"
     subtitle="{{elder ? '' : dateText}}"
+    titleTap="{{!elder && families.length > 1}}"
+    titleChevron="{{!elder && families.length > 1}}"
+    bind:titletap="onSwitchFamily"
   >
     <view slot="right">
       <view wx:if="{{elder}}" class="nav-act" bindtap="onSettings">

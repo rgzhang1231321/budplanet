@@ -187,3 +187,36 @@
   color: var(--text-3);
   text-align: center;
 }
+
+/* ── P1-4 待加入占位 ── */
+.pending {
+  margin-top: var(--sp-3);
+  display: flex;
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-m);
+  background: var(--bg-page);
+  border: 1rpx dashed var(--line);
+}
+.pending__main {
+  flex: 1;
+  min-width: 0;
+}
+.pending__title {
+  display: block;
+  font-size: var(--fs-body);
+  color: var(--text-1);
+  font-weight: 600;
+}
+.pending__desc {
+  display: block;
+  margin-top: 4rpx;
+  font-size: var(--fs-micro);
+  color: var(--text-3);
+}
+.pending__act {
+  flex: none;
+  font-size: var(--fs-caption);
+  color: var(--brand-600);
+  font-weight: 600;
+}

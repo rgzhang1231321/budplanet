@@ -29,6 +29,32 @@
       </view>
     </view>
 
+    <!-- P1-5 时段洞察：最容易漏的是哪个时段 -->
+    <view wx:if="{{topPeriodLabel}}" class="card mt-3 insight">
+      <text class="insight__title">{{topPeriodLabel}}</text>
+      <view class="pbars">
+        <view wx:for="{{byPeriod}}" wx:key="key" class="pbar">
+          <text class="pbar__label">{{item.label}}</text>
+          <view class="pbar__track">
+            <view class="pbar__fill {{item.top ? 'pbar__fill--top' : ''}}" style="width:{{item.pct}}%"></view>
+          </view>
+          <text class="pbar__count">{{item.count}} 次</text>
+        </view>
+      </view>
+      <text wx:if="{{insightCompare}}" class="insight__foot">{{insightCompare}}</text>
+    </view>
+
+    <!-- P1-5 按药洞察：哪种药最容易漏 -->
+    <view wx:if="{{byMed.length}}" class="card mt-3 insight">
+      <text class="insight__title">哪种药最容易漏</text>
+      <view class="medrows">
+        <view wx:for="{{byMed}}" wx:key="name" class="medrow">
+          <text class="medrow__name">{{item.name}}</text>
+          <text class="medrow__count">{{item.count}} 次</text>
+        </view>
+      </view>
+    </view>
+
     <text class="label">漏服明细</text>
     <view wx:if="{{misses.length}}" class="list">
       <view wx:for="{{misses}}" wx:key="index" class="mrow">

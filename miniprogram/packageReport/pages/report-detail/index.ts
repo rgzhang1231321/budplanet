@@ -15,6 +15,13 @@ Page({
     manualCount: 0,
     misses: [] as any[],
     days: [] as any[],
+    /** P1-5：时段洞察（早/中/晚热力条） */
+    byPeriod: [] as any[],
+    /** P1-5：按药洞察（哪种药最容易漏） */
+    byMed: [] as any[],
+    /** P1-5：与上周对比的一句话结论 */
+    insightCompare: '',
+    topPeriodLabel: '',
     /** 读失败：不能停在一片空白的 0%，那看起来像"这周真的一次没漏" */
     loadError: false,
   },
@@ -49,6 +56,61 @@ Page({
       const d: any = await apiGet('schedule', 'week', { fid: s.family.fid, weekStart: week }, { silent: true });
       const start = week || d.weekStart || '';
       const missDates = (d.missList || []).map((m: any) => m.date);
+
+      // P1-5：洞察全部从本周 missList 聚合，不新增接口。
+      // 时段按 slot 分钟数分桶：<11:00 早 / 11:00-17:00 中 / ≥17:00 晚。
+      const periodOf = (slot: number) => (slot < 11 * 60 ? '早' : slot < 17 * 60 ? '中' : '晚');
+      const cur = { 早: 0, 中: 0, 晚: 0 } as Record<string, number>;
+      (d.missList || []).forEach((m: any) => {
+        const k = periodOf(m.slot);
+        cur[k] += 1;
+      });
+      // 与上周对比：同桶再算一次（免费周报已给"漏了 3 次"，这里给"多漏/少漏"的增量）
+      let prev = { 早: 0, 中: 0, 晚: 0 } as Record<string, number>;
+      if (start) {
+        const p: any = await apiGet(
+          'schedule',
+          'week',
+          { fid: s.family.fid, weekStart: addDays(start, -7) },
+          { silent: true },
+        ).catch(() => null);
+        (p && p.missList ? p.missList : []).forEach((m: any) => {
+          const k = periodOf(m.slot);
+          prev[k] += 1;
+        });
+      }
+      const maxPeriod = Math.max(cur.早, cur.中, cur.晚, 1);
+      const periodLabel: Record<string, string> = { 早: '早上', 中: '中午', 晚: '晚上' };
+      const byPeriod = ['早', '中', '晚'].map((k) => ({
+        key: k,
+        label: periodLabel[k],
+        count: cur[k],
+        // 条长相对本周最大桶，最大桶恒为 100%
+        pct: Math.round((cur[k] / maxPeriod) * 100),
+        top: cur[k] > 0 && cur[k] === maxPeriod,
+      }));
+      const topKey = ['早', '中', '晚'].reduce((a, b) => (cur[b] > cur[a] ? b : a), '早');
+      const diff = cur[topKey] - prev[topKey];
+      const insightCompare =
+        cur[topKey] > 0
+          ? diff > 0
+            ? `${periodLabel[topKey]}比上周多漏了 ${diff} 次`
+            : diff < 0
+              ? `${periodLabel[topKey]}比上周少漏了 ${-diff} 次`
+              : `${periodLabel[topKey]}和上周一样`
+          : '';
+      const topPeriodLabel = cur[topKey] > 0 ? `最容易漏的是${periodLabel[topKey]}` : '';
+
+      // 按药聚合：哪种药漏得最多
+      const medMap: Record<string, number> = {};
+      (d.missList || []).forEach((m: any) => {
+        medMap[m.medicine_name] = (medMap[m.medicine_name] || 0) + 1;
+      });
+      const byMed = Object.keys(medMap)
+        .map((name) => ({ name, count: medMap[name] }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
+
       this.setData({
         loadError: false,
         week: start,
@@ -56,6 +118,10 @@ Page({
         rate: d.rate || 0,
         missCount: (d.missList || []).length,
         manualCount: d.manualCorrectCount || 0,
+        byPeriod,
+        byMed,
+        insightCompare,
+        topPeriodLabel,
         misses: (d.missList || []).map((m: any) => ({
           date: shortDate(m.date),
           week: weekdayOf(m.date),

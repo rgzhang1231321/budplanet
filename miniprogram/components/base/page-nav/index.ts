@@ -12,6 +12,10 @@ Component({
     /** 不留右侧胶囊位（无右侧动作时仍留位，保证标题不被胶囊压住） */
     reserveCapsule: { type: Boolean, value: true },
     bg: { type: String, value: '' },
+    /** 标题可点（多家庭切换用），点击抛 titletap 事件 */
+    titleTap: { type: Boolean, value: false },
+    /** 标题右侧显示下拉小三角，暗示"可以切" */
+    titleChevron: { type: Boolean, value: false },
   },
   data: {
     statusBar: 20,
@@ -26,6 +30,9 @@ Component({
     },
   },
   methods: {
+    onTitleTap() {
+      if (this.data.titleTap) this.triggerEvent('titletap');
+    },
     goBack() {
       if (this.data.interceptBack) {
         this.triggerEvent('back');

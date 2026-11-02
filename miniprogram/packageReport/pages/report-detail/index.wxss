@@ -153,3 +153,81 @@
   color: var(--text-3);
   line-height: 1.7;
 }
+
+/* ── P1-5 洞察卡 ── */
+.insight {
+  padding: var(--sp-4);
+}
+.insight__title {
+  display: block;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--text-1);
+}
+.insight__foot {
+  display: block;
+  margin-top: var(--sp-3);
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+.pbars {
+  margin-top: var(--sp-3);
+}
+.pbar {
+  display: flex;
+  align-items: center;
+  margin-top: var(--sp-2);
+}
+.pbar__label {
+  width: 80rpx;
+  flex: none;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+}
+.pbar__track {
+  flex: 1;
+  height: 16rpx;
+  border-radius: 8rpx;
+  background: var(--bg-page);
+  overflow: hidden;
+}
+.pbar__fill {
+  height: 100%;
+  border-radius: 8rpx;
+  background: var(--brand-500);
+  min-width: 4rpx;
+}
+.pbar__fill--top {
+  background: var(--st-missed);
+}
+.pbar__count {
+  width: 96rpx;
+  flex: none;
+  text-align: right;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.medrows {
+  margin-top: var(--sp-2);
+}
+.medrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72rpx;
+  border-top: 1rpx solid var(--line);
+}
+.medrow:first-child {
+  border-top: none;
+}
+.medrow__name {
+  font-size: var(--fs-body);
+  color: var(--text-1);
+}
+.medrow__count {
+  font-size: var(--fs-caption);
+  color: var(--st-missed);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

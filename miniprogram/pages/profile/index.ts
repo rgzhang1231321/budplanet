@@ -1,5 +1,5 @@
 /** pages/profile —— P40 我的（双模切换、家庭、额度、合规入口） */
-import { bootstrap, resetSession, setMode } from '../../store/user';
+import { bootstrap, resetSession, setMode, switchFamily } from '../../store/user';
 import { get, isElder, on } from '../../store/index';
 import { call } from '../../utils/request';
 import { unlockByAd, PRODUCT } from '../../utils/ad';
@@ -11,6 +11,9 @@ Page({
     nickname: '我',
     initial: '我',
     familyName: '',
+    /** P1-3：家庭数量与"当前：张家 · 共 2 个家"文案 */
+    familyCount: 0,
+    familySub: '',
     roleText: '',
     credits: 0,
     medCount: 0,
@@ -37,11 +40,15 @@ Page({
   render() {
     const s = get();
     const roleMap: Record<string, string> = { admin: '管理员', member: '家庭成员', elder: '服药人' };
+    const familyCount = (s.family.all || []).length;
+    const familyName = s.family.name || '我家';
     this.setData({
       elder: isElder(),
       nickname: s.user.nickname || '我',
       initial: (s.user.nickname || '我').slice(0, 1),
-      familyName: s.family.name || '我家',
+      familyName,
+      familyCount,
+      familySub: familyCount > 1 ? `${familyName} · 共 ${familyCount} 个家` : familyName,
       roleText: `${roleMap[s.family.role] || '家庭成员'} · ${s.family.members.length} 人在这个家`,
       credits: s.user.entitlement.credits || 0,
       limit: s.user.config.freeMedLimit,
@@ -83,6 +90,30 @@ Page({
 
   onNudgeClose() {
     this.setData({ showNudge: false });
+  },
+
+  /** P1-3：多家庭切换（>1 个家才可点） */
+  onSwitchFamily() {
+    const s = get();
+    const list = s.family.all || [];
+    if (list.length <= 1) {
+      wx.showToast({ title: '只加入了 1 个家庭', icon: 'none' });
+      return;
+    }
+    wx.showActionSheet({
+      itemList: list.map((f) => `${f.name}${f.fid === s.family.fid ? '（当前）' : ''}`),
+      success: async (r) => {
+        const target = list[r.tapIndex];
+        if (!target || target.fid === s.family.fid) return;
+        try {
+          await switchFamily(target.fid);
+          this.render();
+          wx.showToast({ title: `已切到${target.name}`, icon: 'none' });
+        } catch (e: any) {
+          wx.showToast({ title: (e && e.msg) || '切换失败，稍后再试', icon: 'none' });
+        }
+      },
+    });
   },
 
   go(e: any) {

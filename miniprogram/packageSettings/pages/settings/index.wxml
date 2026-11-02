@@ -25,6 +25,12 @@
         <text class="elist__label">家庭成员</text>
         <view class="i i-chevron"></view>
       </view>
+      <!-- P1-7：老人端「我的记录」——只读近 7 天自己的服药，不做完成率评价 -->
+      <view class="elist__row" data-url="/packageReport/pages/history/index" bindtap="go">
+        <view class="list__ico"><view class="i i-chart"></view></view>
+        <text class="elist__label">我的记录</text>
+        <view class="i i-chevron"></view>
+      </view>
       <view class="elist__row" data-url="/pages/legal/index?type=privacy" bindtap="go">
         <view class="list__ico"><view class="i i-doc"></view></view>
         <text class="elist__label">隐私政策</text>
@@ -53,7 +59,7 @@
         <text class="list__value">{{quietText}}</text>
         <switch checked="{{quiet}}" color="#2E6BE6" bindchange="onQuiet" style="transform:scale(0.85)" />
       </view>
-      <view class="list__row" bindtap="onSubscribe">
+      <view class="list__row" data-url="/packageSettings/pages/quota/index" bindtap="go">
         <text class="list__label">用药提醒</text>
         <text class="list__value">{{quotaText}}</text>
         <view class="i i-chevron"></view>

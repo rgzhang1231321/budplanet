@@ -37,6 +37,13 @@
         <text class="list__label">家庭组与成员</text>
         <view class="i i-chevron"></view>
       </view>
+      <!-- P1-3 多家庭切换：只有加入 >1 个家时才给下拉 -->
+      <view class="list__row" bindtap="onSwitchFamily">
+        <view class="list__ico"><view class="i i-user"></view></view>
+        <text class="list__label">当前家庭</text>
+        <text class="list__value">{{familySub}}</text>
+        <view wx:if="{{familyCount > 1}}" class="i i-chevron"></view>
+      </view>
       <view class="list__row" data-url="/packageManage/pages/patient/index" bindtap="go">
         <view class="list__ico"><view class="i i-user"></view></view>
         <text class="list__label">服药人</text>

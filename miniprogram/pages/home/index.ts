@@ -3,7 +3,7 @@
  * 身份（isSelf = 我本人也是服药人）与字号（isElder = 大字版）是两件事：
  * 服药人默认也用普通版，字号由他手动切；但不能让他看全家的药单、也不能给他红字漏服告警。
  */
-import { bootstrap, refreshToday } from '../../store/user';
+import { bootstrap, refreshToday, switchFamily } from '../../store/user';
 import { get, groups, isElder, isSelf, on, overview, visibleRows } from '../../store/index';
 import { correct, skip, take } from '../../store/today';
 import { dateCN, dayStartTs, humanDate, humanGap, diffMinutes, tsToTime } from '../../utils/time';
@@ -39,6 +39,8 @@ Page({
     statusBar: 20,
     elder: false,
     familyName: '我家',
+    /** P1-3：我加入的全部家庭，>1 时标题可下拉切换 */
+    families: [] as any[],
     dateText: '',
     ov: { taken: 0, total: 0, rate: 0, missed: 0, pending: 0 },
     perText: '',
@@ -152,6 +154,7 @@ Page({
     const base = {
       elder,
       familyName: s.family.name || '我家',
+      families: s.family.all || [],
       dateText: `今天 ${humanDate(s.today.date)}`,
       ov,
       perText,
@@ -345,6 +348,27 @@ Page({
   onMissedBar() {
     const row = visibleRows().find((r) => r.status === 'missed');
     if (row) wx.navigateTo({ url: `/pages/checkin/index?dose=${row.dose_id}` });
+  },
+
+  /** P1-3：切换家庭（标题下拉）。只有 >1 个家时才给入口。 */
+  onSwitchFamily() {
+    const s = get();
+    const list = s.family.all || [];
+    if (list.length <= 1) return;
+    wx.showActionSheet({
+      itemList: list.map((f) => `${f.name}${f.fid === s.family.fid ? '（当前）' : ''}`),
+      success: async (r) => {
+        const target = list[r.tapIndex];
+        if (!target || target.fid === s.family.fid) return;
+        try {
+          await switchFamily(target.fid);
+          this.render();
+          wx.showToast({ title: `已切到${target.name}`, icon: 'none' });
+        } catch (e: any) {
+          wx.showToast({ title: (e && e.msg) || '切换失败，稍后再试', icon: 'none' });
+        }
+      },
+    });
   },
 
   onAdd() {
