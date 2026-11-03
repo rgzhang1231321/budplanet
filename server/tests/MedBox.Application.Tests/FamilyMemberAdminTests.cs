@@ -244,4 +244,25 @@ public sealed class FamilyMemberAdminTests
         await act.Should().ThrowAsync<ForbiddenException>();
         kit.Db.Patients.Single(p => p.PatientId == DadPid).SelfOpenid.Should().BeNull();
     }
+
+    /// <summary>
+    /// ⛔ 管理员不能用「绑定服药人」给自己绑一条别人的档案。
+    /// 这正是 2026-11-02 事故的形状：在自己那行点「绑定服药人」→ 选「爸爸」→
+    /// 爸爸的药变成"我的药"，周报/历史/打卡全错位，而界面每一步都像正常操作。
+    /// 自己要吃药走首页「我自己吃药」（family.join role=patient），那条路只认领/新建属于本人的档案。
+    /// </summary>
+    [Fact]
+    public async Task 不能给自己绑别人的档案()
+    {
+        var kit = Build(PatientOf(DadPid, "爸爸"));
+        var handler = new FamilyBindMemberHandler(kit.Db, new MemberGuard(kit.Db, Clock()), Clock());
+
+        // admin 在自己那一行（targetOpenid == openid）绑「爸爸」那条
+        var act = () => handler.HandleAsync(Fid, AdminOpenid, AdminOpenid, DadPid);
+
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Message.Should().Contain("我自己吃药");
+        kit.Db.Patients.Single(p => p.PatientId == DadPid).SelfOpenid.Should().BeNull();
+        kit.Admin.SelfPatientId.Should().BeNull();
+    }
 }

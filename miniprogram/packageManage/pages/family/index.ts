@@ -284,7 +284,11 @@ Page({
     const m = (this.data.members as any[]).find((x: any) => x.openid === openid);
     if (!m || !this.data.isAdmin) return;
 
-    const actions: string[] = ['改称呼', m.boundUid ? '改绑服药人' : '绑定服药人'];
+    const actions: string[] = ['改称呼'];
+    // 「我」这一行不给绑定入口：这里是"把某条药单指给某位家人"，而给自己绑别人的档案
+    // 正是 2026-11-02 事故（爸爸的药变成"我的药"）的形状。自己要吃药走首页「我自己吃药」，
+    // 那条路会复用属于本人的档案、没有就新建「我」，不会碰到别人。
+    if (!m.isMe) actions.push(m.boundUid ? '改绑服药人' : '绑定服药人');
     if (!m.isMe) actions.push(m.role === 'admin' ? '取消管理员' : '设为管理员');
 
     wx.showActionSheet({

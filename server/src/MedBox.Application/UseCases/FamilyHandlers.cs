@@ -371,7 +371,20 @@ public sealed class FamilyLeaveHandler(IAppDbContext db, IClock clock)
         db.Remove(me);
 
         var bound = await db.Patients.Where(p => p.FamilyId == fid && p.SelfOpenid == openid).ToListAsync(ct);
-        foreach (var p in bound) p.SelfOpenid = null;
+        foreach (var p in bound)
+        {
+            p.SelfOpenid = null;
+            // 自动创建的空「我」一旦脱绑就没有语义了（「我」只在本人自绑时成立）。
+            // 不删的话它会挂在服药人列表和邀请选项里 —— 下次邀请时管理员看到一个"我"选项，不知所云。
+            // 只删"名下什么都没有"的那条；有药/有计划/有记录的留给家里人继续照看（上面 summary 的口径）。
+            if (p.Name == "我" && p.Alias == "我")
+            {
+                var hasData = await db.Medicines.AnyAsync(m => m.PatientId == p.PatientId, ct)
+                              || await db.Plans.AnyAsync(pl => pl.PatientId == p.PatientId, ct)
+                              || await db.DoseLogs.AnyAsync(d => d.PatientId == p.PatientId, ct);
+                if (!hasData) db.Remove(p);
+            }
+        }
 
         var family = await db.Families.FirstOrDefaultAsync(f => f.FamilyId == fid, ct);
         if (family is not null) family.MemberCount = Math.Max(0, family.MemberCount - 1);
@@ -496,12 +509,31 @@ public sealed class FamilyBindMemberHandler(IAppDbContext db, IMemberGuard guard
         string outcome;
         if (wanted.Length == 0)
         {
-            foreach (var p in mine) p.SelfOpenid = null;
+            foreach (var p in mine)
+            {
+                p.SelfOpenid = null;
+                // 同上：空「我」脱绑后删掉，免得混进邀请选项
+                if (p.Name == "我" && p.Alias == "我")
+                {
+                    var hasData = await db.Medicines.AnyAsync(m => m.PatientId == p.PatientId, ct)
+                                  || await db.Plans.AnyAsync(pl => pl.PatientId == p.PatientId, ct)
+                                  || await db.DoseLogs.AnyAsync(d => d.PatientId == p.PatientId, ct);
+                    if (!hasData) db.Remove(p);
+                }
+            }
             target.SelfPatientId = null;
             outcome = "unbound";
         }
         else
         {
+            // ⛔ 不许用这个入口给自己绑一条别人的档案。
+            // 这正是 2026-11-02 事故的形状：管理员点开自己那行 → 选「爸爸」那条档案 →
+            // 于是"爸爸的药"变成"我的药"（周报/历史/打卡全错位），而界面每一步都像正常操作。
+            // 自己要吃药走 family.join(role=patient)（首页「我自己吃药」），那条路会复用
+            // 已经属于本人的档案、没有就新建一条「我」，全程不碰别人的绑定。
+            if (targetOpenid == openid)
+                throw new ValidationException("自己的药单请在首页选「我自己吃药」设置，别在自己这一行绑别人的档案");
+
             var patient = await db.Patients.FirstOrDefaultAsync(
                 p => p.FamilyId == fid && p.PatientId == wanted && p.Status == "active", ct)
                 ?? throw new ValidationException("这条服药档案不在这个家里（可能已归档）");
@@ -513,7 +545,18 @@ public sealed class FamilyBindMemberHandler(IAppDbContext db, IMemberGuard guard
                     $"「{PatientDisplay(patient)}」已经绑给{holder}了，请先把 TA 解绑再绑");
             }
 
-            foreach (var p in mine) p.SelfOpenid = null;
+            foreach (var p in mine)
+            {
+                p.SelfOpenid = null;
+                // 同 FamilyLeaveHandler：自动创建的空「我」脱绑后没有语义，删掉免得混进邀请选项。
+                if (p.Name == "我" && p.Alias == "我")
+                {
+                    var hasData = await db.Medicines.AnyAsync(m => m.PatientId == p.PatientId, ct)
+                                  || await db.Plans.AnyAsync(pl => pl.PatientId == p.PatientId, ct)
+                                  || await db.DoseLogs.AnyAsync(d => d.PatientId == p.PatientId, ct);
+                    if (!hasData) db.Remove(p);
+                }
+            }
             patient.SelfOpenid = targetOpenid;
             target.SelfPatientId = patient.PatientId;
             outcome = mine.Any(p => p.PatientId == patient.PatientId) ? "rebound_same" : "bound";
